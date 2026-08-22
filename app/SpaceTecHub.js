@@ -7,6 +7,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   const [entered, setEntered] = useState(false);
   const [bgIndex, setBgIndex] = useState(0);
   const [activeAgency, setActiveAgency] = useState(null);
+  const [agencyBatchIndex, setAgencyBatchIndex] = useState(0);
   const canvasRef = useRef(null);
 
   const spaceBackgrounds = [
@@ -16,32 +17,54 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
   ];
 
-  // Exactly 3 Agencies: NASA (Left), SpaceX (Middle), ISRO (Right)
-  const agencies = [
-    {
-      id: 'nasa',
-      name: 'NASA',
-      tagline: 'SATURN V & ARTEMIS',
-      bgGradient: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)',
-      accentColor: '#3b82f6',
-      specialty: 'Saturn V Lunar Legacy, Webb Telescope & Artemis Moon Missions'
-    },
-    {
-      id: 'spacex',
-      name: 'SPACEX',
-      tagline: 'STARSHIP FLEET',
-      bgGradient: 'linear-gradient(135deg, #18181b 0%, #27272a 100%)',
-      accentColor: '#ff6600',
-      specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture'
-    },
-    {
-      id: 'isro',
-      name: 'ISRO',
-      tagline: 'GSLV MK III & CHANDRAYAAN',
-      bgGradient: 'linear-gradient(135deg, #1c1917 0%, #431407 100%)',
-      accentColor: '#ff9933',
-      specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan'
-    }
+  // 6 Total Agencies divided into 2 batches of 3
+  const agencyBatches = [
+    [
+      {
+        id: 'nasa',
+        name: 'NASA',
+        tagline: 'SATURN V & ARTEMIS',
+        accentColor: '#3b82f6',
+        specialty: 'Saturn V Lunar Legacy, Webb Telescope & Artemis Moon Missions'
+      },
+      {
+        id: 'spacex',
+        name: 'SPACEX',
+        tagline: 'STARSHIP FLEET',
+        accentColor: '#ff6600',
+        specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture'
+      },
+      {
+        id: 'isro',
+        name: 'ISRO',
+        tagline: 'GSLV MK III & CHANDRAYAAN',
+        accentColor: '#ff9933',
+        specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan'
+      }
+    ],
+    [
+      {
+        id: 'esa',
+        name: 'ESA',
+        tagline: 'ARIANE 6 & COSMIC VISION',
+        accentColor: '#60a5fa',
+        specialty: 'Ariane 6 Heavy Lift System & Euclid Dark Energy Mapping'
+      },
+      {
+        id: 'jaxa',
+        name: 'JAXA',
+        tagline: 'H3 & ASTEROID SAMPLING',
+        accentColor: '#2dd4bf',
+        specialty: 'H3 Next-Gen Rocket & Hayabusa Asteroid Sample Return'
+      },
+      {
+        id: 'roscosmos',
+        name: 'ROSCOSMOS',
+        tagline: 'SOYUZ & ISS SEGMENT',
+        accentColor: '#ef4444',
+        specialty: 'Soyuz Crew Transport Systems & Orbital Segment Operations'
+      }
+    ]
   ];
 
   useEffect(() => {
@@ -51,11 +74,20 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     return () => clearInterval(bgTimer);
   }, [spaceBackgrounds.length]);
 
+  // Automatically switch agency batches every 8 seconds
+  useEffect(() => {
+    const batchTimer = setInterval(() => {
+      setAgencyBatchIndex((prev) => (prev === 0 ? 1 : 0));
+      setActiveAgency(null); // Reset hover on switch
+    }, 8000);
+    return () => clearInterval(batchTimer);
+  }, []);
+
   useEffect(() => {
     const autoEnterTimer = setTimeout(() => {
       setEntered(true);
     }, 2500);
-    return () => clearTimeout(autoEnterTimer);
+    return () => clearInterval(autoEnterTimer);
   }, []);
 
   useEffect(() => {
@@ -165,12 +197,13 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           border-right: 1px solid rgba(255, 255, 255, 0.12);
           overflow: hidden;
           cursor: pointer;
-          transition: flex 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+          transition: flex 0.6s cubic-bezier(0.16, 1, 0.3, 1);
           display: flex;
           flex-direction: column;
           justify-content: space-between;
           padding: 2.5rem 2rem;
           box-sizing: border-box;
+          background: rgba(12, 12, 14, 0.85);
         }
 
         .agency-column:last-child {
@@ -285,7 +318,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         style={{ position: 'relative', zIndex: 3, paddingTop: '8rem', pointerEvents: entered ? 'auto' : 'none' }}
       >
         
-        {/* HERO SECTION - CLEANED UP TYPOGRAPHY & SPACING */}
+        {/* HERO SECTION */}
         <section className="content-container" style={{ paddingBottom: '4rem' }}>
           <motion.div 
             initial="hidden"
@@ -302,7 +335,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             </motion.h2>
 
             <motion.p variants={fadeInUp} style={{ fontSize: '1.05rem', color: '#d4d4d8', lineHeight: '1.7', maxWidth: '680px', marginBottom: '2.5rem', fontWeight: '400' }}>
-              Real-time trajectory tracking, global rocket launch manifests, and deep space observations aggregated directly from NASA, SpaceX, and ISRO.
+              Real-time trajectory tracking, global rocket launch manifests, and deep space observations aggregated directly from global aerospace networks.
             </motion.p>
             
             <motion.div variants={fadeInUp} style={{ display: 'flex', gap: '1.2rem', flexWrap: 'wrap' }}>
@@ -337,7 +370,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           >
             {[
               { label: 'DEEP SPACE OBSERVATION', val: apodData?.title ? apodData.title.slice(0, 20) + '...' : 'NASA APOD' },
-              { label: 'NETWORK NODES', val: 'NASA • SPACEX • ISRO' },
+              { label: 'NETWORK NODES', val: '6 GLOBAL AGENCIES' },
               { label: 'NEXT LAUNCH WINDOW', val: upcomingLaunches[0] ? new Date(upcomingLaunches[0].net).toLocaleDateString() : 'SYNCING...' },
               { label: 'SYSTEM STATUS', val: 'ONLINE / OPTICAL' }
             ].map((stat, idx) => (
@@ -377,59 +410,73 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </section>
         )}
 
-        {/* EXPLORE SPACE AGENCIES (NASA, SPACEX, ISRO WITH OVERLAPPING ACCORDION HOVER) */}
+        {/* EXPLORE SPACE AGENCIES (ROTATING BATCHES WITH MAXIMUM EXPANSION ACCORDION) */}
         <section className="content-container" style={{ paddingBottom: '6rem' }}>
-          <div style={{ marginBottom: '2rem' }}>
-            <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
-              // GLOBAL AEROSPACE ARCHITECTURE
-            </span>
-            <h2 style={{ fontSize: '2rem', textTransform: 'uppercase', margin: '0.5rem 0 0 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
-              EXPLORE SPACE AGENCIES ACROSS THE GLOBE
-            </h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2rem' }}>
+            <div>
+              <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
+                // GLOBAL AEROSPACE ARCHITECTURE
+              </span>
+              <h2 style={{ fontSize: '2rem', textTransform: 'uppercase', margin: '0.5rem 0 0 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
+                EXPLORE SPACE AGENCIES ACROSS THE GLOBE
+              </h2>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.65rem', letterSpacing: '2px', color: '#a1a1aa', textTransform: 'uppercase' }}>
+                BATCH {agencyBatchIndex + 1} / 2
+              </span>
+            </div>
           </div>
 
-          <div className="glass-card" style={{ display: 'flex', borderRadius: '2px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)' }}>
-            {agencies.map((agency) => {
-              const isHovered = activeAgency === agency.id;
-              let flexValue = 1;
-              if (activeAgency !== null) {
-                flexValue = isHovered ? 3.5 : 0.7; // Expands heavily and covers/squeezes the others
-              }
+          <AnimatePresence mode="wait">
+            <motion.div 
+              key={agencyBatchIndex}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.5 }}
+              className="glass-card" 
+              style={{ display: 'flex', borderRadius: '2px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)' }}
+            >
+              {agencyBatches[agencyBatchIndex].map((agency, index) => {
+                const isHovered = activeAgency === agency.id;
+                let flexValue = 1;
+                if (activeAgency !== null) {
+                  flexValue = isHovered ? 6 : 0.2; // Hovered card takes almost all space, others shrink to thin strips
+                }
 
-              return (
-                <div
-                  key={agency.id}
-                  className="agency-column"
-                  style={{
-                    flex: flexValue,
-                    background: agency.bgGradient,
-                  }}
-                  onMouseEnter={() => setActiveAgency(agency.id)}
-                  onMouseLeave={() => setActiveAgency(null)}
-                >
-                  <div style={{ position: 'relative', zIndex: 2 }}>
-                    <span style={{ fontSize: '0.65rem', letterSpacing: '3px', textTransform: 'uppercase', color: isHovered ? agency.accentColor : '#a1a1aa', fontWeight: '800', transition: 'color 0.3s ease' }}>
-                      // 0{agencies.indexOf(agency) + 1}
-                    </span>
+                return (
+                  <div
+                    key={agency.id}
+                    className="agency-column"
+                    style={{ flex: flexValue }}
+                    onMouseEnter={() => setActiveAgency(agency.id)}
+                    onMouseLeave={() => setActiveAgency(null)}
+                  >
+                    <div>
+                      <span style={{ fontSize: '0.65rem', letterSpacing: '3px', textTransform: 'uppercase', color: isHovered ? agency.accentColor : '#a1a1aa', fontWeight: '800', transition: 'color 0.3s ease' }}>
+                        // 0{agencyBatchIndex * 3 + index + 1}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h3 style={{ fontSize: '1.8rem', fontWeight: '900', letterSpacing: '3px', margin: '0 0 0.5rem 0', color: '#ffffff', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {agency.name}
+                      </h3>
+                      
+                      <p style={{ fontSize: '0.7rem', letterSpacing: '2px', color: agency.accentColor, textTransform: 'uppercase', margin: '0 0 1rem 0', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {agency.tagline}
+                      </p>
+
+                      <p style={{ fontSize: '0.85rem', color: '#d4d4d8', lineHeight: '1.6', margin: 0, opacity: isHovered ? 1 : 0.6, transition: 'opacity 0.3s ease', display: isHovered || activeAgency === null ? 'block' : 'none' }}>
+                        {agency.specialty}
+                      </p>
+                    </div>
                   </div>
-
-                  <div style={{ position: 'relative', zIndex: 2 }}>
-                    <h3 style={{ fontSize: '1.8rem', fontWeight: '900', letterSpacing: '3px', margin: '0 0 0.5rem 0', color: '#ffffff', textTransform: 'uppercase' }}>
-                      {agency.name}
-                    </h3>
-                    
-                    <p style={{ fontSize: '0.7rem', letterSpacing: '2px', color: agency.accentColor, textTransform: 'uppercase', margin: '0 0 1rem 0', fontWeight: '700' }}>
-                      {agency.tagline}
-                    </p>
-
-                    <p style={{ fontSize: '0.85rem', color: '#d4d4d8', lineHeight: '1.6', margin: 0, opacity: isHovered ? 1 : 0.65, transition: 'opacity 0.3s ease', maxWidth: isHovered ? '450px' : '260px' }}>
-                      {agency.specialty}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </motion.div>
+          </AnimatePresence>
         </section>
 
         {/* UPCOMING GLOBAL LAUNCHES GRID */}
