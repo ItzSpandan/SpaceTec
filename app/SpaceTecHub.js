@@ -8,7 +8,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   const [bgIndex, setBgIndex] = useState(0);
   const canvasRef = useRef(null);
 
-  // Dynamic list of dark space photographs for cycling background
+  // Dynamic dark space photography backgrounds
   const spaceBackgrounds = [
     apodData?.media_type === 'image' ? apodData.url : 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072',
     'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?q=80&w=2070',
@@ -23,6 +23,15 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     }, 7000);
     return () => clearInterval(bgTimer);
   }, [spaceBackgrounds.length]);
+
+  // AUTOMATIC ENTER TRANSITION (Triggers after 2.5s)
+  useEffect(() => {
+    const autoEnterTimer = setTimeout(() => {
+      setEntered(true);
+    }, 2500);
+
+    return () => clearTimeout(autoEnterTimer);
+  }, []);
 
   // Ambient Star Canvas
   useEffect(() => {
@@ -76,25 +85,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     };
   }, []);
 
-  // Trigger smooth scroll transition into dashboard
-  useEffect(() => {
-    if (entered) return;
-
-    const handleScroll = (e) => {
-      if (e.deltaY > 5) setEntered(true);
-    };
-
-    const handleTouch = () => setEntered(true);
-
-    window.addEventListener('wheel', handleScroll, { passive: true });
-    window.addEventListener('touchmove', handleTouch, { passive: true });
-
-    return () => {
-      window.removeEventListener('wheel', handleScroll);
-      window.removeEventListener('touchmove', handleTouch);
-    };
-  }, [entered]);
-
   const fadeInUp = {
     hidden: { opacity: 0, y: 30 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.9, ease: [0.16, 1, 0.3, 1] } }
@@ -111,11 +101,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700;900&display=swap');
 
-        @keyframes scrollPulse {
-          0%, 100% { transform: translateY(0); opacity: 0.4; }
-          50% { transform: translateY(8px); opacity: 1; }
-        }
-
         .space-bg-layer {
           position: fixed;
           top: 0; left: 0; width: 100vw; height: 100vh;
@@ -123,14 +108,14 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           background-position: center;
           z-index: 0;
           transition: opacity 1.8s ease-in-out;
-          filter: brightness(0.45) contrast(1.2);
+          filter: brightness(0.4) contrast(1.25);
         }
 
         .dark-overlay {
           position: fixed;
           inset: 0;
-          background: radial-gradient(circle at center, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.95) 100%),
-                      linear-gradient(180deg, rgba(0,0,0,0.6) 0%, #000000 100%);
+          background: radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%),
+                      linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%);
           z-index: 1;
           pointer-events: none;
         }
@@ -143,7 +128,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         }
       `}</style>
 
-      {/* DYNAMIC CROSS-FADING DARK SPACE PHOTOGRAPHY BACKGROUND */}
+      {/* CROSS-FADING DARK SPACE PHOTOGRAPHY BACKGROUND */}
       {spaceBackgrounds.map((bgUrl, idx) => (
         <div
           key={bgUrl}
@@ -159,7 +144,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       {/* AMBIENT STARFIELD CANVAS */}
       <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, zIndex: 2, pointerEvents: 'none' }} />
 
-      {/* NAVIGATION HEADER */}
+      {/* NAVIGATION HEADER WITH SOLID/BLURRED BACKDROP TO PREVENT SCROLL OVERLAP */}
       <motion.header 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -169,22 +154,26 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           top: 0,
           left: 0,
           right: 0,
-          zIndex: 10,
+          zIndex: 100,
           display: 'flex',
-          justify: 'space-between',
+          justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '2.5rem 3.5rem',
-          pointerEvents: entered ? 'auto' : 'none'
+          padding: '1.5rem 3.5rem',
+          backgroundColor: entered ? 'rgba(0, 0, 0, 0.85)' : 'transparent',
+          backdropFilter: entered ? 'blur(16px)' : 'none',
+          WebkitBackdropFilter: entered ? 'blur(16px)' : 'none',
+          borderBottom: entered ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid transparent',
+          transition: 'background-color 0.6s ease, backdrop-filter 0.6s ease, border-color 0.6s ease'
         }}
       >
-        {/* LOGO (Positioned top-left once entered) */}
+        {/* LOGO POSITIONED TOP-LEFT UPON ENTERING */}
         <div style={{ height: '2rem', display: 'flex', alignItems: 'center' }}>
           {entered && (
             <motion.span
               layoutId="spacetec-brand"
-              transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
               style={{
-                fontSize: '1.3rem',
+                fontSize: '1.25rem',
                 fontWeight: '900',
                 letterSpacing: '8px',
                 color: '#ffffff',
@@ -197,14 +186,16 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           )}
         </div>
 
-        {/* TOP RIGHT MENU ITEMS */}
+        {/* TOP RIGHT MENU ITEMS WITH SPACED THIN DIVIDERS */}
         <motion.div 
           animate={{ opacity: entered ? 1 : 0, y: entered ? 0 : -10 }}
           transition={{ duration: 0.6, delay: 0.3 }}
-          style={{ display: 'flex', gap: '2.5rem', fontSize: '0.75rem', letterSpacing: '3px', textTransform: 'uppercase', color: '#94a3b8' }}
+          style={{ display: 'flex', alignItems: 'center', gap: '2rem', fontSize: '0.75rem', letterSpacing: '3px', textTransform: 'uppercase', color: '#94a3b8' }}
         >
           <span style={{ color: '#ffffff', fontWeight: '600' }}>Live Telemetry</span>
+          <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
           <span>Agencies</span>
+          <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
           <span>Orbital Map</span>
         </motion.div>
       </motion.header>
@@ -223,68 +214,48 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               zIndex: 9999,
               display: 'flex',
               flexDirection: 'column',
-              justify: 'space-between',
+              justifyContent: 'center',
               alignItems: 'center',
-              padding: '4rem 2rem'
+              padding: '2rem'
             }}
           >
-            <div />
-
-            {/* SPACETEC CENTERPIECE (SLIDES TO HEADER ON ENTER) */}
-            <div style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => setEntered(true)}>
+            {/* SPACETEC CENTERED INTRO TITLE */}
+            <div style={{ textAlign: 'center' }}>
               <motion.div
                 layoutId="spacetec-brand"
-                transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                 initial={{ opacity: 0, scale: 0.9, letterSpacing: '0.12em' }}
-                animate={{ opacity: 1, scale: 1, letterSpacing: '0.2em' }}
+                animate={{ opacity: 1, scale: 1, letterSpacing: '0.22em' }}
               >
                 <h1 style={{
-                  fontSize: 'calc(3.8rem + 5vw)',
+                  fontSize: 'calc(4rem + 5vw)',
                   fontWeight: '900',
                   margin: 0,
                   textTransform: 'uppercase',
                   color: '#ffffff',
-                  filter: 'drop-shadow(0 0 30px rgba(255,255,255,0.2))'
+                  filter: 'drop-shadow(0 0 35px rgba(255,255,255,0.25))'
                 }}>
                   SPACETEC
                 </h1>
               </motion.div>
 
+              {/* CONCISE SUBTITLE */}
               <motion.p
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.4 }}
                 style={{
-                  fontSize: 'calc(0.75rem + 0.3vw)',
-                  letterSpacing: '10px',
+                  fontSize: 'calc(0.7rem + 0.3vw)',
+                  letterSpacing: '12px',
                   color: '#a1a1aa',
                   textTransform: 'uppercase',
-                  marginTop: '1.8rem',
-                  fontWeight: '400'
+                  marginTop: '1.5rem',
+                  fontWeight: '500'
                 }}
               >
-                Humanity's Gateway to the Cosmos
+                UNIFIED COSMIC INTELLIGENCE
               </motion.p>
             </div>
-
-            {/* SCROLL TO ENTER INDICATOR */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.8, delay: 0.6 }}
-              onClick={() => setEntered(true)}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.8rem', cursor: 'pointer' }}
-            >
-              <span style={{ fontSize: '0.65rem', letterSpacing: '5px', color: '#71717a', textTransform: 'uppercase', fontWeight: '600' }}>
-                SCROLL OR CLICK TO ENTER
-              </span>
-              <div style={{ animation: 'scrollPulse 2s infinite ease-in-out' }}>
-                <svg width="16" height="24" viewBox="0 0 16 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="0.5" y="0.5" width="15" height="23" rx="7.5" stroke="#ffffff" strokeOpacity="0.3"/>
-                  <circle cx="8" cy="7" r="2" fill="#ffffff"/>
-                </svg>
-              </div>
-            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -304,7 +275,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               // MULTI-AGENCY DEEP SPACE NETWORK
             </motion.p>
             
-            <motion.h2 variants={fadeInUp} style={{ fontSize: 'calc(2.5rem + 3.5vw)', fontWeight: '900', lineHeight: '1.02', letterSpacing: '2px', margin: '0 0 2rem 0', textTransform: 'uppercase', color: '#ffffff' }}>
+            <motion.h2 variants={fadeInUp} style={{ fontSize: 'calc(2.5rem + 3.5vw)', fontWeight: '900', lineHeight: '1.05', letterSpacing: '2px', margin: '0 0 2rem 0', textTransform: 'uppercase', color: '#ffffff' }}>
               HUMANITY'S GATEWAY TO THE COSMOS.
             </motion.h2>
 
