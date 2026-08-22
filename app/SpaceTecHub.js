@@ -17,7 +17,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
   ];
 
-  // 6 Total Agencies divided into 2 batches of 3
+  // 6 Total Agencies divided into the exact requested batches & positions
   const agencyBatches = [
     [
       {
@@ -25,44 +25,50 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         name: 'NASA',
         tagline: 'SATURN V & ARTEMIS',
         accentColor: '#3b82f6',
-        specialty: 'Saturn V Lunar Legacy, Webb Telescope & Artemis Moon Missions'
+        specialty: 'Saturn V Lunar Legacy, Webb Telescope & Artemis Moon Missions',
+        brief: 'Pioneering deep space exploration, advanced planetary defense, and sustained human habitats on the lunar surface.'
       },
       {
         id: 'spacex',
         name: 'SPACEX',
         tagline: 'STARSHIP FLEET',
         accentColor: '#ff6600',
-        specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture'
+        specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture',
+        brief: 'Developing fully reusable heavy-lift transportation systems designed to make humanity multi-planetary.'
+      },
+      {
+        id: 'esa',
+        name: 'ESA',
+        tagline: 'ARIANE 6 & COSMIC VISION',
+        accentColor: '#60a5fa',
+        specialty: 'Ariane 6 Heavy Lift System & Euclid Dark Energy Mapping',
+        brief: 'Coordinating European collaboration in space research, satellite earth observation, and deep space probes.'
+      }
+    ],
+    [
+      {
+        id: 'jaxa',
+        name: 'JAXA',
+        tagline: 'H3 & ASTEROID SAMPLING',
+        accentColor: '#2dd4bf',
+        specialty: 'H3 Next-Gen Rocket & Hayabusa Asteroid Sample Return',
+        brief: 'Advancing high-precision robotic asteroid exploration, global satellite navigation, and next-generation rocketry.'
       },
       {
         id: 'isro',
         name: 'ISRO',
         tagline: 'GSLV MK III & CHANDRAYAAN',
         accentColor: '#ff9933',
-        specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan'
-      }
-    ],
-    [
-      {
-        id: 'esa',
-        name: 'ESA',
-        tagline: 'ARIANE 6 & COSMIC VISION',
-        accentColor: '#60a5fa',
-        specialty: 'Ariane 6 Heavy Lift System & Euclid Dark Energy Mapping'
+        specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan',
+        brief: 'Executing cost-effective lunar polar exploration, orbital space stations, and indigenous human spaceflight.'
       },
       {
-        id: 'jaxa',
-        name: 'JAXA',
-        tagline: 'H3 & ASTEROID SAMPLING',
-        accentColor: '#2dd4bf',
-        specialty: 'H3 Next-Gen Rocket & Hayabusa Asteroid Sample Return'
-      },
-      {
-        id: 'roscosmos',
-        name: 'ROSCOSMOS',
-        tagline: 'SOYUZ & ISS SEGMENT',
-        accentColor: '#ef4444',
-        specialty: 'Soyuz Crew Transport Systems & Orbital Segment Operations'
+        id: 'cnsa',
+        name: 'CNSA',
+        tagline: 'CHANG\'E & TIANWEN',
+        accentColor: '#f43f5e',
+        specialty: 'Chang\'e Lunar Sample Return & Tianwen Mars Rover Missions',
+        brief: 'Operating successful lunar far-side sample missions, orbital laboratories, and interplanetary rovers.'
       }
     ]
   ];
@@ -74,14 +80,15 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     return () => clearInterval(bgTimer);
   }, [spaceBackgrounds.length]);
 
-  // Automatically switch agency batches every 8 seconds
+  // Automatically switch batches every 8 seconds, but PAUSE if an agency is hovered
   useEffect(() => {
     const batchTimer = setInterval(() => {
-      setAgencyBatchIndex((prev) => (prev === 0 ? 1 : 0));
-      setActiveAgency(null); // Reset hover on switch
+      if (!activeAgency) {
+        setAgencyBatchIndex((prev) => (prev === 0 ? 1 : 0));
+      }
     }, 8000);
     return () => clearInterval(batchTimer);
-  }, []);
+  }, [activeAgency]);
 
   useEffect(() => {
     const autoEnterTimer = setTimeout(() => {
@@ -197,7 +204,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           border-right: 1px solid rgba(255, 255, 255, 0.12);
           overflow: hidden;
           cursor: pointer;
-          transition: flex 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+          transition: flex 0.6s cubic-bezier(0.16, 1, 0.3, 1), padding 0.6s ease;
           display: flex;
           flex-direction: column;
           justify-content: space-between;
@@ -227,7 +234,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       {/* STARFIELD CANVAS */}
       <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, zIndex: 2, pointerEvents: 'none' }} />
 
-      {/* HEADER WITH SMOOTH LAYOUT TRANSITION */}
+      {/* HEADER */}
       <motion.header 
         initial={{ opacity: 0 }}
         animate={{ opacity: entered ? 1 : 0 }}
@@ -410,7 +417,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </section>
         )}
 
-        {/* EXPLORE SPACE AGENCIES (ROTATING BATCHES WITH MAXIMUM EXPANSION ACCORDION) */}
+        {/* EXPLORE SPACE AGENCIES (FULL EXPANSION, LIFTED HEADER, BRIEF INFO & HOVER ROTATION FREEZE) */}
         <section className="content-container" style={{ paddingBottom: '6rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2rem' }}>
             <div>
@@ -423,7 +430,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <span style={{ fontSize: '0.65rem', letterSpacing: '2px', color: '#a1a1aa', textTransform: 'uppercase' }}>
-                BATCH {agencyBatchIndex + 1} / 2
+                {activeAgency ? 'ROTATION PAUSED' : `BATCH ${agencyBatchIndex + 1} / 2`}
               </span>
             </div>
           </div>
@@ -442,14 +449,17 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                 const isHovered = activeAgency === agency.id;
                 let flexValue = 1;
                 if (activeAgency !== null) {
-                  flexValue = isHovered ? 6 : 0.2; // Hovered card takes almost all space, others shrink to thin strips
+                  flexValue = isHovered ? 12 : 0; // Fully covers the other two columns
                 }
 
                 return (
                   <div
                     key={agency.id}
                     className="agency-column"
-                    style={{ flex: flexValue }}
+                    style={{ 
+                      flex: flexValue, 
+                      padding: isHovered ? '3rem 3.5rem' : '2.5rem 2rem'
+                    }}
                     onMouseEnter={() => setActiveAgency(agency.id)}
                     onMouseLeave={() => setActiveAgency(null)}
                   >
@@ -459,7 +469,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                       </span>
                     </div>
 
-                    <div>
+                    <div style={{ 
+                      transform: isHovered ? 'translateY(-14px)' : 'translateY(0px)', 
+                      transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' 
+                    }}>
                       <h3 style={{ fontSize: '1.8rem', fontWeight: '900', letterSpacing: '3px', margin: '0 0 0.5rem 0', color: '#ffffff', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {agency.name}
                       </h3>
@@ -471,6 +484,18 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                       <p style={{ fontSize: '0.85rem', color: '#d4d4d8', lineHeight: '1.6', margin: 0, opacity: isHovered ? 1 : 0.6, transition: 'opacity 0.3s ease', display: isHovered || activeAgency === null ? 'block' : 'none' }}>
                         {agency.specialty}
                       </p>
+
+                      {/* Brief additional description revealed on full expansion */}
+                      {isHovered && (
+                        <motion.p 
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.4, delay: 0.1 }}
+                          style={{ fontSize: '0.8rem', color: '#a1a1aa', lineHeight: '1.6', margin: '1rem 0 0 0', maxWidth: '600px', borderLeft: `2px solid ${agency.accentColor}`, paddingLeft: '1rem' }}
+                        >
+                          {agency.brief}
+                        </motion.p>
+                      )}
                     </div>
                   </div>
                 );
