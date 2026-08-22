@@ -1,13 +1,31 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function SpaceTecHub({ apodData, upcomingLaunches }) {
+  const [entered, setEntered] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  // High-tech booting progress counter
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(timer);
+          return 100;
+        }
+        return prev + 1;
+      });
+    }, 20);
+
+    return () => clearInterval(timer);
+  }, []);
+
   const bgImage = apodData?.media_type === 'image' 
     ? apodData.url 
     : 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072';
 
-  // Motion Animation Variants
   const fadeInUp = {
     hidden: { opacity: 0, y: 50 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } }
@@ -61,6 +79,115 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         }
       `}</style>
 
+      {/* ACTIVE THEORY STYLE SPLASH INTRO OVERLAY */}
+      <AnimatePresence style={{ zIndex: 9999 }}>
+        {!entered && (
+          <motion.div
+            key="splash-screen"
+            initial={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.1, filter: 'blur(10px)' }}
+            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9999,
+              backgroundColor: '#020408',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              overflow: 'hidden'
+            }}
+          >
+            {/* Ambient Background Video Loop */}
+            <video
+              autoPlay
+              loop
+              muted
+              playsInline
+              style={{
+                position: 'absolute',
+                width: '100vw',
+                height: '100vh',
+                objectFit: 'cover',
+                opacity: 0.25,
+                filter: 'grayscale(0.3) contrast(1.2)'
+              }}
+            >
+              <source src="https://assets.mixkit.co/videos/preview/mixkit-outer-space-and-stars-animation-41551-large.mp4" type="video/mp4" />
+            </video>
+
+            {/* Cyber Grid Overlay */}
+            <div className="cyber-grid" style={{ zIndex: 1 }} />
+
+            {/* Central HUD Loading Terminal */}
+            <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', maxWidth: '600px', width: '90%' }}>
+              
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+              >
+                <span style={{ fontSize: '0.75rem', letterSpacing: '4px', color: '#38bdf8', textTransform: 'uppercase', fontWeight: '700' }}>
+                  // SPACETEC DEEP SPACE OPERATING SYSTEM
+                </span>
+                <h1 style={{ fontSize: '3rem', fontWeight: '900', letterSpacing: '6px', margin: '0.8rem 0 2rem 0', background: 'linear-gradient(180deg, #fff 0%, #94a3b8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                  SPACETEC
+                </h1>
+              </motion.div>
+
+              {/* Progress HUD Bar */}
+              <div style={{ width: '100%', height: '3px', background: 'rgba(255, 255, 255, 0.1)', position: 'relative', margin: '2rem 0', borderRadius: '2px', overflow: 'hidden' }}>
+                <motion.div
+                  style={{
+                    height: '100%',
+                    background: 'linear-gradient(90deg, #38bdf8, #818cf8)',
+                    width: `${progress}%`,
+                    boxShadow: '0 0 15px #38bdf8'
+                  }}
+                />
+              </div>
+
+              {/* Status Indicator */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', letterSpacing: '2px', color: '#64748b', marginBottom: '3rem' }}>
+                <span>INITIALIZING ORBITAL LINK...</span>
+                <span style={{ color: '#38bdf8', fontWeight: '700' }}>{progress}%</span>
+              </div>
+
+              {/* Trigger Interactive Enter Button when Ready */}
+              {progress >= 100 ? (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  whileHover={{ scale: 1.05, backgroundColor: '#38bdf8', color: '#000000', boxShadow: '0 0 40px rgba(56, 189, 248, 0.8)' }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setEntered(true)}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid #38bdf8',
+                    color: '#38bdf8',
+                    padding: '1.2rem 3rem',
+                    fontSize: '0.85rem',
+                    fontWeight: '700',
+                    letterSpacing: '4px',
+                    textTransform: 'uppercase',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+                  }}
+                >
+                  INITIALIZE NEURAL LINK ↵
+                </motion.button>
+              ) : (
+                <span style={{ fontSize: '0.7rem', color: '#94a3b8', letterSpacing: '3px', textTransform: 'uppercase' }}>
+                  ESTABLISHING NASA TELEMETRY STREAM
+                </span>
+              )}
+
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Atmospheric Background */}
       <div className="nasa-backdrop"></div>
       <div className="cyber-grid"></div>
@@ -71,8 +198,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         {/* Navigation HUD */}
         <motion.header 
           initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
+          animate={{ opacity: entered ? 1 : 0, y: entered ? 0 : -20 }}
+          transition={{ duration: 0.7, delay: 0.2 }}
           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2rem 3rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -94,7 +221,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         <section style={{ padding: '7rem 3rem 4rem 3rem', maxWidth: '1400px', margin: '0 auto' }}>
           <motion.div 
             initial="hidden"
-            animate="visible"
+            animate={entered ? "visible" : "hidden"}
             variants={staggerContainer}
             style={{ maxWidth: '850px' }}
           >
@@ -108,7 +235,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               Real-time trajectory tracking, global rocket launch manifests, and deep space observations aggregated directly from NASA, SpaceX, ISRO, ESA, and JAXA.
             </motion.p>
             
-            {/* Interactive Spring-animated Buttons */}
             <motion.div variants={fadeInUp} style={{ display: 'flex', gap: '1.2rem', flexWrap: 'wrap' }}>
               <motion.button 
                 whileHover={{ scale: 1.04, backgroundColor: '#38bdf8', borderColor: '#38bdf8', boxShadow: '0 0 30px rgba(56, 189, 248, 0.6)' }}
@@ -205,7 +331,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             </span>
           </motion.div>
 
-          {/* Staggered Grid Item Scroll Animations */}
           <motion.div 
             initial="hidden"
             whileInView="visible"
