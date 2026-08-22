@@ -216,7 +216,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         }
       `}</style>
 
-      {/* BACKGROUND IMAGES */}
+      {/* BACKGROUND IMAGES SLIDESHOW */}
       {spaceBackgrounds.map((bgUrl, idx) => (
         <div
           key={bgUrl}
@@ -232,7 +232,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       {/* STARFIELD CANVAS */}
       <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, zIndex: 2, pointerEvents: 'none' }} />
 
-      {/* HEADER */}
+      {/* HEADER WITH SMOOTH LAYOUT TRANSITION */}
       <motion.header 
         initial={{ opacity: 0 }}
         animate={{ opacity: entered ? 1 : 0 }}
@@ -250,18 +250,22 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       >
         <div className="content-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <span
-              style={{
-                fontSize: '1.25rem',
-                fontWeight: '900',
-                letterSpacing: '8px',
-                color: '#ffffff',
-                textTransform: 'uppercase',
-                display: 'inline-block'
-              }}
-            >
-              SPACETEC
-            </span>
+            {entered && (
+              <motion.span
+                layoutId="spacetec-brand"
+                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+                style={{
+                  fontSize: '1.25rem',
+                  fontWeight: '900',
+                  letterSpacing: '8px',
+                  color: '#ffffff',
+                  textTransform: 'uppercase',
+                  display: 'inline-block'
+                }}
+              >
+                SPACETEC
+              </motion.span>
+            )}
           </div>
 
           <div 
@@ -276,7 +280,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         </div>
       </motion.header>
 
-      {/* INTRO OVERLAY (FIXES BUG: HIDES LOWER CONTENT WHILE VISIBLE) */}
+      {/* INTRO SCREEN OVERLAY */}
       <AnimatePresence>
         {!entered && (
           <motion.div
@@ -286,15 +290,15 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             style={{
               position: 'fixed', inset: 0, zIndex: 9999,
-              backgroundColor: '#000000',
               display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '2rem'
             }}
           >
             <div style={{ textAlign: 'center' }}>
               <motion.div
+                layoutId="spacetec-brand"
+                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                 initial={{ opacity: 0, scale: 0.9, letterSpacing: '0.12em' }}
                 animate={{ opacity: 1, scale: 1, letterSpacing: '0.22em' }}
-                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
               >
                 <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', filter: 'drop-shadow(0 0 35px rgba(255,255,255,0.25))' }}>
                   SPACETEC
@@ -314,7 +318,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         )}
       </AnimatePresence>
 
-      {/* MAIN DASHBOARD (ONLY REVEALED AFTER INTRO) */}
+      {/* MAIN DASHBOARD */}
       <motion.div 
         animate={{ opacity: entered ? 1 : 0 }}
         transition={{ duration: 0.8, delay: 0.2 }}
@@ -413,7 +417,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </section>
         )}
 
-        {/* EXPLORE SPACE AGENCIES ACROSS THE GLOBE (5 VERTICAL DIVISIONS WITH WORKING VIDEO STREAMS) */}
+        {/* EXPLORE SPACE AGENCIES ACROSS THE GLOBE (5 DIVISIONS) */}
         <section className="content-container" style={{ paddingBottom: '6rem' }}>
           <div style={{ marginBottom: '2rem' }}>
             <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
@@ -435,20 +439,17 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                   onMouseEnter={() => setActiveAgency(agency.id)}
                   onMouseLeave={() => setActiveAgency(null)}
                 >
-                  {/* Vertical Autoplay Video Layer */}
                   <video autoPlay loop muted playsInline key={agency.videoUrl}>
                     <source src={agency.videoUrl} type="video/mp4" />
                   </video>
                   <div className="agency-column-overlay" />
 
-                  {/* Header Identifier */}
                   <div style={{ position: 'relative', zIndex: 2 }}>
                     <span style={{ fontSize: '0.65rem', letterSpacing: '3px', textTransform: 'uppercase', color: isHovered ? agency.accentColor : '#a1a1aa', fontWeight: '800', transition: 'color 0.3s ease' }}>
                       // 0{agencies.indexOf(agency) + 1}
                     </span>
                   </div>
 
-                  {/* Agency Metadata & Highlights */}
                   <div style={{ position: 'relative', zIndex: 2 }}>
                     <h3 style={{ fontSize: '1.6rem', fontWeight: '900', letterSpacing: '3px', margin: '0 0 0.5rem 0', color: '#ffffff', textTransform: 'uppercase' }}>
                       {agency.name}
@@ -467,7 +468,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             })}
           </div>
 
-          {/* EXPLORE MORE AGENCIES BUTTON BAR */}
           <motion.div 
             whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.12)', borderColor: '#ffffff' }}
             style={{ marginTop: '1.5rem', padding: '1.2rem', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', cursor: 'pointer', background: 'rgba(10, 10, 10, 0.6)', transition: 'all 0.3s ease' }}
