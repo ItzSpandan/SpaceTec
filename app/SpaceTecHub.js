@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   const [entered, setEntered] = useState(false);
   const [bgIndex, setBgIndex] = useState(0);
+  const [activeAgency, setActiveAgency] = useState(null);
   const canvasRef = useRef(null);
 
   const spaceBackgrounds = [
@@ -13,6 +14,45 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?q=80&w=2070',
     'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?q=80&w=2072',
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
+  ];
+
+  // 5 Main Global Space Agencies with custom vertical background media & specialties
+  const agencies = [
+    {
+      id: 'spacex',
+      name: 'SPACEX',
+      tagline: 'STARSHIP ORBITAL FLEET',
+      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-space-rocket-launch-4091-large.mp4',
+      specialty: 'Reusable Starship & Mars Colonization Architecture'
+    },
+    {
+      id: 'nasa',
+      name: 'NASA',
+      tagline: 'SATURN V & ARTEMIS DEEP SPACE',
+      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-background-27228-large.mp4',
+      specialty: 'Saturn V Legacy, James Webb & Lunar Exploration'
+    },
+    {
+      id: 'isro',
+      name: 'ISRO',
+      tagline: 'GSLV MK III & CHANDRAYAAN',
+      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-flying-through-a-star-field-41533-large.mp4',
+      specialty: 'GSLV Launchers, Lunar South Pole Landing & Planetary Missions'
+    },
+    {
+      id: 'esa',
+      name: 'ESA',
+      tagline: 'ARIANE 6 & COSMIC VISION',
+      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-bright-nebulas-in-deep-space-41535-large.mp4',
+      specialty: 'Ariane Heavy Launch Vehicles & Deep Space Observatories'
+    },
+    {
+      id: 'jaxa',
+      name: 'JAXA',
+      tagline: 'H3 LAUNCHER & ASTEROID SAMPLING',
+      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-earth-from-space-animation-41530-large.mp4',
+      specialty: 'Hayabusa Asteroid Sample Returns & H3 Launch Platform'
+    }
   ];
 
   useEffect(() => {
@@ -129,9 +169,49 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           box-sizing: border-box;
           width: 100%;
         }
+
+        .agency-column {
+          position: relative;
+          height: 480px;
+          border-right: 1px solid rgba(255, 255, 255, 0.12);
+          overflow: hidden;
+          cursor: pointer;
+          transition: flex 0.6s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease;
+          display: flex;
+          flex-direction: column;
+          justify: space-between;
+          padding: 2rem 1.2rem;
+          box-sizing: border-box;
+        }
+
+        .agency-column:last-child {
+          border-right: none;
+        }
+
+        .agency-column video {
+          position: absolute;
+          top: 0; left: 0; width: 100%; height: 100%;
+          object-fit: cover;
+          z-index: 0;
+          opacity: 0.35;
+          filter: brightness(0.6) contrast(1.2);
+          transition: opacity 0.5s ease, transform 0.8s ease;
+        }
+
+        .agency-column:hover video {
+          opacity: 0.8;
+          transform: scale(1.05);
+        }
+
+        .agency-column-overlay {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.95) 100%);
+          z-index: 1;
+        }
       `}</style>
 
-      {/* BACKGROUND IMAGES */}
+      {/* DYNAMIC BACKGROUND IMAGES */}
       {spaceBackgrounds.map((bgUrl, idx) => (
         <div
           key={bgUrl}
@@ -147,7 +227,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       {/* STARFIELD CANVAS */}
       <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, zIndex: 2, pointerEvents: 'none' }} />
 
-      {/* NAVIGATION HEADER */}
+      {/* HEADER */}
       <motion.header 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -199,7 +279,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         </div>
       </motion.header>
 
-      {/* INTRO SCREEN */}
+      {/* INTRO OVERLAY */}
       <AnimatePresence>
         {!entered && (
           <motion.div
@@ -257,7 +337,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         )}
       </AnimatePresence>
 
-      {/* DASHBOARD CONTENT */}
+      {/* MAIN DASHBOARD */}
       <div style={{ position: 'relative', zIndex: 3, paddingTop: '8rem' }}>
         
         {/* HERO SECTION */}
@@ -300,7 +380,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </motion.div>
         </section>
 
-        {/* STATS STRIP */}
+        {/* TELEMETRY STRIP */}
         <section className="content-container" style={{ paddingBottom: '5rem' }}>
           <motion.div 
             initial={{ opacity: 0, y: 30 }}
@@ -352,7 +432,73 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </section>
         )}
 
-        {/* LAUNCHES GRID */}
+        {/* EXPLORE SPACE AGENCIES ACROSS THE GLOBE (5 VERTICAL DIVISIONS) */}
+        <section className="content-container" style={{ paddingBottom: '6rem' }}>
+          <div style={{ marginBottom: '2rem' }}>
+            <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
+              // GLOBAL AEROSPACE ARCHITECTURE
+            </span>
+            <h2 style={{ fontSize: '2rem', textTransform: 'uppercase', margin: '0.5rem 0 0 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
+              EXPLORE SPACE AGENCIES ACROSS THE GLOBE
+            </h2>
+          </div>
+
+          {/* 5 SIDE-BY-SIDE VERTICAL AGENCY COLUMNS */}
+          <div className="glass-card" style={{ display: 'flex', borderRadius: '2px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)' }}>
+            {agencies.map((agency) => {
+              const isHovered = activeAgency === agency.id;
+              return (
+                <div
+                  key={agency.id}
+                  className="agency-column"
+                  style={{ flex: isHovered ? 2.2 : 1 }}
+                  onMouseEnter={() => setActiveAgency(agency.id)}
+                  onMouseLeave={() => setActiveAgency(null)}
+                >
+                  {/* Vertical Background Video Stream */}
+                  <video autoPlay loop muted playsInline key={agency.id}>
+                    <source src={agency.videoUrl} type="video/mp4" />
+                  </video>
+                  <div className="agency-column-overlay" />
+
+                  {/* Header / Identifier */}
+                  <div style={{ position: 'relative', zIndex: 2 }}>
+                    <span style={{ fontSize: '0.65rem', letterSpacing: '3px', textTransform: 'uppercase', color: isHovered ? '#ffffff' : '#a1a1aa', fontWeight: '700' }}>
+                      // 0{agencies.indexOf(agency) + 1}
+                    </span>
+                  </div>
+
+                  {/* Agency Highlight Title & Details */}
+                  <div style={{ position: 'relative', zIndex: 2 }}>
+                    <h3 style={{ fontSize: '1.6rem', fontWeight: '900', letterSpacing: '3px', margin: '0 0 0.5rem 0', color: '#ffffff', textTransform: 'uppercase' }}>
+                      {agency.name}
+                    </h3>
+                    
+                    <p style={{ fontSize: '0.65rem', letterSpacing: '2px', color: '#d4d4d8', textTransform: 'uppercase', margin: '0 0 0.8rem 0', fontWeight: '600' }}>
+                      {agency.tagline}
+                    </p>
+
+                    <p style={{ fontSize: '0.75rem', color: '#a1a1aa', lineHeight: '1.5', margin: 0, opacity: isHovered ? 1 : 0.6, transition: 'opacity 0.3s ease', display: isHovered ? 'block' : '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {agency.specialty}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* EXPLORE MORE AGENCIES BAR */}
+          <motion.div 
+            whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
+            style={{ marginTop: '1.5rem', padding: '1.2rem', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.15)', cursor: 'pointer', background: 'rgba(10, 10, 10, 0.5)', transition: 'background-color 0.3s ease' }}
+          >
+            <span style={{ fontSize: '0.75rem', letterSpacing: '4px', fontWeight: '900', textTransform: 'uppercase', color: '#ffffff' }}>
+              EXPLORE MORE AGENCIES →
+            </span>
+          </motion.div>
+        </section>
+
+        {/* UPCOMING GLOBAL LAUNCHES GRID */}
         <section className="content-container" style={{ paddingBottom: '8rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
             <div>
