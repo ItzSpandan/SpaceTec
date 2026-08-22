@@ -16,47 +16,31 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
   ];
 
-  // 5 Global Agencies using ultra-reliable direct NASA SVS video feeds
+  // Exactly 3 Agencies: NASA (Left), SpaceX (Middle), ISRO (Right)
   const agencies = [
-    {
-      id: 'spacex',
-      name: 'SPACEX',
-      tagline: 'STARSHIP FLEET',
-      videoUrl: 'https://svs.gsfc.nasa.gov/vis/a030000/a030600/a030623/ISS_Crew_Earth_Observations_720p.mp4',
-      accentColor: '#ff6600',
-      specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture'
-    },
     {
       id: 'nasa',
       name: 'NASA',
       tagline: 'SATURN V & ARTEMIS',
-      videoUrl: 'https://svs.gsfc.nasa.gov/vis/a030000/a031300/a031385/southpole_earth_sun_720p30.mp4',
+      bgGradient: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)',
       accentColor: '#3b82f6',
       specialty: 'Saturn V Lunar Legacy, Webb Telescope & Artemis Moon Missions'
+    },
+    {
+      id: 'spacex',
+      name: 'SPACEX',
+      tagline: 'STARSHIP FLEET',
+      bgGradient: 'linear-gradient(135deg, #18181b 0%, #27272a 100%)',
+      accentColor: '#ff6600',
+      specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture'
     },
     {
       id: 'isro',
       name: 'ISRO',
       tagline: 'GSLV MK III & CHANDRAYAAN',
-      videoUrl: 'https://svs.gsfc.nasa.gov/vis/a030000/a030600/a030623/ISS_Crew_Earth_Observations_720p.mp4',
+      bgGradient: 'linear-gradient(135deg, #1c1917 0%, #431407 100%)',
       accentColor: '#ff9933',
       specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan'
-    },
-    {
-      id: 'esa',
-      name: 'ESA',
-      tagline: 'ARIANE 6 & COSMIC VISION',
-      videoUrl: 'https://svs.gsfc.nasa.gov/vis/a050000/a050100/a05013/sun_paths_720p30.mp4',
-      accentColor: '#60a5fa',
-      specialty: 'Ariane 6 Heavy Lift System & Euclid Dark Energy Mapping'
-    },
-    {
-      id: 'jaxa',
-      name: 'JAXA',
-      tagline: 'H3 & ASTEROID SAMPLING',
-      videoUrl: 'https://svs.gsfc.nasa.gov/vis/a030000/a031300/a031385/southpole_earth_sun_720p30.mp4',
-      accentColor: '#2dd4bf',
-      specialty: 'H3 Next-Gen Rocket & Hayabusa Asteroid Sample Return'
     }
   ];
 
@@ -161,10 +145,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         }
 
         .glass-card {
-          background: rgba(15, 15, 15, 0.65);
+          background: rgba(15, 15, 15, 0.75);
           backdrop-filter: blur(20px);
           -webkit-backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.12);
         }
 
         .content-container {
@@ -177,42 +161,20 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 
         .agency-column {
           position: relative;
-          height: 520px;
+          height: 480px;
           border-right: 1px solid rgba(255, 255, 255, 0.12);
           overflow: hidden;
           cursor: pointer;
-          transition: flex 0.6s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease;
+          transition: flex 0.7s cubic-bezier(0.16, 1, 0.3, 1);
           display: flex;
           flex-direction: column;
           justify-content: space-between;
-          padding: 2.2rem 1.4rem;
+          padding: 2.5rem 2rem;
           box-sizing: border-box;
         }
 
         .agency-column:last-child {
           border-right: none;
-        }
-
-        .agency-column video {
-          position: absolute;
-          top: 0; left: 0; width: 100%; height: 100%;
-          object-fit: cover;
-          z-index: 0;
-          opacity: 0.55;
-          filter: brightness(0.8) contrast(1.2);
-          transition: opacity 0.5s ease, transform 0.8s ease;
-        }
-
-        .agency-column:hover video {
-          opacity: 0.95;
-          transform: scale(1.08);
-        }
-
-        .agency-column-overlay {
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.9) 100%);
-          z-index: 1;
         }
       `}</style>
 
@@ -268,9 +230,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             )}
           </div>
 
-          <div 
-            style={{ display: 'flex', alignItems: 'center', gap: '1.8rem', fontSize: '0.75rem', letterSpacing: '3px', textTransform: 'uppercase', color: '#94a3b8' }}
-          >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.8rem', fontSize: '0.75rem', letterSpacing: '3px', textTransform: 'uppercase', color: '#94a3b8' }}>
             <span style={{ color: '#ffffff', fontWeight: '600' }}>Live Telemetry</span>
             <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
             <span>Agencies</span>
@@ -300,7 +260,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                 initial={{ opacity: 0, scale: 0.9, letterSpacing: '0.12em' }}
                 animate={{ opacity: 1, scale: 1, letterSpacing: '0.22em' }}
               >
-                <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', filter: 'drop-shadow(0 0 35px rgba(255,255,255,0.25))' }}>
+                <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff' }}>
                   SPACETEC
                 </h1>
               </motion.div>
@@ -325,7 +285,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         style={{ position: 'relative', zIndex: 3, paddingTop: '8rem', pointerEvents: entered ? 'auto' : 'none' }}
       >
         
-        {/* HERO SECTION */}
+        {/* HERO SECTION - CLEANED UP TYPOGRAPHY & SPACING */}
         <section className="content-container" style={{ paddingBottom: '4rem' }}>
           <motion.div 
             initial="hidden"
@@ -337,12 +297,12 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               // MULTI-AGENCY DEEP SPACE NETWORK
             </motion.p>
             
-            <motion.h2 variants={fadeInUp} style={{ fontSize: 'calc(2.2rem + 3vw)', fontWeight: '900', lineHeight: '1.05', letterSpacing: '2px', margin: '0 0 2rem 0', textTransform: 'uppercase', color: '#ffffff' }}>
+            <motion.h2 variants={fadeInUp} style={{ fontSize: 'calc(2.2rem + 3vw)', fontWeight: '900', lineHeight: '1.1', letterSpacing: '1px', margin: '0 0 1.8rem 0', textTransform: 'uppercase', color: '#ffffff' }}>
               HUMANITY'S GATEWAY TO THE COSMOS.
             </motion.h2>
 
-            <motion.p variants={fadeInUp} style={{ fontSize: '1.05rem', color: '#d4d4d8', lineHeight: '1.7', maxWidth: '650px', marginBottom: '2.5rem', fontWeight: '300' }}>
-              Real-time trajectory tracking, global rocket launch manifests, and deep space observations aggregated directly from NASA, SpaceX, ISRO, ESA, and JAXA.
+            <motion.p variants={fadeInUp} style={{ fontSize: '1.05rem', color: '#d4d4d8', lineHeight: '1.7', maxWidth: '680px', marginBottom: '2.5rem', fontWeight: '400' }}>
+              Real-time trajectory tracking, global rocket launch manifests, and deep space observations aggregated directly from NASA, SpaceX, and ISRO.
             </motion.p>
             
             <motion.div variants={fadeInUp} style={{ display: 'flex', gap: '1.2rem', flexWrap: 'wrap' }}>
@@ -377,7 +337,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           >
             {[
               { label: 'DEEP SPACE OBSERVATION', val: apodData?.title ? apodData.title.slice(0, 20) + '...' : 'NASA APOD' },
-              { label: 'NETWORK NODES', val: 'NASA • ISRO • SPACEX' },
+              { label: 'NETWORK NODES', val: 'NASA • SPACEX • ISRO' },
               { label: 'NEXT LAUNCH WINDOW', val: upcomingLaunches[0] ? new Date(upcomingLaunches[0].net).toLocaleDateString() : 'SYNCING...' },
               { label: 'SYSTEM STATUS', val: 'ONLINE / OPTICAL' }
             ].map((stat, idx) => (
@@ -417,7 +377,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </section>
         )}
 
-        {/* EXPLORE SPACE AGENCIES ACROSS THE GLOBE (5 DIVISIONS) */}
+        {/* EXPLORE SPACE AGENCIES (NASA, SPACEX, ISRO WITH OVERLAPPING ACCORDION HOVER) */}
         <section className="content-container" style={{ paddingBottom: '6rem' }}>
           <div style={{ marginBottom: '2rem' }}>
             <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
@@ -431,19 +391,22 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           <div className="glass-card" style={{ display: 'flex', borderRadius: '2px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)' }}>
             {agencies.map((agency) => {
               const isHovered = activeAgency === agency.id;
+              let flexValue = 1;
+              if (activeAgency !== null) {
+                flexValue = isHovered ? 3.5 : 0.7; // Expands heavily and covers/squeezes the others
+              }
+
               return (
                 <div
                   key={agency.id}
                   className="agency-column"
-                  style={{ flex: isHovered ? 2.5 : 1 }}
+                  style={{
+                    flex: flexValue,
+                    background: agency.bgGradient,
+                  }}
                   onMouseEnter={() => setActiveAgency(agency.id)}
                   onMouseLeave={() => setActiveAgency(null)}
                 >
-                  <video autoPlay loop muted playsInline key={agency.videoUrl}>
-                    <source src={agency.videoUrl} type="video/mp4" />
-                  </video>
-                  <div className="agency-column-overlay" />
-
                   <div style={{ position: 'relative', zIndex: 2 }}>
                     <span style={{ fontSize: '0.65rem', letterSpacing: '3px', textTransform: 'uppercase', color: isHovered ? agency.accentColor : '#a1a1aa', fontWeight: '800', transition: 'color 0.3s ease' }}>
                       // 0{agencies.indexOf(agency) + 1}
@@ -451,15 +414,15 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                   </div>
 
                   <div style={{ position: 'relative', zIndex: 2 }}>
-                    <h3 style={{ fontSize: '1.6rem', fontWeight: '900', letterSpacing: '3px', margin: '0 0 0.5rem 0', color: '#ffffff', textTransform: 'uppercase' }}>
+                    <h3 style={{ fontSize: '1.8rem', fontWeight: '900', letterSpacing: '3px', margin: '0 0 0.5rem 0', color: '#ffffff', textTransform: 'uppercase' }}>
                       {agency.name}
                     </h3>
                     
-                    <p style={{ fontSize: '0.65rem', letterSpacing: '2px', color: agency.accentColor, textTransform: 'uppercase', margin: '0 0 0.8rem 0', fontWeight: '700' }}>
+                    <p style={{ fontSize: '0.7rem', letterSpacing: '2px', color: agency.accentColor, textTransform: 'uppercase', margin: '0 0 1rem 0', fontWeight: '700' }}>
                       {agency.tagline}
                     </p>
 
-                    <p style={{ fontSize: '0.75rem', color: '#d4d4d8', lineHeight: '1.5', margin: 0, opacity: isHovered ? 1 : 0.7, transition: 'opacity 0.3s ease' }}>
+                    <p style={{ fontSize: '0.85rem', color: '#d4d4d8', lineHeight: '1.6', margin: 0, opacity: isHovered ? 1 : 0.65, transition: 'opacity 0.3s ease', maxWidth: isHovered ? '450px' : '260px' }}>
                       {agency.specialty}
                     </p>
                   </div>
@@ -467,15 +430,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               );
             })}
           </div>
-
-          <motion.div 
-            whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.12)', borderColor: '#ffffff' }}
-            style={{ marginTop: '1.5rem', padding: '1.2rem', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', cursor: 'pointer', background: 'rgba(10, 10, 10, 0.6)', transition: 'all 0.3s ease' }}
-          >
-            <span style={{ fontSize: '0.75rem', letterSpacing: '4px', fontWeight: '900', textTransform: 'uppercase', color: '#ffffff' }}>
-              EXPLORE MORE AGENCIES →
-            </span>
-          </motion.div>
         </section>
 
         {/* UPCOMING GLOBAL LAUNCHES GRID */}
@@ -516,7 +470,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     </span>
                     <span style={{ fontSize: '0.65rem', color: '#ffffff', letterSpacing: '2px', fontWeight: '700' }}>● SCHEDULED</span>
                   </div>
-                  <h3 style={{ fontSize: '1.05rem', margin: '0 0 1rem 0', fontWeight: '700', lineHeight: '1.4', letterSpacing: '1px', textTransform: 'uppercase', color: '#ffffff' }}>
+                  <h3 style={{ fontSize: '1.05rem', margin: '0 0 1.2rem 0', fontWeight: '700', lineHeight: '1.4', letterSpacing: '1px', textTransform: 'uppercase', color: '#ffffff' }}>
                     {launch.name}
                   </h3>
                 </div>
