@@ -4,15 +4,13 @@ export default async function Home() {
   let apodData = null;
   let upcomingLaunches = [];
 
-  // Fetch NASA Astronomy Picture of the Day
   try {
     const res = await fetch(`https://api.nasa.gov/planetary/apod?api_key=${nasaApiKey}`, { next: { revalidate: 3600 } });
     if (res.ok) apodData = await res.json();
   } catch (error) {
-    console.error("Error fetching APOD:", error);
+    console.error("APOD Fetch Error:", error);
   }
 
-  // Fetch Multi-Agency Launches (ISRO, SpaceX, NASA, ESA, JAXA)
   try {
     const res = await fetch('https://lldev.thespacedevs.com/2.2.0/launch/upcoming/?limit=6', { next: { revalidate: 1800 } });
     if (res.ok) {
@@ -20,165 +18,217 @@ export default async function Home() {
       upcomingLaunches = data.results || [];
     }
   } catch (error) {
-    console.error("Error fetching launch data:", error);
+    console.error("Launch Fetch Error:", error);
   }
 
-  const agencies = [
-    { name: 'NASA', color: '#3b82f6' },
-    { name: 'SpaceX', color: '#06b6d4' },
-    { name: 'ISRO', color: '#f97316' },
-    { name: 'ESA', color: '#6366f1' },
-    { name: 'JAXA', color: '#ec4899' }
-  ];
+  const bgImage = apodData?.media_type === 'image' 
+    ? apodData.url 
+    : 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072';
 
   return (
-    <div style={{ backgroundColor: '#030712', color: '#f8fafc', minHeight: '100vh', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ backgroundColor: '#020408', color: '#f8fafc', minHeight: '100vh', fontFamily: '"Space Grotesk", -apple-system, sans-serif', position: 'relative', overflowX: 'hidden' }}>
       
-      {/* Inline Animation & Hover Styles */}
+      {/* Dynamic Style Injection for Active Theory / Lusion Effects */}
       <style>{`
-        @keyframes pulseGlow {
-          0%, 100% { opacity: 0.4; filter: blur(40px); }
-          50% { opacity: 0.8; filter: blur(60px); }
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700&display=swap');
+
+        .nasa-backdrop {
+          position: fixed;
+          top: 0; left: 0; width: 100vw; height: 100vh;
+          background-image: linear-gradient(180deg, rgba(2, 4, 8, 0.45) 0%, rgba(2, 4, 8, 0.85) 60%, #020408 100%), url('${bgImage}');
+          background-size: cover;
+          background-position: center;
+          z-index: 0;
+          filter: brightness(0.7) contrast(1.1);
+          transform: scale(1.02);
+          transition: transform 10s ease-out;
         }
-        .glow-bg {
-          position: absolute; width: 300px; height: 300px;
-          background: radial-gradient(circle, rgba(56, 189, 248, 0.25) 0%, rgba(0, 0, 0, 0) 70%);
-          border-radius: 50%; pointer-events: none; animation: pulseGlow 6s infinite ease-in-out;
+
+        .cyber-grid {
+          position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+          background-size: 60px 60px;
+          background-image: 
+            linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+          z-index: 1;
+          pointer-events: none;
         }
-        .feature-card {
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+        .glass-card {
+          background: rgba(10, 16, 28, 0.55);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        .feature-card:hover {
-          transform: translateY(-8px);
-          border-color: #38bdf8 !important;
-          box-shadow: 0 10px 30px -10px rgba(56, 189, 248, 0.3);
+
+        .glass-card:hover {
+          border-color: rgba(56, 189, 248, 0.5);
+          transform: translateY(-6px);
+          box-shadow: 0 20px 50px -10px rgba(56, 189, 248, 0.2);
+        }
+
+        .spacex-btn {
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          background: rgba(255, 255, 255, 0.03);
+          color: #ffffff;
+          letter-spacing: 3px;
+          text-transform: uppercase;
+          font-weight: 600;
+          font-size: 0.75rem;
+          padding: 0.8rem 1.8rem;
+          transition: all 0.3s ease;
+          cursor: pointer;
+        }
+
+        .spacex-btn:hover {
+          background: #ffffff;
+          color: #000000;
+          border-color: #ffffff;
+          box-shadow: 0 0 25px rgba(255, 255, 255, 0.5);
+        }
+
+        @keyframes scanline {
+          0% { transform: translateY(-100%); }
+          100% { transform: translateY(1000%); }
+        }
+
+        .hud-line {
+          position: absolute; top: 0; left: 0; right: 0; height: 2px;
+          background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.8), transparent);
+          animation: scanline 6s linear infinite;
+          pointer-events: none;
         }
       `}</style>
 
-      {/* Hero Header Section */}
-      <div style={{ position: 'relative', overflow: 'hidden', borderBottom: '1px solid #1e293b', padding: '4rem 1.5rem 3rem 1.5rem', textAlign: 'center' }}>
-        <div className="glow-bg" style={{ top: '-50px', left: '50%', transform: 'translateX(-50%)' }}></div>
+      {/* Full-bleed Dynamic Cosmic Background */}
+      <div className="nasa-backdrop"></div>
+      <div className="cyber-grid"></div>
+
+      {/* Foreground Content */}
+      <div style={{ position: 'relative', zIndex: 2 }}>
         
-        <div style={{ maxWidth: '900px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
-          <span style={{ fontSize: '0.8rem', letterSpacing: '2px', textTransform: 'uppercase', color: '#38bdf8', fontWeight: '700', padding: '0.4rem 1rem', background: 'rgba(56, 189, 248, 0.1)', borderRadius: '20px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
-            Universal Exploration Hub
-          </span>
-          <h1 style={{ fontSize: '3.5rem', fontWeight: '900', margin: '1.2rem 0 0.8rem 0', background: 'linear-gradient(135deg, #ffffff 0%, #38bdf8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-1px' }}>
-            SPACETEC
-          </h1>
-          <p style={{ fontSize: '1.15rem', color: '#94a3b8', maxWidth: '650px', margin: '0 auto 2rem auto', lineHeight: '1.6' }}>
-            Unified real-time telemetry, deep-space observation feeds, and mission intelligence across global space agencies.
-          </p>
-
-          {/* Agency Badges */}
-          <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            {agencies.map((agency) => (
-              <span key={agency.name} style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', color: agency.color, padding: '0.4rem 1rem', borderRadius: '30px', fontSize: '0.85rem', fontWeight: 'bold' }}>
-                ● {agency.name}
-              </span>
-            ))}
+        {/* SpaceX-style Minimal Floating HUD Header */}
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2rem 3rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <span style={{ fontSize: '1.4rem', fontWeight: '900', letterSpacing: '4px', background: 'linear-gradient(180deg, #fff 0%, #94a3b8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              SPACETEC
+            </span>
+            <span style={{ fontSize: '0.65rem', color: '#38bdf8', letterSpacing: '2px', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '0.2rem 0.5rem', borderRadius: '2px' }}>
+              SYS.VER.2026.1
+            </span>
           </div>
-        </div>
-      </div>
-
-      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '3rem 1.5rem' }}>
-        
-        {/* Live Telemetry Stats Bar */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '3.5rem' }}>
-          {[
-            { label: 'Agencies Synced', val: '5 Active' },
-            { label: 'Upcoming Mission', val: upcomingLaunches[0]?.name?.split('|')[0] || 'Tracking...' },
-            { label: 'Orbital Feed Status', val: '🟢 Live' },
-            { label: 'Data Latency', val: '< 12ms' }
-          ].map((stat, i) => (
-            <div key={i} style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem 1.2rem', backdropFilter: 'blur(8px)' }}>
-              <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>{stat.label}</p>
-              <p style={{ margin: '0.4rem 0 0 0', fontSize: '1rem', color: '#f8fafc', fontWeight: 'bold' }}>{stat.val}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Section 1: NASA APOD Deep Space Showcase */}
-        <section style={{ marginBottom: '4rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <h2 style={{ fontSize: '1.6rem', color: '#f8fafc', margin: 0, fontWeight: '800' }}>🌌 Daily Cosmic Observation</h2>
-            <span style={{ fontSize: '0.8rem', color: '#38bdf8' }}>NASA APOD Stream</span>
+          <div style={{ display: 'flex', gap: '2rem', fontSize: '0.75rem', letterSpacing: '2px', textTransform: 'uppercase', color: '#94a3b8' }}>
+            <span style={{ color: '#fff' }}>● Live Telemetry</span>
+            <span>Agencies</span>
+            <span>Orbital Map</span>
           </div>
+        </header>
 
-          {apodData ? (
-            <div className="feature-card" style={{ backgroundColor: '#0f172a', borderRadius: '16px', overflow: 'hidden', border: '1px solid #1e293b', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
-              <div>
-                {apodData.media_type === 'image' ? (
-                  <img src={apodData.url} alt={apodData.title} style={{ width: '100%', height: '100%', minHeight: '350px', objectFit: 'cover' }} />
-                ) : (
-                  <iframe src={apodData.url} title={apodData.title} style={{ width: '100%', height: '100%', minHeight: '350px', border: 'none' }} />
-                )}
-              </div>
-              <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <span style={{ fontSize: '0.75rem', color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 'bold' }}>Image of the Day</span>
-                <h3 style={{ margin: '0.5rem 0 1rem 0', color: '#ffffff', fontSize: '1.5rem' }}>{apodData.title}</h3>
-                <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: '1.6', margin: 0 }}>{apodData.explanation ? `${apodData.explanation.slice(0, 320)}...` : ''}</p>
-              </div>
+        {/* Hero Section */}
+        <section style={{ padding: '8rem 3rem 5rem 3rem', maxWidth: '1400px', margin: '0 auto' }}>
+          <div style={{ maxWidth: '800px' }}>
+            <p style={{ fontSize: '0.8rem', letterSpacing: '4px', textTransform: 'uppercase', color: '#38bdf8', marginBottom: '1.5rem', fontWeight: '700' }}>
+              // MULTI-AGENCY DEEP SPACE NETWORK
+            </p>
+            <h1 style={{ fontSize: 'calc(2.5rem + 3vw)', fontWeight: '700', lineHeight: '1.05', letterSpacing: '-1px', margin: '0 0 2rem 0', textTransform: 'uppercase' }}>
+              HUMANITY'S GATEWAY TO THE COSMOS.
+            </h1>
+            <p style={{ fontSize: '1.1rem', color: '#cbd5e1', lineHeight: '1.7', maxWidth: '600px', marginBottom: '2.5rem', fontWeight: '300' }}>
+              Real-time trajectory tracking, global rocket launch manifests, and deep space observations aggregated directly from NASA, SpaceX, ISRO, ESA, and JAXA.
+            </p>
+            
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button className="spacex-btn">EXPLORE LAUNCHES</button>
+              <button className="spacex-btn" style={{ background: 'transparent', borderColor: 'rgba(255,255,255,0.15)' }}>TELEMETRY DATA</button>
             </div>
-          ) : (
-            <div style={{ padding: '3rem', textAlign: 'center', backgroundColor: '#0f172a', borderRadius: '16px', border: '1px solid #1e293b' }}>
-              <p style={{ color: '#94a3b8' }}>Establishing deep space telemetry link...</p>
-            </div>
-          )}
-        </section>
-
-        {/* Section 2: Real-time Multi-Agency Rocket Launches */}
-        <section style={{ marginBottom: '4rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <h2 style={{ fontSize: '1.6rem', color: '#f8fafc', margin: 0, fontWeight: '800' }}>🛰️ Global Mission Manifest</h2>
-            <span style={{ fontSize: '0.8rem', color: '#38bdf8' }}>Live Schedule</span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.2rem' }}>
-            {upcomingLaunches.map((launch) => (
-              <div key={launch.id} className="feature-card" style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
-                    <span style={{ fontSize: '0.7rem', backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '0.2rem 0.6rem', borderRadius: '6px', fontWeight: 'bold', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
-                      {launch.launch_service_provider?.name || 'Space Agency'}
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: '#22c55e', fontWeight: '600' }}>● Scheduled</span>
-                  </div>
-                  <h3 style={{ fontSize: '1.05rem', color: '#f8fafc', margin: '0 0 0.8rem 0', lineHeight: '1.4' }}>{launch.name}</h3>
-                </div>
-                <div style={{ borderTop: '1px solid #1e293b', paddingTop: '0.8rem', marginTop: '1rem' }}>
-                  <p style={{ fontSize: '0.8rem', color: '#cbd5e1', margin: '0 0 0.3rem 0' }}>
-                    📅 {new Date(launch.net).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </p>
-                  <p style={{ fontSize: '0.75rem', color: '#64748b', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                    📍 {launch.pad?.location?.name || 'Vandenberg / Cape Canaveral'}
-                  </p>
-                </div>
-              </div>
-            ))}
           </div>
         </section>
 
-        {/* Section 3: Feature Roadmap Grid */}
-        <section style={{ borderTop: '1px solid #1e293b', paddingTop: '3.5rem' }}>
-          <h2 style={{ fontSize: '1.6rem', color: '#f8fafc', marginBottom: '1.5rem', fontWeight: '800' }}>⚡ SpaceTec Exploration Suite</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.2rem' }}>
+        {/* Live HUD Telemetry Banner (Inertia / Active Theory Style) */}
+        <section style={{ margin: '0 3rem 6rem 3rem' }}>
+          <div className="glass-card" style={{ padding: '1.8rem 2.5rem', borderRadius: '4px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem', position: 'relative', overflow: 'hidden' }}>
+            <div className="hud-line"></div>
             {[
-              { title: 'ISS Live Tracker', desc: 'Real-time orbital telemetry and astronaut crew manifest.', icon: '🛰️' },
-              { title: 'Mars Rover Vault', desc: 'Curated high-res surface captures from Curiosity and Perseverance.', icon: '🔴' },
-              { title: 'Asteroid Defense Radar', desc: 'Near-Earth hazard monitoring and trajectory calculations.', icon: '☄️' },
-              { title: 'Exoplanet Index', desc: 'Searchable catalogue of habitable deep-space worlds.', icon: '🪐' }
-            ].map((feat, index) => (
-              <div key={index} className="feature-card" style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1.5rem' }}>
-                <span style={{ fontSize: '1.8rem' }}>{feat.icon}</span>
-                <h3 style={{ color: '#f8fafc', fontSize: '1.1rem', margin: '0.8rem 0 0.4rem 0' }}>{feat.title}</h3>
-                <p style={{ color: '#94a3b8', fontSize: '0.85rem', lineHeight: '1.5', margin: 0 }}>{feat.desc}</p>
+              { label: 'COSMIC BACKGROUND STREAM', val: apodData?.title ? apodData.title.slice(0, 22) + '...' : 'NASA APOD' },
+              { label: 'ACTIVE AGENCIES', val: 'NASA • ISRO • SPACEX' },
+              { label: 'NEXT MISSION NET', val: upcomingLaunches[0] ? new Date(upcomingLaunches[0].net).toLocaleDateString() : 'SYNCING...' },
+              { label: 'NETWORK LATENCY', val: '0.04 MS / OPTICAL' }
+            ].map((stat, idx) => (
+              <div key={idx}>
+                <span style={{ fontSize: '0.65rem', color: '#64748b', letterSpacing: '2px', display: 'block', marginBottom: '0.4rem' }}>
+                  {stat.label}
+                </span>
+                <span style={{ fontSize: '0.95rem', fontWeight: '700', letterSpacing: '1px', color: '#38bdf8' }}>
+                  {stat.val}
+                </span>
               </div>
             ))}
           </div>
         </section>
 
-      </main>
+        {/* NASA APOD Feature Card (Floating Glass Drawer) */}
+        {apodData && (
+          <section style={{ padding: '0 3rem 6rem 3rem', maxWidth: '1400px', margin: '0 auto' }}>
+            <div className="glass-card" style={{ padding: '3rem', borderRadius: '4px', position: 'relative', overflow: 'hidden' }}>
+              <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '3px', textTransform: 'uppercase', fontWeight: '700' }}>
+                // TODAY'S FEATURED DEEP SPACE OBSERVATION
+              </span>
+              <h2 style={{ fontSize: '2.2rem', textTransform: 'uppercase', margin: '0.8rem 0 1.2rem 0', fontWeight: '700' }}>
+                {apodData.title}
+              </h2>
+              <p style={{ color: '#94a3b8', lineHeight: '1.8', maxWidth: '850px', fontSize: '0.95rem', margin: 0 }}>
+                {apodData.explanation}
+              </p>
+            </div>
+          </section>
+        )}
+
+        {/* Multi-Agency Launch Grid */}
+        <section style={{ padding: '0 3rem 8rem 3rem', maxWidth: '1400px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
+            <div>
+              <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '3px', textTransform: 'uppercase', fontWeight: '700' }}>
+                // REAL-TIME ORBITAL MANIFEST
+              </span>
+              <h2 style={{ fontSize: '2rem', textTransform: 'uppercase', margin: '0.4rem 0 0 0', fontWeight: '700' }}>
+                UPCOMING GLOBAL LAUNCHES
+              </h2>
+            </div>
+            <span style={{ fontSize: '0.75rem', letterSpacing: '2px', color: '#64748b' }}>
+              AUTO-SYNCED WITH LAUNCH LIBRARY 2
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+            {upcomingLaunches.map((launch) => (
+              <div key={launch.id} className="glass-card" style={{ padding: '2rem', borderRadius: '4px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '220px' }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <span style={{ fontSize: '0.65rem', letterSpacing: '2px', textTransform: 'uppercase', padding: '0.2rem 0.6rem', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                      {launch.launch_service_provider?.name || 'AGENCY'}
+                    </span>
+                    <span style={{ fontSize: '0.7rem', color: '#22c55e', letterSpacing: '1px' }}>● CONFIRMED</span>
+                  </div>
+                  <h3 style={{ fontSize: '1.1rem', margin: '0 0 1rem 0', fontWeight: '600', lineHeight: '1.4' }}>
+                    {launch.name}
+                  </h3>
+                </div>
+
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem' }}>
+                  <p style={{ margin: '0 0 0.3rem 0', fontSize: '0.8rem', color: '#94a3b8', letterSpacing: '1px' }}>
+                    NET: {new Date(launch.net).toUTCString().slice(0, 16)}
+                  </p>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    PAD: {launch.pad?.location?.name || 'Vandenberg Space Force Base'}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+      </div>
     </div>
   );
 }
