@@ -17,7 +17,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
   ];
 
-  // 6 Total Agencies divided into the exact requested batches & positions
+  // Agencies with dedicated video URLs for tile (launch) and expanded (satellite)
   const agencyBatches = [
     [
       {
@@ -26,7 +26,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         tagline: 'SATURN V & ARTEMIS',
         accentColor: '#3b82f6',
         specialty: 'Saturn V Lunar Legacy, Webb Telescope & Artemis Moon Missions',
-        brief: 'Pioneering deep space exploration, advanced planetary defense, and sustained human habitats on the lunar surface.'
+        brief: 'Pioneering deep space exploration, advanced planetary defense, and sustained human habitats on the lunar surface.',
+        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-rocket-launching-in-the-sky-41584-large.mp4',
+        expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-digital-animation-of-screens-with-satellite-imagery-41961-large.mp4'
       },
       {
         id: 'spacex',
@@ -34,7 +36,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         tagline: 'STARSHIP FLEET',
         accentColor: '#ff6600',
         specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture',
-        brief: 'Developing fully reusable heavy-lift transportation systems designed to make humanity multi-planetary.'
+        brief: 'Developing fully reusable heavy-lift transportation systems designed to make humanity multi-planetary.',
+        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-space-rocket-launch-into-the-night-sky-41585-large.mp4',
+        expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-spinning-planet-earth-in-space-41959-large.mp4'
       },
       {
         id: 'esa',
@@ -42,7 +46,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         tagline: 'ARIANE 6 & COSMIC VISION',
         accentColor: '#60a5fa',
         specialty: 'Ariane 6 Heavy Lift System & Euclid Dark Energy Mapping',
-        brief: 'Coordinating European collaboration in space research, satellite earth observation, and deep space probes.'
+        brief: 'Coordinating European collaboration in space research, satellite earth observation, and deep space probes.',
+        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-rocket-launching-in-the-sky-41584-large.mp4',
+        expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-animation-of-a-satellite-orbiting-the-earth-41960-large.mp4'
       }
     ],
     [
@@ -52,7 +58,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         tagline: 'H3 & ASTEROID SAMPLING',
         accentColor: '#2dd4bf',
         specialty: 'H3 Next-Gen Rocket & Hayabusa Asteroid Sample Return',
-        brief: 'Advancing high-precision robotic asteroid exploration, global satellite navigation, and next-generation rocketry.'
+        brief: 'Advancing high-precision robotic asteroid exploration, global satellite navigation, and next-generation rocketry.',
+        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-space-rocket-launch-into-the-night-sky-41585-large.mp4',
+        expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-digital-animation-of-screens-with-satellite-imagery-41961-large.mp4'
       },
       {
         id: 'isro',
@@ -60,7 +68,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         tagline: 'GSLV MK III & CHANDRAYAAN',
         accentColor: '#ff9933',
         specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan',
-        brief: 'Executing cost-effective lunar polar exploration, orbital space stations, and indigenous human spaceflight.'
+        brief: 'Executing cost-effective lunar polar exploration, orbital space stations, and indigenous human spaceflight.',
+        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-rocket-launching-in-the-sky-41584-large.mp4',
+        expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-spinning-planet-earth-in-space-41959-large.mp4'
       },
       {
         id: 'cnsa',
@@ -68,7 +78,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         tagline: 'CHANG\'E & TIANWEN',
         accentColor: '#f43f5e',
         specialty: 'Chang\'e Lunar Sample Return & Tianwen Mars Rover Missions',
-        brief: 'Operating successful lunar far-side sample missions, orbital laboratories, and interplanetary rovers.'
+        brief: 'Operating successful lunar far-side sample missions, orbital laboratories, and interplanetary rovers.',
+        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-space-rocket-launch-into-the-night-sky-41585-large.mp4',
+        expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-animation-of-a-satellite-orbiting-the-earth-41960-large.mp4'
       }
     ]
   ];
@@ -80,7 +92,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     return () => clearInterval(bgTimer);
   }, [spaceBackgrounds.length]);
 
-  // Automatically switch batches every 8 seconds, but PAUSE if an agency is hovered
+  // Pause automatic batch rotation when hovered
   useEffect(() => {
     const batchTimer = setInterval(() => {
       if (!activeAgency) {
@@ -210,15 +222,53 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           justify-content: space-between;
           padding: 2.5rem 2rem;
           box-sizing: border-box;
-          background: rgba(12, 12, 14, 0.85);
+          background: #000000;
         }
 
         .agency-column:last-child {
           border-right: none;
         }
+
+        .agency-video-bg {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          z-index: 1;
+          opacity: 0.45;
+          pointer-events: none;
+        }
+
+        .agency-expanded-video {
+          position: absolute;
+          top: 0;
+          right: 0;
+          width: 65%;
+          height: 100%;
+          object-fit: cover;
+          z-index: 1;
+          opacity: 0.65;
+          pointer-events: none;
+          mask-image: linear-gradient(to right, transparent 0%, black 40%);
+          -webkit-mask-image: linear-gradient(to right, transparent 0%, black 40%);
+        }
+
+        .agency-content-layer {
+          position: relative;
+          z-index: 3;
+        }
+
+        .agency-text-shield {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(90deg, #000000 0%, #000000 45%, rgba(0,0,0,0.85) 70%, rgba(0,0,0,0.4) 100%);
+          z-index: 2;
+          pointer-events: none;
+        }
       `}</style>
 
-      {/* BACKGROUND IMAGES SLIDESHOW */}
+      {/* BACKGROUND SLIDESHOW */}
       {spaceBackgrounds.map((bgUrl, idx) => (
         <div
           key={bgUrl}
@@ -240,13 +290,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         animate={{ opacity: entered ? 1 : 0 }}
         transition={{ duration: 0.8 }}
         style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0,
-          zIndex: 100,
-          backgroundColor: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+          backgroundColor: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
           pointerEvents: entered ? 'auto' : 'none'
         }}
       >
@@ -256,14 +302,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               <motion.span
                 layoutId="spacetec-brand"
                 transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                style={{
-                  fontSize: '1.25rem',
-                  fontWeight: '900',
-                  letterSpacing: '8px',
-                  color: '#ffffff',
-                  textTransform: 'uppercase',
-                  display: 'inline-block'
-                }}
+                style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}
               >
                 SPACETEC
               </motion.span>
@@ -280,7 +319,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         </div>
       </motion.header>
 
-      {/* INTRO SCREEN OVERLAY */}
+      {/* INTRO SCREEN */}
       <AnimatePresence>
         {!entered && (
           <motion.div
@@ -288,10 +327,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            style={{
-              position: 'fixed', inset: 0, zIndex: 9999,
-              display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '2rem'
-            }}
+            style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '2rem' }}
           >
             <div style={{ textAlign: 'center' }}>
               <motion.div
@@ -327,12 +363,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         
         {/* HERO SECTION */}
         <section className="content-container" style={{ paddingBottom: '4rem' }}>
-          <motion.div 
-            initial="hidden"
-            animate={entered ? "visible" : "hidden"}
-            variants={staggerContainer}
-            style={{ maxWidth: '850px' }}
-          >
+          <motion.div initial="hidden" animate={entered ? "visible" : "hidden"} variants={staggerContainer} style={{ maxWidth: '850px' }}>
             <motion.p variants={fadeInUp} style={{ fontSize: '0.75rem', letterSpacing: '6px', textTransform: 'uppercase', color: '#a1a1aa', marginBottom: '1.5rem', fontWeight: '600' }}>
               // MULTI-AGENCY DEEP SPACE NETWORK
             </motion.p>
@@ -417,9 +448,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </section>
         )}
 
-        {/* EXPLORE SPACE AGENCIES (FULL EXPANSION, LIFTED HEADER, BRIEF INFO & HOVER ROTATION FREEZE) */}
+        {/* AGENCIES SECTION WITH ROCKET LAUNCH & SATELLITE VIDEOS */}
         <section className="content-container" style={{ paddingBottom: '6rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.0rem' }}>
             <div>
               <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
                 // GLOBAL AEROSPACE ARCHITECTURE
@@ -449,7 +480,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                 const isHovered = activeAgency === agency.id;
                 let flexValue = 1;
                 if (activeAgency !== null) {
-                  flexValue = isHovered ? 12 : 0; // Fully covers the other two columns
+                  flexValue = isHovered ? 12 : 0;
                 }
 
                 return (
@@ -463,13 +494,40 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     onMouseEnter={() => setActiveAgency(agency.id)}
                     onMouseLeave={() => setActiveAgency(null)}
                   >
-                    <div>
+                    {/* Background Videos & Shields */}
+                    {!isHovered ? (
+                      <>
+                        <div className="agency-text-shield" />
+                        <video
+                          className="agency-video-bg"
+                          src={agency.tileVideo}
+                          autoPlay
+                          muted
+                          loop
+                          playsInline
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <div className="agency-text-shield" />
+                        <video
+                          className="agency-expanded-video"
+                          src={agency.expandedVideo}
+                          autoPlay
+                          muted
+                          loop
+                          playsInline
+                        />
+                      </>
+                    )}
+
+                    <div className="agency-content-layer">
                       <span style={{ fontSize: '0.65rem', letterSpacing: '3px', textTransform: 'uppercase', color: isHovered ? agency.accentColor : '#a1a1aa', fontWeight: '800', transition: 'color 0.3s ease' }}>
                         // 0{agencyBatchIndex * 3 + index + 1}
                       </span>
                     </div>
 
-                    <div style={{ 
+                    <div className="agency-content-layer" style={{ 
                       transform: isHovered ? 'translateY(-14px)' : 'translateY(0px)', 
                       transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' 
                     }}>
@@ -485,13 +543,12 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                         {agency.specialty}
                       </p>
 
-                      {/* Brief additional description revealed on full expansion */}
                       {isHovered && (
                         <motion.p 
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.4, delay: 0.1 }}
-                          style={{ fontSize: '0.8rem', color: '#a1a1aa', lineHeight: '1.6', margin: '1rem 0 0 0', maxWidth: '600px', borderLeft: `2px solid ${agency.accentColor}`, paddingLeft: '1rem' }}
+                          style={{ fontSize: '0.8rem', color: '#a1a1aa', lineHeight: '1.6', margin: '1rem 0 0 0', maxWidth: '540px', borderLeft: `2px solid ${agency.accentColor}`, paddingLeft: '1rem' }}
                         >
                           {agency.brief}
                         </motion.p>
@@ -504,7 +561,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </AnimatePresence>
         </section>
 
-        {/* UPCOMING GLOBAL LAUNCHES GRID */}
+        {/* UPCOMING LAUNCHES */}
         <section className="content-container" style={{ paddingBottom: '8rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
             <div>
@@ -520,13 +577,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             </span>
           </div>
 
-          <motion.div 
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={staggerContainer}
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}
-          >
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={staggerContainer} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
             {upcomingLaunches.map((launch) => (
               <motion.div 
                 key={launch.id} 
