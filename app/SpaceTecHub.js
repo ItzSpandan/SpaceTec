@@ -16,21 +16,21 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
   ];
 
-  // 5 Main Agencies with custom interactive gradient/motion styles
+  // 5 Global Agencies with vertical video streams
   const agencies = [
     {
       id: 'spacex',
       name: 'SPACEX',
-      tagline: 'STARSHIP ORBITAL FLEET',
-      bgGradient: 'linear-gradient(180deg, rgba(255,102,0,0.3) 0%, rgba(15,15,15,0.95) 100%)',
+      tagline: 'STARSHIP FLEET',
+      videoUrl: 'https://videos.pexels.com/video-files/852286/852286-hd_1080_1920_30fps.mp4',
       accentColor: '#ff6600',
       specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture'
     },
     {
       id: 'nasa',
       name: 'NASA',
-      tagline: 'SATURN V & ARTEMIS DEEP SPACE',
-      bgGradient: 'linear-gradient(180deg, rgba(11,61,145,0.4) 0%, rgba(15,15,15,0.95) 100%)',
+      tagline: 'SATURN V & ARTEMIS',
+      videoUrl: 'https://videos.pexels.com/video-files/1851190/1851190-hd_1080_1920_25fps.mp4',
       accentColor: '#3b82f6',
       specialty: 'Saturn V Lunar Legacy, Webb Telescope & Artemis Moon Missions'
     },
@@ -38,7 +38,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       id: 'isro',
       name: 'ISRO',
       tagline: 'GSLV MK III & CHANDRAYAAN',
-      bgGradient: 'linear-gradient(180deg, rgba(255,153,51,0.35) 0%, rgba(15,15,15,0.95) 100%)',
+      videoUrl: 'https://videos.pexels.com/video-files/3129957/3129957-hd_1080_1920_30fps.mp4',
       accentColor: '#ff9933',
       specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan'
     },
@@ -46,15 +46,15 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       id: 'esa',
       name: 'ESA',
       tagline: 'ARIANE 6 & COSMIC VISION',
-      bgGradient: 'linear-gradient(180deg, rgba(0,51,153,0.4) 0%, rgba(15,15,15,0.95) 100%)',
+      videoUrl: 'https://videos.pexels.com/video-files/856973/856973-hd_1080_1920_30fps.mp4',
       accentColor: '#60a5fa',
       specialty: 'Ariane 6 Heavy Lift System & Euclid Dark Energy Mapping'
     },
     {
       id: 'jaxa',
       name: 'JAXA',
-      tagline: 'H3 LAUNCHER & ASTEROID SAMPLING',
-      bgGradient: 'linear-gradient(180deg, rgba(20,184,166,0.35) 0%, rgba(15,15,15,0.95) 100%)',
+      tagline: 'H3 & ASTEROID SAMPLING',
+      videoUrl: 'https://videos.pexels.com/video-files/1851192/1851192-hd_1080_1920_25fps.mp4',
       accentColor: '#2dd4bf',
       specialty: 'H3 Next-Gen Rocket & Hayabusa Asteroid Sample Return'
     }
@@ -177,7 +177,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 
         .agency-column {
           position: relative;
-          height: 480px;
+          height: 520px;
           border-right: 1px solid rgba(255, 255, 255, 0.12);
           overflow: hidden;
           cursor: pointer;
@@ -193,15 +193,26 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           border-right: none;
         }
 
-        .agency-column-bg {
+        .agency-column video {
           position: absolute;
-          inset: 0;
+          top: 0; left: 0; width: 100%; height: 100%;
+          object-fit: cover;
           z-index: 0;
-          transition: transform 0.8s ease, opacity 0.5s ease;
+          opacity: 0.45;
+          filter: brightness(0.7) contrast(1.2);
+          transition: opacity 0.5s ease, transform 0.8s ease;
         }
 
-        .agency-column:hover .agency-column-bg {
+        .agency-column:hover video {
+          opacity: 0.9;
           transform: scale(1.08);
+        }
+
+        .agency-column-overlay {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.9) 100%);
+          z-index: 1;
         }
       `}</style>
 
@@ -224,42 +235,36 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       {/* HEADER */}
       <motion.header 
         initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+        animate={{ opacity: entered ? 1 : 0 }}
         transition={{ duration: 0.8 }}
         style={{
           position: 'fixed',
           top: 0, left: 0, right: 0,
           zIndex: 100,
-          backgroundColor: entered ? 'rgba(0, 0, 0, 0.85)' : 'transparent',
-          backdropFilter: entered ? 'blur(16px)' : 'none',
-          WebkitBackdropFilter: entered ? 'blur(16px)' : 'none',
-          borderBottom: entered ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid transparent',
-          transition: 'background-color 0.6s ease, backdrop-filter 0.6s ease, border-color 0.6s ease'
+          backgroundColor: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          pointerEvents: entered ? 'auto' : 'none'
         }}
       >
         <div className="content-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            {entered && (
-              <motion.span
-                layoutId="spacetec-brand"
-                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                style={{
-                  fontSize: '1.25rem',
-                  fontWeight: '900',
-                  letterSpacing: '8px',
-                  color: '#ffffff',
-                  textTransform: 'uppercase',
-                  display: 'inline-block'
-                }}
-              >
-                SPACETEC
-              </motion.span>
-            )}
+            <span
+              style={{
+                fontSize: '1.25rem',
+                fontWeight: '900',
+                letterSpacing: '8px',
+                color: '#ffffff',
+                textTransform: 'uppercase',
+                display: 'inline-block'
+              }}
+            >
+              SPACETEC
+            </span>
           </div>
 
-          <motion.div 
-            animate={{ opacity: entered ? 1 : 0, y: entered ? 0 : -10 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
+          <div 
             style={{ display: 'flex', alignItems: 'center', gap: '1.8rem', fontSize: '0.75rem', letterSpacing: '3px', textTransform: 'uppercase', color: '#94a3b8' }}
           >
             <span style={{ color: '#ffffff', fontWeight: '600' }}>Live Telemetry</span>
@@ -267,11 +272,11 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             <span>Agencies</span>
             <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
             <span>Orbital Map</span>
-          </motion.div>
+          </div>
         </div>
       </motion.header>
 
-      {/* INTRO OVERLAY */}
+      {/* INTRO OVERLAY (FIXES BUG: HIDES LOWER CONTENT WHILE VISIBLE) */}
       <AnimatePresence>
         {!entered && (
           <motion.div
@@ -281,15 +286,15 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             style={{
               position: 'fixed', inset: 0, zIndex: 9999,
+              backgroundColor: '#000000',
               display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '2rem'
             }}
           >
             <div style={{ textAlign: 'center' }}>
               <motion.div
-                layoutId="spacetec-brand"
-                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                 initial={{ opacity: 0, scale: 0.9, letterSpacing: '0.12em' }}
                 animate={{ opacity: 1, scale: 1, letterSpacing: '0.22em' }}
+                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
               >
                 <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', filter: 'drop-shadow(0 0 35px rgba(255,255,255,0.25))' }}>
                   SPACETEC
@@ -309,8 +314,12 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         )}
       </AnimatePresence>
 
-      {/* MAIN CONTENT */}
-      <div style={{ position: 'relative', zIndex: 3, paddingTop: '8rem' }}>
+      {/* MAIN DASHBOARD (ONLY REVEALED AFTER INTRO) */}
+      <motion.div 
+        animate={{ opacity: entered ? 1 : 0 }}
+        transition={{ duration: 0.8, delay: 0.2 }}
+        style={{ position: 'relative', zIndex: 3, paddingTop: '8rem', pointerEvents: entered ? 'auto' : 'none' }}
+      >
         
         {/* HERO SECTION */}
         <section className="content-container" style={{ paddingBottom: '4rem' }}>
@@ -404,7 +413,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </section>
         )}
 
-        {/* EXPLORE SPACE AGENCIES ACROSS THE GLOBE (5 DIVISIONS) */}
+        {/* EXPLORE SPACE AGENCIES ACROSS THE GLOBE (5 VERTICAL DIVISIONS WITH WORKING VIDEO STREAMS) */}
         <section className="content-container" style={{ paddingBottom: '6rem' }}>
           <div style={{ marginBottom: '2rem' }}>
             <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
@@ -426,23 +435,20 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                   onMouseEnter={() => setActiveAgency(agency.id)}
                   onMouseLeave={() => setActiveAgency(null)}
                 >
-                  {/* Dynamic Gradient / Atmosphere Canvas */}
-                  <div
-                    className="agency-column-bg"
-                    style={{
-                      background: agency.bgGradient,
-                      opacity: isHovered ? 1 : 0.5
-                    }}
-                  />
+                  {/* Vertical Autoplay Video Layer */}
+                  <video autoPlay loop muted playsInline key={agency.videoUrl}>
+                    <source src={agency.videoUrl} type="video/mp4" />
+                  </video>
+                  <div className="agency-column-overlay" />
 
-                  {/* Agency Number */}
+                  {/* Header Identifier */}
                   <div style={{ position: 'relative', zIndex: 2 }}>
                     <span style={{ fontSize: '0.65rem', letterSpacing: '3px', textTransform: 'uppercase', color: isHovered ? agency.accentColor : '#a1a1aa', fontWeight: '800', transition: 'color 0.3s ease' }}>
                       // 0{agencies.indexOf(agency) + 1}
                     </span>
                   </div>
 
-                  {/* Content Container */}
+                  {/* Agency Metadata & Highlights */}
                   <div style={{ position: 'relative', zIndex: 2 }}>
                     <h3 style={{ fontSize: '1.6rem', fontWeight: '900', letterSpacing: '3px', margin: '0 0 0.5rem 0', color: '#ffffff', textTransform: 'uppercase' }}>
                       {agency.name}
@@ -461,7 +467,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             })}
           </div>
 
-          {/* EXPLORE MORE AGENCIES BAR */}
+          {/* EXPLORE MORE AGENCIES BUTTON BAR */}
           <motion.div 
             whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.12)', borderColor: '#ffffff' }}
             style={{ marginTop: '1.5rem', padding: '1.2rem', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.2)', cursor: 'pointer', background: 'rgba(10, 10, 10, 0.6)', transition: 'all 0.3s ease' }}
@@ -528,7 +534,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </motion.div>
         </section>
 
-      </div>
+      </motion.div>
     </div>
   );
 }
