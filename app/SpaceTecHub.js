@@ -17,7 +17,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
   ];
 
-  // Agencies with dedicated video URLs for tile (launch) and expanded (satellite)
+  // Agencies with YouTube embed URLs for tile (launch snippet) and expanded (placeholder/expanded)
   const agencyBatches = [
     [
       {
@@ -27,7 +27,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#3b82f6',
         specialty: 'Saturn V Lunar Legacy, Webb Telescope & Artemis Moon Missions',
         brief: 'Pioneering deep space exploration, advanced planetary defense, and sustained human habitats on the lunar surface.',
-        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-rocket-launching-in-the-sky-41584-large.mp4',
+        tileVideo: 'https://www.youtube.com/embed/-1wcilQ58hI?start=2701&end=2715&autoplay=1&mute=1&loop=1&controls=0&rel=0',
         expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-digital-animation-of-screens-with-satellite-imagery-41961-large.mp4'
       },
       {
@@ -37,7 +37,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#ff6600',
         specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture',
         brief: 'Developing fully reusable heavy-lift transportation systems designed to make humanity multi-planetary.',
-        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-space-rocket-launch-into-the-night-sky-41585-large.mp4',
+        tileVideo: 'https://www.youtube.com/embed/-1wcilQ58hI?start=2701&end=2715&autoplay=1&mute=1&loop=1&controls=0&rel=0',
         expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-spinning-planet-earth-in-space-41959-large.mp4'
       },
       {
@@ -47,7 +47,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#60a5fa',
         specialty: 'Ariane 6 Heavy Lift System & Euclid Dark Energy Mapping',
         brief: 'Coordinating European collaboration in space research, satellite earth observation, and deep space probes.',
-        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-rocket-launching-in-the-sky-41584-large.mp4',
+        tileVideo: 'https://www.youtube.com/embed/-1wcilQ58hI?start=2701&end=2715&autoplay=1&mute=1&loop=1&controls=0&rel=0',
         expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-animation-of-a-satellite-orbiting-the-earth-41960-large.mp4'
       }
     ],
@@ -59,7 +59,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#2dd4bf',
         specialty: 'H3 Next-Gen Rocket & Hayabusa Asteroid Sample Return',
         brief: 'Advancing high-precision robotic asteroid exploration, global satellite navigation, and next-generation rocketry.',
-        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-space-rocket-launch-into-the-night-sky-41585-large.mp4',
+        tileVideo: 'https://www.youtube.com/embed/Zfr1eVS5iX8?start=8&end=12&autoplay=1&mute=1&loop=1&controls=0&rel=0',
         expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-digital-animation-of-screens-with-satellite-imagery-41961-large.mp4'
       },
       {
@@ -69,7 +69,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#ff9933',
         specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan',
         brief: 'Executing cost-effective lunar polar exploration, orbital space stations, and indigenous human spaceflight.',
-        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-rocket-launching-in-the-sky-41584-large.mp4',
+        tileVideo: 'https://www.youtube.com/embed/Zfr1eVS5iX8?start=8&end=12&autoplay=1&mute=1&loop=1&controls=0&rel=0',
         expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-spinning-planet-earth-in-space-41959-large.mp4'
       },
       {
@@ -79,7 +79,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#f43f5e',
         specialty: 'Chang\'e Lunar Sample Return & Tianwen Mars Rover Missions',
         brief: 'Operating successful lunar far-side sample missions, orbital laboratories, and interplanetary rovers.',
-        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-space-rocket-launch-into-the-night-sky-41585-large.mp4',
+        tileVideo: 'https://www.youtube.com/embed/Zfr1eVS5iX8?start=8&end=12&autoplay=1&mute=1&loop=1&controls=0&rel=0',
         expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-animation-of-a-satellite-orbiting-the-earth-41960-large.mp4'
       }
     ]
@@ -238,6 +238,22 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           z-index: 1;
           opacity: 0.45;
           pointer-events: none;
+        }
+
+        /* iframe container styling for YouTube embed clips */
+        .agency-iframe-bg {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 177.77vh; /* 16:9 min-width scaling */
+          height: 100vh;
+          min-width: 100%;
+          min-height: 100%;
+          transform: translate(-50%, -50%);
+          z-index: 1;
+          opacity: 0.55;
+          pointer-events: none;
+          border: none;
         }
 
         .agency-expanded-video {
@@ -448,7 +464,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </section>
         )}
 
-        {/* AGENCIES SECTION WITH ROCKET LAUNCH & SATELLITE VIDEOS */}
+        {/* AGENCIES SECTION WITH YOUTUBE EMBED TILE VIDEOS */}
         <section className="content-container" style={{ paddingBottom: '6rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.0rem' }}>
             <div>
@@ -494,17 +510,15 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     onMouseEnter={() => setActiveAgency(agency.id)}
                     onMouseLeave={() => setActiveAgency(null)}
                   >
-                    {/* Background Videos & Shields */}
+                    {/* Background Videos / YouTube Embed Clips & Shields */}
                     {!isHovered ? (
                       <>
                         <div className="agency-text-shield" />
-                        <video
-                          className="agency-video-bg"
+                        <iframe
+                          className="agency-iframe-bg"
                           src={agency.tileVideo}
-                          autoPlay
-                          muted
-                          loop
-                          playsInline
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          title={`${agency.name} Launch Clip`}
                         />
                       </>
                     ) : (
