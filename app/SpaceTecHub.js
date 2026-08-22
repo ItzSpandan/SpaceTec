@@ -5,11 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   const [entered, setEntered] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [telemetry, setTelemetry] = useState({ vel: '7.68', alt: '408.2', lat: '28.5721° N' });
   const canvasRef = useRef(null);
 
-  // Deep Space Starfield & Warp Tunnel Effect
+  // Deep Space Ambient Particle Canvas
   useEffect(() => {
     if (entered) return;
     const canvas = canvasRef.current;
@@ -27,36 +25,29 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     };
     window.addEventListener('resize', handleResize);
 
-    const stars = Array.from({ length: 220 }, () => ({
-      x: (Math.random() - 0.5) * width * 2,
-      y: (Math.random() - 0.5) * height * 2,
-      z: Math.random() * width,
-      o: Math.random() * 0.8 + 0.2
+    const stars = Array.from({ length: 200 }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      size: Math.random() * 1.5 + 0.2,
+      alpha: Math.random() * 0.8 + 0.2,
+      speed: Math.random() * 0.25 + 0.05
     }));
 
     const render = () => {
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, width, height);
 
-      const cx = width / 2;
-      const cy = height / 2;
-
       stars.forEach((star) => {
-        star.z -= 2.2;
-        if (star.z <= 0) star.z = width;
-
-        const k = 280 / star.z;
-        const px = star.x * k + cx;
-        const py = star.y * k + cy;
-
-        if (px >= 0 && px <= width && py >= 0 && py <= height) {
-          const size = Math.max(0.6, (1 - star.z / width) * 3);
-          const alpha = (1 - star.z / width) * star.o;
-          ctx.fillStyle = star.z < width * 0.3 ? `rgba(56, 189, 248, ${alpha})` : `rgba(255, 255, 255, ${alpha})`;
-          ctx.beginPath();
-          ctx.arc(px, py, size, 0, Math.PI * 2);
-          ctx.fill();
+        star.y -= star.speed;
+        if (star.y < 0) {
+          star.y = height;
+          star.x = Math.random() * width;
         }
+
+        ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
       });
 
       animationFrameId = requestAnimationFrame(render);
@@ -70,53 +61,53 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     };
   }, [entered]);
 
-  // Booting counter and fluctuating live telemetry
+  // Activate portal on Scroll or Swipe
   useEffect(() => {
-    const timer = setInterval(() => {
-      setProgress((prev) => (prev >= 100 ? 100 : prev + 1));
-      setTelemetry({
-        vel: (7.65 + Math.random() * 0.08).toFixed(2),
-        alt: (408.2 + (Math.random() - 0.5) * 0.4).toFixed(1),
-        lat: `${(28.5721 + (Math.random() - 0.5) * 0.002).toFixed(4)}° N`
-      });
-    }, 22);
+    if (entered) return;
 
-    return () => clearInterval(timer);
-  }, []);
+    const handleScroll = (e) => {
+      if (e.deltaY > 5) {
+        setEntered(true);
+      }
+    };
+
+    const handleTouch = () => {
+      setEntered(true);
+    };
+
+    window.addEventListener('wheel', handleScroll, { passive: true });
+    window.addEventListener('touchmove', handleTouch, { passive: true });
+
+    return () => {
+      window.removeEventListener('wheel', handleScroll);
+      window.removeEventListener('touchmove', handleTouch);
+    };
+  }, [entered]);
 
   const bgImage = apodData?.media_type === 'image' 
     ? apodData.url 
     : 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072';
 
   const fadeInUp = {
-    hidden: { opacity: 0, y: 50 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } }
+    hidden: { opacity: 0, y: 40 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.9, ease: [0.16, 1, 0.3, 1] } }
   };
 
   const staggerContainer = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.12 } }
+    visible: { opacity: 1, transition: { staggerChildren: 0.15 } }
   };
 
   return (
     <div style={{ backgroundColor: '#000000', color: '#f8fafc', minHeight: '100vh', fontFamily: '"Space Grotesk", -apple-system, sans-serif', position: 'relative', overflowX: 'hidden' }}>
       
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700;900&display=swap');
 
-        @keyframes hudRotate {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-
-        @keyframes hudPulse {
-          0%, 100% { transform: scale(1); opacity: 0.3; }
-          50% { transform: scale(1.08); opacity: 0.7; }
-        }
-
-        @keyframes waveBar {
-          0%, 100% { height: 6px; }
-          50% { height: 28px; }
+        @keyframes scrollLine {
+          0% { transform: translateY(-100%); opacity: 0; }
+          50% { opacity: 1; }
+          100% { transform: translateY(100%); opacity: 0; }
         }
 
         .nasa-backdrop {
@@ -131,10 +122,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 
         .cyber-grid {
           position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-          background-size: 60px 60px;
+          background-size: 80px 80px;
           background-image: 
-            linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
           z-index: 1;
           pointer-events: none;
         }
@@ -145,32 +136,16 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           -webkit-backdrop-filter: blur(20px);
           border: 1px solid rgba(255, 255, 255, 0.08);
         }
-
-        .hud-ring {
-          position: absolute;
-          border: 1px dashed rgba(56, 189, 248, 0.25);
-          border-radius: 50%;
-          animation: hudRotate 20s linear infinite;
-          pointer-events: none;
-        }
-
-        .hud-pulse-ring {
-          position: absolute;
-          border: 1px solid rgba(56, 189, 248, 0.15);
-          border-radius: 50%;
-          animation: hudPulse 4s ease-in-out infinite;
-          pointer-events: none;
-        }
       `}</style>
 
-      {/* ACTIVE THEORY / SPACEX HIGH-TECH INTRO OVERLAY */}
+      {/* MINIMALIST EDITORIAL INTRO OVERLAY */}
       <AnimatePresence>
         {!entered && (
           <motion.div
-            key="space-intro"
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0, scale: 1.15, filter: 'blur(16px)' }}
-            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+            key="minimal-intro"
+            initial={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -80, filter: 'blur(12px)' }}
+            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
             style={{
               position: 'fixed',
               inset: 0,
@@ -179,129 +154,91 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              padding: '3rem',
-              overflow: 'hidden'
+              alignItems: 'center',
+              padding: '4rem 2rem'
             }}
           >
-            {/* Real-time HTML5 Warp Starfield Canvas */}
+            {/* Ambient Deep Space Starfield Canvas */}
             <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }} />
 
-            {/* Rotating Tactical Target Rings */}
-            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '600px', height: '600px', pointerEvents: 'none', zIndex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-              <div className="hud-ring" style={{ width: '550px', height: '550px' }} />
-              <div className="hud-ring" style={{ width: '420px', height: '420px', animationDirection: 'reverse', animationDuration: '14s', borderStyle: 'solid', borderColor: 'rgba(56,189,248,0.1)' }} />
-              <div className="hud-pulse-ring" style={{ width: '300px', height: '300px' }} />
-            </div>
-
-            {/* Grid Overlay */}
-            <div className="cyber-grid" style={{ zIndex: 1 }} />
-
-            {/* Top HUD Telemetry Bar */}
+            {/* Top Navigation Identifier */}
             <motion.div 
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
-              style={{ position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1.2rem' }}
+              style={{ position: 'relative', zIndex: 2, textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '6px', color: '#64748b', fontWeight: '600' }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <span style={{ fontSize: '0.75rem', letterSpacing: '4px', color: '#38bdf8', fontWeight: '900' }}>SPACETEC</span>
-                <span style={{ fontSize: '0.65rem', color: '#64748b', letterSpacing: '2px' }}>// ORBITAL TERMINAL v2026</span>
-              </div>
-              
-              <div style={{ display: 'flex', gap: '2.5rem', fontSize: '0.7rem', letterSpacing: '2px', color: '#94a3b8' }}>
-                <div>VEL: <span style={{ color: '#38bdf8', fontWeight: '700' }}>{telemetry.vel} KM/S</span></div>
-                <div>ALT: <span style={{ color: '#38bdf8', fontWeight: '700' }}>{telemetry.alt} KM</span></div>
-                <div>LAT: <span style={{ color: '#38bdf8', fontWeight: '700' }}>{telemetry.lat}</span></div>
-              </div>
+              ORBITAL MANIFEST // 2026
             </motion.div>
 
-            {/* Center Dynamic Target Reticle & Call to Action */}
-            <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', alignSelf: 'center', maxWidth: '750px', width: '100%' }}>
-              
-              {/* Audio / Telemetry Visualizer Equalizer */}
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: '4px', height: '30px', marginBottom: '2rem' }}>
-                {[0.4, 0.8, 1.2, 0.6, 1.5, 0.9, 0.3, 1.1, 0.7, 1.4, 0.5].map((delay, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      width: '3px',
-                      background: '#38bdf8',
-                      boxShadow: '0 0 10px #38bdf8',
-                      animation: `waveBar 1.2s infinite ease-in-out ${delay}s`
-                    }}
-                  />
-                ))}
-              </div>
-
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8 }}>
-                <span style={{ fontSize: '0.8rem', letterSpacing: '6px', color: '#38bdf8', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '1rem' }}>
-                  DEEP SPACE COMMUNICATIONS LINK
-                </span>
-                <h1 style={{ fontSize: 'calc(2.5rem + 2.5vw)', fontWeight: '900', letterSpacing: '8px', margin: '0 0 1.5rem 0', background: 'linear-gradient(180deg, #ffffff 0%, #64748b 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textTransform: 'uppercase' }}>
-                  NEURAL ORBIT
+            {/* SPACETEC Focal Hero Title */}
+            <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', maxWidth: '1000px' }}>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <h1 style={{
+                  fontSize: 'calc(3.5rem + 5vw)',
+                  fontWeight: '900',
+                  letterSpacing: '0.15em',
+                  margin: 0,
+                  textTransform: 'uppercase',
+                  background: 'linear-gradient(180deg, #ffffff 0%, rgba(255,255,255,0.3) 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  filter: 'drop-shadow(0 0 40px rgba(255,255,255,0.15))'
+                }}>
+                  SPACETEC
                 </h1>
               </motion.div>
 
-              {/* Progress HUD Bar */}
-              <div style={{ width: '100%', height: '2px', background: 'rgba(255, 255, 255, 0.08)', position: 'relative', margin: '2rem 0', overflow: 'hidden' }}>
-                <motion.div
-                  style={{
-                    height: '100%',
-                    background: 'linear-gradient(90deg, #38bdf8 0%, #818cf8 100%)',
-                    width: `${progress}%`,
-                    boxShadow: '0 0 20px #38bdf8'
-                  }}
-                />
-              </div>
-
-              {/* Action Trigger Button */}
-              {progress >= 100 ? (
-                <motion.button
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  whileHover={{ scale: 1.05, backgroundColor: '#ffffff', color: '#000000', boxShadow: '0 0 50px rgba(255, 255, 255, 0.8)' }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setEntered(true)}
-                  style={{
-                    background: 'transparent',
-                    border: '1px solid #ffffff',
-                    color: '#ffffff',
-                    padding: '1.2rem 3.5rem',
-                    fontSize: '0.85rem',
-                    fontWeight: '900',
-                    letterSpacing: '5px',
-                    textTransform: 'uppercase',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                    marginTop: '1rem'
-                  }}
-                >
-                  ENTER SYSTEM ↵
-                </motion.button>
-              ) : (
-                <span style={{ fontSize: '0.75rem', color: '#64748b', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '600' }}>
-                  SYNCHRONIZING WITH NASA & SPACEX NODES [{progress}%]
-                </span>
-              )}
-
+              <motion.p 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.3 }}
+                style={{
+                  fontSize: 'calc(0.8rem + 0.4vw)',
+                  letterSpacing: '8px',
+                  color: '#94a3b8',
+                  textTransform: 'uppercase',
+                  margin: '1.5rem 0 0 0',
+                  fontWeight: '400'
+                }}
+              >
+                Humanity's Gateway to the Cosmos
+              </motion.p>
             </div>
 
-            {/* Bottom HUD Footer Status */}
+            {/* Scroll Indicator */}
             <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              style={{ position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', letterSpacing: '3px', color: '#64748b', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.2rem' }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.6 }}
+              onClick={() => setEntered(true)}
+              style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', gap: '0.8rem' }}
             >
-              <span>STATUS: OPTICAL DUAL LINK ACTIVE</span>
-              <span>ENCRYPTION: AES-256 ORBITAL</span>
+              <span style={{ fontSize: '0.65rem', letterSpacing: '4px', color: '#64748b', textTransform: 'uppercase', fontWeight: '600' }}>
+                SCROLL TO EXPLORE
+              </span>
+              
+              {/* Animated Line Pill */}
+              <div style={{ width: '1px', height: '40px', background: 'rgba(255, 255, 255, 0.1)', position: 'relative', overflow: 'hidden' }}>
+                <div style={{
+                  width: '100%',
+                  height: '50%',
+                  background: '#ffffff',
+                  position: 'absolute',
+                  animation: 'scrollLine 2s cubic-bezier(0.65, 0, 0.35, 1) infinite'
+                }} />
+              </div>
             </motion.div>
 
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* MAIN DASHBOARD (REVEALED AFTER CLICKING ENTER SYSTEM) */}
+      {/* MAIN DASHBOARD */}
       <div className="nasa-backdrop" />
       <div className="cyber-grid" />
 
