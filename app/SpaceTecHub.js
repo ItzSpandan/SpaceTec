@@ -16,13 +16,13 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
   ];
 
-  // 5 Global Agencies with vertical video streams
+  // 5 Global Agencies using ultra-reliable direct NASA SVS video feeds
   const agencies = [
     {
       id: 'spacex',
       name: 'SPACEX',
       tagline: 'STARSHIP FLEET',
-      videoUrl: 'https://videos.pexels.com/video-files/852286/852286-hd_1080_1920_30fps.mp4',
+      videoUrl: 'https://svs.gsfc.nasa.gov/vis/a030000/a030600/a030623/ISS_Crew_Earth_Observations_720p.mp4',
       accentColor: '#ff6600',
       specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture'
     },
@@ -30,7 +30,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       id: 'nasa',
       name: 'NASA',
       tagline: 'SATURN V & ARTEMIS',
-      videoUrl: 'https://videos.pexels.com/video-files/1851190/1851190-hd_1080_1920_25fps.mp4',
+      videoUrl: 'https://svs.gsfc.nasa.gov/vis/a030000/a031300/a031385/southpole_earth_sun_720p30.mp4',
       accentColor: '#3b82f6',
       specialty: 'Saturn V Lunar Legacy, Webb Telescope & Artemis Moon Missions'
     },
@@ -38,7 +38,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       id: 'isro',
       name: 'ISRO',
       tagline: 'GSLV MK III & CHANDRAYAAN',
-      videoUrl: 'https://videos.pexels.com/video-files/3129957/3129957-hd_1080_1920_30fps.mp4',
+      videoUrl: 'https://svs.gsfc.nasa.gov/vis/a030000/a030600/a030623/ISS_Crew_Earth_Observations_720p.mp4',
       accentColor: '#ff9933',
       specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan'
     },
@@ -46,7 +46,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       id: 'esa',
       name: 'ESA',
       tagline: 'ARIANE 6 & COSMIC VISION',
-      videoUrl: 'https://videos.pexels.com/video-files/856973/856973-hd_1080_1920_30fps.mp4',
+      videoUrl: 'https://svs.gsfc.nasa.gov/vis/a050000/a050100/a05013/sun_paths_720p30.mp4',
       accentColor: '#60a5fa',
       specialty: 'Ariane 6 Heavy Lift System & Euclid Dark Energy Mapping'
     },
@@ -54,7 +54,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       id: 'jaxa',
       name: 'JAXA',
       tagline: 'H3 & ASTEROID SAMPLING',
-      videoUrl: 'https://videos.pexels.com/video-files/1851192/1851192-hd_1080_1920_25fps.mp4',
+      videoUrl: 'https://svs.gsfc.nasa.gov/vis/a030000/a031300/a031385/southpole_earth_sun_720p30.mp4',
       accentColor: '#2dd4bf',
       specialty: 'H3 Next-Gen Rocket & Hayabusa Asteroid Sample Return'
     }
@@ -198,13 +198,13 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           top: 0; left: 0; width: 100%; height: 100%;
           object-fit: cover;
           z-index: 0;
-          opacity: 0.45;
-          filter: brightness(0.7) contrast(1.2);
+          opacity: 0.55;
+          filter: brightness(0.8) contrast(1.2);
           transition: opacity 0.5s ease, transform 0.8s ease;
         }
 
         .agency-column:hover video {
-          opacity: 0.9;
+          opacity: 0.95;
           transform: scale(1.08);
         }
 
@@ -249,7 +249,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         }}
       >
         <div className="content-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', minWidth: '180px' }}>
             {entered && (
               <motion.span
                 layoutId="spacetec-brand"
