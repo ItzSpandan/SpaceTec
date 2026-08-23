@@ -52,11 +52,14 @@ export default function OrbitalGlobe() {
   const [loadingSats, setLoadingSats] = useState(false);
   const satCacheRef = useRef({});
 
-  // Fetch real telemetry data from CelesTrak with robust mapping
+  // Fetch real telemetry data from CelesTrak with corrected group endpoints
   useEffect(() => {
     const fetchRealSatellites = async () => {
       let queryGroup = satFilter;
-      if (satFilter === 'active') queryGroup = 'visual'; // Fallback mapping to ensure smooth stream for massive data lists
+      if (satFilter === 'active') queryGroup = 'active'; 
+      if (satFilter === 'starlink') queryGroup = 'starlink';
+      if (satFilter === 'visual') queryGroup = 'visual';
+      if (satFilter === 'stations') queryGroup = 'stations';
 
       if (satCacheRef.current[queryGroup]) {
         setSatellites(satCacheRef.current[queryGroup]);
@@ -113,7 +116,7 @@ export default function OrbitalGlobe() {
     fetchRealSatellites();
   }, [satFilter]);
 
-  // Robust Auto-Rotation Setup via ThreeJS OrbitControls
+  // Robust Auto-Rotation Setup with a faster, visible speed
   useEffect(() => {
     let timer;
     const setupControls = () => {
@@ -121,7 +124,7 @@ export default function OrbitalGlobe() {
         const controls = globeRef.current.controls();
         if (controls) {
           controls.autoRotate = !isPaused;
-          controls.autoRotateSpeed = 0.8;
+          controls.autoRotateSpeed = 1.5; // Increased speed for visibility
         }
       }
       timer = requestAnimationFrame(setupControls);
@@ -130,7 +133,7 @@ export default function OrbitalGlobe() {
     return () => cancelAnimationFrame(timer);
   }, [isPaused]);
 
-  // Generate true continuous orbital path loops around the globe
+  // Generate continuous orbital paths around the globe
   const orbitalPaths = selectedSat ? (() => {
     const points = [];
     const inc = selectedSat.inclination || 45;
@@ -278,6 +281,59 @@ export default function OrbitalGlobe() {
           </div>
         )}
       </div>
+
+      {/* Restored Bottom Info Cards for Launch Pads and Satellites */}
+      {viewMode === 'pads' && selectedPad && (
+        <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '2px', border: '1px solid rgba(59, 130, 246, 0.3)', background: 'rgba(10, 15, 25, 0.85)' }}>
+          <span style={{ fontSize: '0.65rem', color: '#3b82f6', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>
+            // LAUNCH PAD TELEMETRY INSPECTOR
+          </span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '0.8rem' }}>
+            <div>
+              <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>FACILITY NAME</p>
+              <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1rem', color: '#ffffff' }}>{selectedPad.name}</h3>
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>OPERATING AGENCY</p>
+              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#2dd4bf', fontWeight: '700' }}>{selectedPad.agency}</p>
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>COUNTRY / REGION</p>
+              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#38bdf8', fontWeight: '700' }}>{selectedPad.country}</p>
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>COORDINATES</p>
+              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#ffffff' }}>{selectedPad.lat.toFixed(4)}°, {selectedPad.lng.toFixed(4)}°</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewMode === 'satellites' && selectedSat && (
+        <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '2px', border: '1px solid rgba(56, 189, 248, 0.3)', background: 'rgba(10, 15, 25, 0.85)' }}>
+          <span style={{ fontSize: '0.65rem', color: '#38bdf8', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>
+            // SATELLITE ORBITAL INSPECTOR
+          </span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '0.8rem' }}>
+            <div>
+              <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>OBJECT NAME</p>
+              <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1rem', color: '#ffffff' }}>{selectedSat.name}</h3>
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>ORGANIZATION</p>
+              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#38bdf8', fontWeight: '700' }}>{selectedSat.organization}</p>
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>NORAD ID</p>
+              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#2dd4bf', fontWeight: '700' }}>{selectedSat.id}</p>
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>VELOCITY</p>
+              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#ffffff' }}>{selectedSat.velocity}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
