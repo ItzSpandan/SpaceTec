@@ -38,32 +38,70 @@ const globalLaunchPads = [
 export default function OrbitalGlobe() {
   const canvasRef = useRef(null);
   const [viewMode, setViewMode] = useState('pads'); // 'pads', 'satellites'
-  const [filter, setFilter] = useState('all'); 
+  const [padFilter, setPadFilter] = useState('all'); 
+  const [satFilter, setSatFilter] = useState('all'); 
   const [selectedPad, setSelectedPad] = useState(null);
+  const [selectedSat, setSelectedSat] = useState(null);
+  const [hoveredSat, setHoveredSat] = useState(null);
+  
   const [countriesData, setCountriesData] = useState([]);
   const [satellites, setSatellites] = useState([]);
 
   const rotationRef = useRef({ x: 0.2, y: 0 });
   const isDraggingRef = useRef(false);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
+  const mouseCanvasPosRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson')
       .then(res => res.json())
       .then(data => {
-        if (data && data.features) {
-          setCountriesData(data.features);
-        }
+        if (data && data.features) setCountriesData(data.features);
       })
       .catch(err => console.log('GeoJSON load note:', err));
 
-    const mockLiveSatellites = Array.from({ length: 45 }, (_, i) => ({
-      id: i,
-      name: i === 0 ? 'ISS (ZARYA)' : i < 15 ? `STARLINK-${1000 + i}` : `COSMOS/DEBRIS-${200 + i}`,
-      lat: Math.sin(i * 1.5) * 55,
-      lon: (i * 35 + Date.now() * 0.01) % 360 - 180,
-      altitude: 400 + (i * 15)
-    }));
+    const mockLiveSatellites = Array.from({ length: 50 }, (_, i) => {
+      let category = 'LEO';
+      let name = `COSMOS DEBRIS-${200 + i}`;
+      let incl = Math.sin(i * 1.3) * 65;
+      let alt = 400 + (i * 20);
+      let vel = '7.66 km/s';
+
+      if (i === 0) {
+        name = 'ISS (ZARYA)';
+        category = 'Station';
+        incl = 51.6;
+        alt = 420;
+        vel = '7.66 km/s';
+      } else if (i < 15) {
+        name = `STARLINK-${1000 + i}`;
+        category = 'Starlink';
+        incl = 53.0;
+        alt = 550;
+        vel = '7.56 km/s';
+      } else if (i % 3 === 0) {
+        category = 'MEO';
+        alt = 20200;
+        incl = 55.0;
+        vel = '3.87 km/s';
+      } else if (i % 5 === 0) {
+        category = 'GEO';
+        alt = 35786;
+        incl = 0.1;
+        vel = '3.07 km/s';
+      }
+
+      return {
+        id: i,
+        name,
+        category,
+        lat: incl,
+        lon: (i * 28) % 360 - 180,
+        altitude: alt,
+        velocity: vel,
+        inclination: `${incl.toFixed(1)}°`
+      };
+    });
     setSatellites(mockLiveSatellites);
   }, []);
 
@@ -88,6 +126,12 @@ export default function OrbitalGlobe() {
     };
 
     const handleMouseMove = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseCanvasPosRef.current = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+
       if (!isDraggingRef.current) return;
       const deltaX = e.clientX - lastMousePosRef.current.x;
       const deltaY = e.clientY - lastMousePosRef.current.y;
@@ -101,9 +145,31 @@ export default function OrbitalGlobe() {
       isDraggingRef.current = false;
     };
 
+    const handleClick = () => {
+      if (viewMode !== 'satellites') return;
+      const globeRadius = Math.min(width, height) * 0.38;
+      const centerX = width / 2;
+      const centerY = height / 2;
+
+      const filteredSats = satellites.filter(s => satFilter === 'all' || s.category === satFilter);
+      let clickedItem = null;
+
+      filteredSats.forEach((sat) => {
+        const currentLon = (sat.lon + rotationRef.current.y * (sat.category === 'GEO' ? 2 : 12)) % 360;
+        const pt = projectCoordinates(sat.lat, currentLon, globeRadius, rotationRef.current.x, rotationRef.current.y, centerX, centerY);
+        if (pt.visible) {
+          const dist = Math.hypot(pt.x - mouseCanvasPosRef.current.x, pt.y - mouseCanvasPosRef.current.y);
+          if (dist < 10) clickedItem = sat;
+        }
+      });
+
+      if (clickedItem) setSelectedSat(clickedItem);
+    };
+
     canvas.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
+    canvas.addEventListener('click', handleClick);
 
     const projectCoordinates = (lat, lon, radius, rotX, rotY, centerX, centerY) => {
       const phi = (90 - lat) * (Math.PI / 180);
@@ -133,11 +199,11 @@ export default function OrbitalGlobe() {
       const globeRadius = Math.min(width, height) * 0.38;
 
       if (!isDraggingRef.current) {
-        rotationRef.current.y += 0.002;
+        rotationRef.current.y += 0.0015;
       }
 
       const gradient = ctx.createRadialGradient(centerX, centerY, globeRadius * 0.9, centerX, centerY, globeRadius * 1.2);
-      gradient.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
+      gradient.addColorStop(0, 'rgba(59, 130, 246, 0.25)');
       gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
       ctx.fillStyle = gradient;
       ctx.beginPath();
@@ -155,26 +221,18 @@ export default function OrbitalGlobe() {
       countriesData.forEach((feature) => {
         const geom = feature.geometry;
         if (!geom) return;
-
         const coordsLists = geom.type === 'Polygon' ? [geom.coordinates] : geom.type === 'MultiPolygon' ? geom.coordinates : [];
 
         coordsLists.forEach((polygon) => {
           polygon.forEach((ring) => {
             ctx.beginPath();
             let hasStarted = false;
-
             ring.forEach(([lon, lat]) => {
               const pt = projectCoordinates(lat, lon, globeRadius, rotationRef.current.x, rotationRef.current.y, centerX, centerY);
               if (pt.visible) {
-                if (!hasStarted) {
-                  ctx.moveTo(pt.x, pt.y);
-                  hasStarted = true;
-                } else {
-                  ctx.lineTo(pt.x, pt.y);
-                }
-              } else {
-                hasStarted = false;
-              }
+                if (!hasStarted) { ctx.moveTo(pt.x, pt.y); hasStarted = true; }
+                else { ctx.lineTo(pt.x, pt.y); }
+              } else { hasStarted = false; }
             });
             ctx.stroke();
           });
@@ -188,7 +246,7 @@ export default function OrbitalGlobe() {
       ctx.stroke();
 
       if (viewMode === 'pads') {
-        const filteredPads = globalLaunchPads.filter(pad => filter === 'all' || pad.type === filter);
+        const filteredPads = globalLaunchPads.filter(pad => padFilter === 'all' || pad.type === padFilter);
         filteredPads.forEach((pad) => {
           const pt = projectCoordinates(pad.lat, pad.lon, globeRadius, rotationRef.current.x, rotationRef.current.y, centerX, centerY);
           if (pt.visible) {
@@ -208,17 +266,43 @@ export default function OrbitalGlobe() {
           }
         });
       } else {
-        satellites.forEach((sat) => {
-          const currentLon = (sat.lon + rotationRef.current.y * 15) % 360;
+        let currentHover = null;
+        const filteredSats = satellites.filter(s => satFilter === 'all' || s.category === satFilter);
+
+        filteredSats.forEach((sat) => {
+          const currentLon = (sat.lon + rotationRef.current.y * (sat.category === 'GEO' ? 2 : 12)) % 360;
           const pt = projectCoordinates(sat.lat, currentLon, globeRadius, rotationRef.current.x, rotationRef.current.y, centerX, centerY);
           
           if (pt.visible) {
-            ctx.fillStyle = sat.name.includes('ISS') ? '#22c55e' : '#38bdf8';
+            const dist = Math.hypot(pt.x - mouseCanvasPosRef.current.x, pt.y - mouseCanvasPosRef.current.y);
+            if (dist < 10) currentHover = sat;
+
+            const isHovered = hoveredSat?.id === sat.id;
+            const isSelected = selectedSat?.id === sat.id;
+
+            if (isHovered || isSelected) {
+              ctx.strokeStyle = isHovered ? 'rgba(45, 212, 191, 0.6)' : 'rgba(59, 130, 246, 0.8)';
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              for (let lonStep = -180; lonStep <= 180; lonStep += 5) {
+                const ringLon = (lonStep + rotationRef.current.y * (sat.category === 'GEO' ? 2 : 12)) % 360;
+                const orbitPt = projectCoordinates(sat.lat, ringLon, globeRadius, rotationRef.current.x, rotationRef.current.y, centerX, centerY);
+                if (orbitPt.visible) {
+                  if (lonStep === -180) ctx.moveTo(orbitPt.x, orbitPt.y);
+                  else ctx.lineTo(orbitPt.x, orbitPt.y);
+                }
+              }
+              ctx.stroke();
+            }
+
+            ctx.fillStyle = sat.category === 'Station' ? '#22c55e' : sat.category === 'Starlink' ? '#38bdf8' : '#3b82f6';
             ctx.beginPath();
-            ctx.arc(pt.x, pt.y, sat.name.includes('ISS') ? 4 : 2, 0, Math.PI * 2);
+            ctx.arc(pt.x, pt.y, isHovered || isSelected ? 5 : 2.5, 0, Math.PI * 2);
             ctx.fill();
           }
         });
+
+        setHoveredSat(currentHover);
       }
 
       animationFrameId = requestAnimationFrame(render);
@@ -231,9 +315,10 @@ export default function OrbitalGlobe() {
       canvas.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      canvas.removeEventListener('click', handleClick);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [viewMode, filter, selectedPad, countriesData, satellites]);
+  }, [viewMode, padFilter, satFilter, selectedPad, selectedSat, hoveredSat, countriesData, satellites]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
@@ -249,7 +334,7 @@ export default function OrbitalGlobe() {
           ].map((btn) => (
             <button
               key={btn.key}
-              onClick={() => setViewMode(btn.key)}
+              onClick={() => { setViewMode(btn.key); setSelectedSat(null); }}
               style={{
                 padding: '0.5rem 1rem',
                 background: viewMode === btn.key ? '#3b82f6' : 'rgba(255,255,255,0.05)',
@@ -268,18 +353,38 @@ export default function OrbitalGlobe() {
           ))}
         </div>
 
-        {viewMode === 'pads' && (
+        {viewMode === 'pads' ? (
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             {['all', 'major', 'minor'].map((f) => (
               <button
                 key={f}
-                onClick={() => setFilter(f)}
+                onClick={() => setPadFilter(f)}
                 style={{
                   padding: '0.4rem 0.8rem',
-                  background: filter === f ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
+                  background: padFilter === f ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
                   border: '1px solid rgba(59, 130, 246, 0.4)',
                   color: '#ffffff',
                   fontSize: '0.65rem',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer'
+                }}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            {['all', 'LEO', 'MEO', 'GEO', 'Starlink', 'Station'].map((f) => (
+              <button
+                key={f}
+                onClick={() => setSatFilter(f)}
+                style={{
+                  padding: '0.4rem 0.7rem',
+                  background: satFilter === f ? 'rgba(45, 212, 191, 0.25)' : 'transparent',
+                  border: '1px solid rgba(45, 212, 191, 0.4)',
+                  color: '#ffffff',
+                  fontSize: '0.6rem',
                   textTransform: 'uppercase',
                   cursor: 'pointer'
                 }}
@@ -296,15 +401,15 @@ export default function OrbitalGlobe() {
         
         <div style={{ position: 'absolute', bottom: '1.5rem', left: '1.5rem', pointerEvents: 'none' }}>
           <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a', letterSpacing: '2px', textTransform: 'uppercase' }}>
-            [MODE: {viewMode.toUpperCase()} // DRAG TO ROTATE GLOBE]
+            [MODE: {viewMode.toUpperCase()} // HOVER FOR ORBIT PATH // CLICK OBJECT FOR DETAILS]
           </p>
         </div>
       </div>
 
-      {viewMode === 'pads' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+      {viewMode === 'pads' ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', maxHeight: '350px', overflowY: 'auto', paddingRight: '0.5rem' }}>
           {globalLaunchPads
-            .filter(pad => filter === 'all' || pad.type === filter)
+            .filter(pad => padFilter === 'all' || pad.type === padFilter)
             .map((pad) => (
               <motion.div
                 key={pad.id}
@@ -330,6 +435,36 @@ export default function OrbitalGlobe() {
                 </p>
               </motion.div>
             ))}
+        </div>
+      ) : (
+        <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '2px', border: '1px solid rgba(45, 212, 191, 0.3)', background: 'rgba(10, 15, 25, 0.85)' }}>
+          <span style={{ fontSize: '0.65rem', color: '#2dd4bf', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>
+            // SATELLITE TELEMETRY INSPECTOR
+          </span>
+          {selectedSat ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginTop: '0.8rem' }}>
+              <div>
+                <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>OBJECT NAME</p>
+                <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1rem', color: '#ffffff' }}>{selectedSat.name}</h3>
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>ORBIT TYPE</p>
+                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#38bdf8', fontWeight: '700' }}>{selectedSat.category}</p>
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>ALTITUDE</p>
+                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#ffffff' }}>{selectedSat.altitude} km</p>
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>ORBITAL VELOCITY</p>
+                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#ffffff' }}>{selectedSat.velocity}</p>
+              </div>
+            </div>
+          ) : (
+            <p style={{ margin: '0.6rem 0 0 0', fontSize: '0.8rem', color: '#a1a1aa' }}>
+              Click any satellite node on the globe radar to load telemetry specifications here.
+            </p>
+          )}
         </div>
       )}
 
