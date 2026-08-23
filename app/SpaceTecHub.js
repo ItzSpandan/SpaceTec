@@ -93,6 +93,14 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     }
   ];
 
+  // Smooth navigation helper
+  const scrollToSection = (id) => {
+    const section = document.getElementById(id);
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   useEffect(() => {
     const bgTimer = setInterval(() => {
       setBgIndex((prev) => (prev + 1) % spaceBackgrounds.length);
@@ -182,6 +190,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700;900&display=swap');
 
+        html {
+          scroll-behavior: smooth;
+        }
+
         .space-bg-layer {
           position: fixed;
           top: 0; left: 0; width: 100vw; height: 100vh;
@@ -214,6 +226,31 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           padding: 0 2rem;
           box-sizing: border-box;
           width: 100%;
+        }
+
+        .nav-link {
+          background: none;
+          border: none;
+          color: #94a3b8;
+          font-family: inherit;
+          font-size: 0.75rem;
+          letter-spacing: 3px;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: color 0.3s ease;
+          padding: 0;
+        }
+
+        .nav-link:hover {
+          color: #ffffff;
+        }
+
+        .brand-link {
+          background: none;
+          border: none;
+          cursor: pointer;
+          padding: 0;
+          text-align: left;
         }
 
         .agency-column {
@@ -322,22 +359,31 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         <div className="content-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', minWidth: '180px' }}>
             {entered && (
-              <motion.span
-                layoutId="spacetec-brand"
-                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}
-              >
-                SPACETEC
-              </motion.span>
+              <button className="brand-link" onClick={() => scrollToSection('hero')}>
+                <motion.span
+                  layoutId="spacetec-brand"
+                  transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+                  style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}
+                >
+                  SPACETEC
+                </motion.span>
+              </button>
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.8rem', fontSize: '0.75rem', letterSpacing: '3px', textTransform: 'uppercase', color: '#94a3b8' }}>
-            <span style={{ color: '#ffffff', fontWeight: '600' }}>Live Telemetry</span>
+          {/* HEADER NAV LINKS */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.8rem' }}>
+            <button className="nav-link" onClick={() => scrollToSection('telemetry')}>
+              Live Telemetry
+            </button>
             <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
-            <span>Agencies</span>
+            <button className="nav-link" onClick={() => scrollToSection('agencies')}>
+              Agencies
+            </button>
             <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
-            <span>Orbital Map</span>
+            <button className="nav-link" onClick={() => scrollToSection('launches')}>
+              Orbital Map
+            </button>
           </div>
         </div>
       </motion.header>
@@ -385,7 +431,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       >
         
         {/* HERO SECTION */}
-        <section className="content-container" style={{ paddingBottom: '4rem' }}>
+        <section id="hero" className="content-container" style={{ paddingBottom: '4rem', scrollMarginTop: '8rem' }}>
           <motion.div initial="hidden" animate={entered ? "visible" : "hidden"} variants={staggerContainer} style={{ maxWidth: '850px' }}>
             <motion.p variants={fadeInUp} style={{ fontSize: '0.75rem', letterSpacing: '6px', textTransform: 'uppercase', color: '#a1a1aa', marginBottom: '1.5rem', fontWeight: '600' }}>
               // MULTI-AGENCY DEEP SPACE NETWORK
@@ -402,7 +448,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         </section>
 
         {/* TELEMETRY STRIP */}
-        <section className="content-container" style={{ paddingBottom: '5rem' }}>
+        <section id="telemetry" className="content-container" style={{ paddingBottom: '5rem', scrollMarginTop: '8rem' }}>
           <motion.div 
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -454,7 +500,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         )}
 
         {/* AGENCIES SECTION */}
-        <section className="content-container" style={{ paddingBottom: '6rem' }}>
+        <section id="agencies" className="content-container" style={{ paddingBottom: '6rem', scrollMarginTop: '8rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.0rem' }}>
             <div>
               <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
@@ -511,7 +557,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                       />
                     )}
 
-                    {/* Expanded Headquarters Facility Image with Explicit Relative Sizing Wrapper */}
+                    {/* Expanded Headquarters Facility Image */}
                     {isHovered && (
                       <div 
                         style={{
@@ -584,20 +630,21 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             </motion.div>
           </AnimatePresence>
 
-          {/* EXPLORE MORE AGENCIES BUTTON */}
+          {/* EXPLORE MORE AGENCIES BUTTON - TOGGLES BATCHES */}
           <button 
             className="explore-btn"
             onClick={() => {
-              alert("Navigating to the complete directory of global space agencies...");
+              setAgencyBatchIndex((prev) => (prev === 0 ? 1 : 0));
+              scrollToSection('agencies');
             }}
           >
-            <span>Explore More Agencies</span>
+            <span>Switch Agency Batch ({agencyBatchIndex === 0 ? 'Show JAXA, ISRO, CNSA' : 'Show NASA, SpaceX, ESA'})</span>
             <span>→</span>
           </button>
         </section>
 
         {/* UPCOMING LAUNCHES */}
-        <section className="content-container" style={{ paddingBottom: '8rem' }}>
+        <section id="launches" className="content-container" style={{ paddingBottom: '8rem', scrollMarginTop: '8rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
             <div>
               <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
