@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 
 export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   const [entered, setEntered] = useState(false);
@@ -17,7 +18,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
   ];
 
-  // Agencies structured with your double-extension video files and exact headquarters images in /public
   const allAgencies = [
     {
       id: 'nasa',
@@ -28,7 +28,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       specialty: 'Europa Clipper Mission & Deep Space Planetary Exploration',
       brief: 'Headquartered in Washington, D.C., directing worldwide aeronautics research and manned space exploration.',
       videoUrl: '/nasa.mp4.mp4', 
-      hqImage: '/9814.png',
+      hqImage: '/nasa.jpeg',
       logoText: 'NASA HQ // KENNEDY SPACE CENTER'
     },
     {
@@ -40,7 +40,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture',
       brief: 'Headquartered at Starbase & Rocket Road, revolutionizing aerospace manufacturing and transport.',
       videoUrl: '/spacex.mp4.mp4',
-      hqImage: '/9812.png',
+      hqImage: '/spacex.jpeg',
       logoText: 'SPACEX HQ // HAWTHORNE, CA'
     },
     {
@@ -52,7 +52,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       specialty: 'Vega-C & European Cosmic Vision Space Probes',
       brief: 'Headquartered in Paris, coordinating the space flight programs of 22 European member states.',
       videoUrl: '/esa.mp4.mp4',
-      hqImage: '/9818.png',
+      hqImage: '/esa.jpeg',
       logoText: 'ESA HQ // PARIS, FRANCE'
     },
     {
@@ -64,7 +64,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       specialty: 'H3 Next-Gen Rocket & Hayabusa Asteroid Sample Return',
       brief: 'Headquartered in Tokyo, unifying Japan’s national aerospace research and orbital development.',
       videoUrl: '/jaxa.mp4.mp4',
-      hqImage: '/9815.png',
+      hqImage: '/jaxa.jpeg',
       logoText: 'JAXA HQ // TOKYO, JAPAN'
     },
     {
@@ -76,7 +76,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan',
       brief: 'Headquartered in Bengaluru, driving breakthrough cost-effective interplanetary and satellite missions.',
       videoUrl: '/isro.mp4.mp4',
-      hqImage: '/9813.png',
+      hqImage: '/isro.jpeg',
       logoText: 'ISRO HQ // BENGALURU, INDIA'
     },
     {
@@ -88,7 +88,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       specialty: 'Chang\'e Lunar Sample Return & Tianwen Mars Rover Missions',
       brief: 'Headquartered in Beijing, managing national space administration and planetary research programs.',
       videoUrl: '/cnsa.mp4.mp4',
-      hqImage: '/9817.png',
+      hqImage: '/cnsa.jpeg',
       logoText: 'CNSA HQ // BEIJING, CHINA'
     }
   ];
@@ -252,13 +252,13 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 
         .agency-content-layer {
           position: relative;
-          z-index: 3;
+          z-index: 4;
         }
 
         .agency-text-shield {
           position: absolute;
           inset: 0;
-          background: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.5) 80%, rgba(0,0,0,0.9) 100%);
+          background: rgba(0, 0, 0, 0.45);
           z-index: 2;
           pointer-events: none;
         }
@@ -511,20 +511,27 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                       />
                     )}
 
-                    {/* Expanded Headquarters Facility Image */}
+                    {/* Expanded Headquarters Facility Image with Explicit Relative Sizing Wrapper */}
                     {isHovered && (
                       <div 
                         style={{
                           position: 'absolute',
                           inset: 0,
-                          backgroundImage: `url('${agency.hqImage}')`,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center',
-                          opacity: 0.45,
                           zIndex: 1,
-                          filter: 'contrast(1.25) saturate(1.1)'
+                          width: '100%',
+                          height: '100%'
                         }}
-                      />
+                      >
+                        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                          <Image
+                            src={agency.hqImage}
+                            alt={agency.name}
+                            fill
+                            style={{ objectFit: 'cover', opacity: 0.85 }}
+                            unoptimized
+                          />
+                        </div>
+                      </div>
                     )}
 
                     <div className="agency-text-shield" />
@@ -581,7 +588,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           <button 
             className="explore-btn"
             onClick={() => {
-              // TODO: Change this to route to your expanded agencies page or open a modal
               alert("Navigating to the complete directory of global space agencies...");
             }}
           >
