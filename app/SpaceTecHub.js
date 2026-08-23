@@ -17,7 +17,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
   ];
 
-  // Agencies structured with your exact double-extension file names from GitHub
+  // Agencies structured with your double-extension video files and exact headquarters images
   const allAgencies = [
     {
       id: 'nasa',
@@ -28,8 +28,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       specialty: 'Europa Clipper Mission & Deep Space Planetary Exploration',
       brief: 'Headquartered in Washington, D.C., directing worldwide aeronautics research and manned space exploration.',
       videoUrl: '/nasa.mp4.mp4', 
-      hqImage: 'https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?q=80&w=1000',
-      logoText: 'NASA HQ // WASHINGTON D.C.'
+      hqImage: '/9814.png',
+      logoText: 'NASA HQ // KENNEDY SPACE CENTER'
     },
     {
       id: 'spacex',
@@ -40,7 +40,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture',
       brief: 'Headquartered at Starbase & Rocket Road, revolutionizing aerospace manufacturing and transport.',
       videoUrl: '/spacex.mp4.mp4',
-      hqImage: 'https://images.unsplash.com/photo-1517976487504-63ec183d046e?q=80&w=1000',
+      hqImage: '/9812.png',
       logoText: 'SPACEX HQ // HAWTHORNE, CA'
     },
     {
@@ -52,7 +52,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       specialty: 'Vega-C & European Cosmic Vision Space Probes',
       brief: 'Headquartered in Paris, coordinating the space flight programs of 22 European member states.',
       videoUrl: '/esa.mp4.mp4',
-      hqImage: 'https://images.unsplash.com/photo-1502134249126-9f3755a50d78?q=80&w=1000',
+      hqImage: '/9818.png',
       logoText: 'ESA HQ // PARIS, FRANCE'
     },
     {
@@ -64,7 +64,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       specialty: 'H3 Next-Gen Rocket & Hayabusa Asteroid Sample Return',
       brief: 'Headquartered in Tokyo, unifying Japan’s national aerospace research and orbital development.',
       videoUrl: '/jaxa.mp4.mp4',
-      hqImage: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?q=80&w=1000',
+      hqImage: '/9815.png',
       logoText: 'JAXA HQ // TOKYO, JAPAN'
     },
     {
@@ -76,7 +76,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan',
       brief: 'Headquartered in Bengaluru, driving breakthrough cost-effective interplanetary and satellite missions.',
       videoUrl: '/isro.mp4.mp4',
-      hqImage: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?q=80&w=1000',
+      hqImage: '/9813.png',
       logoText: 'ISRO HQ // BENGALURU, INDIA'
     },
     {
@@ -88,7 +88,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       specialty: 'Chang\'e Lunar Sample Return & Tianwen Mars Rover Missions',
       brief: 'Headquartered in Beijing, managing national space administration and planetary research programs.',
       videoUrl: '/cnsa.mp4.mp4',
-      hqImage: 'https://images.unsplash.com/photo-1508803192460-4592044810f6?q=80&w=1000',
+      hqImage: '/9817.png',
       logoText: 'CNSA HQ // BEIJING, CHINA'
     }
   ];
@@ -100,7 +100,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     return () => clearInterval(bgTimer);
   }, [spaceBackgrounds.length]);
 
-  // Increased to 12 seconds (12000ms) here:
   useEffect(() => {
     const batchTimer = setInterval(() => {
       if (!activeAgency) {
@@ -262,6 +261,33 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           background: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.5) 80%, rgba(0,0,0,0.9) 100%);
           z-index: 2;
           pointer-events: none;
+        }
+
+        .explore-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 1rem;
+          margin-top: 2rem;
+          width: 100%;
+          padding: 1.2rem;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          color: #ffffff;
+          font-family: inherit;
+          font-size: 0.8rem;
+          font-weight: 700;
+          letter-spacing: 4px;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          backdrop-filter: blur(10px);
+        }
+
+        .explore-btn:hover {
+          background: rgba(255, 255, 255, 0.15);
+          border-color: #ffffff;
+          box-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
         }
       `}</style>
 
@@ -485,7 +511,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                       />
                     )}
 
-                    {/* Expanded HQ Facility Background */}
+                    {/* Expanded Headquarters Facility Image */}
                     {isHovered && (
                       <div 
                         style={{
@@ -494,7 +520,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                           backgroundImage: `url('${agency.hqImage}')`,
                           backgroundSize: 'cover',
                           backgroundPosition: 'center',
-                          opacity: 0.35,
+                          opacity: 0.38,
                           zIndex: 1,
                           filter: 'contrast(1.25) saturate(1.1)'
                         }}
@@ -550,6 +576,15 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               })}
             </motion.div>
           </AnimatePresence>
+
+          {/* EXPLORE MORE AGENCIES BUTTON */}
+          <button 
+            className="explore-btn"
+            onClick={() => setAgencyBatchIndex((prev) => (prev === 0 ? 1 : 0))}
+          >
+            <span>Explore More Agencies // Switch to Batch {agencyBatchIndex === 0 ? '2' : '1'}</span>
+            <span>↓</span>
+          </button>
         </section>
 
         {/* UPCOMING LAUNCHES */}
