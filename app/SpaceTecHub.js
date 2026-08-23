@@ -17,7 +17,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
   ];
 
-  // Agencies structured with their own specific video URLs
+  // Agencies structured with your exact uploaded file names from the public folder
   const allAgencies = [
     {
       id: 'nasa',
@@ -27,7 +27,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       accentColor: '#3b82f6',
       specialty: 'Europa Clipper Mission & Deep Space Planetary Exploration',
       brief: 'Headquartered in Washington, D.C., directing worldwide aeronautics research and manned space exploration.',
-      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-space-flight-through-a-starfield-41916-large.mp4',
+      videoUrl: '/Nasa mp.4.mp4', 
       hqImage: 'https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?q=80&w=1000',
       logoText: 'NASA HQ // WASHINGTON D.C.'
     },
@@ -39,7 +39,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       accentColor: '#ff6600',
       specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture',
       brief: 'Headquartered at Starbase & Rocket Road, revolutionizing aerospace manufacturing and transport.',
-      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-digital-animation-of-screens-with-code-and-data-31910-large.mp4',
+      videoUrl: '/SpaceX mp.4.mp4',
       hqImage: 'https://images.unsplash.com/photo-1517976487504-63ec183d046e?q=80&w=1000',
       logoText: 'SPACEX HQ // HAWTHORNE, CA'
     },
@@ -51,7 +51,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       accentColor: '#60a5fa',
       specialty: 'Vega-C & European Cosmic Vision Space Probes',
       brief: 'Headquartered in Paris, coordinating the space flight programs of 22 European member states.',
-      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-going-through-a-universe-of-stars-28840-large.mp4',
+      videoUrl: '/Esa mp.4.mp4',
       hqImage: 'https://images.unsplash.com/photo-1502134249126-9f3755a50d78?q=80&w=1000',
       logoText: 'ESA HQ // PARIS, FRANCE'
     },
@@ -63,7 +63,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       accentColor: '#2dd4bf',
       specialty: 'H3 Next-Gen Rocket & Hayabusa Asteroid Sample Return',
       brief: 'Headquartered in Tokyo, unifying Japan’s national aerospace research and orbital development.',
-      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-rotating-earth-in-space-4061-large.mp4',
+      videoUrl: '/Jaxa mp.4.mp4',
       hqImage: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?q=80&w=1000',
       logoText: 'JAXA HQ // TOKYO, JAPAN'
     },
@@ -75,7 +75,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       accentColor: '#ff9933',
       specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan',
       brief: 'Headquartered in Bengaluru, driving breakthrough cost-effective interplanetary and satellite missions.',
-      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-flight-over-the-moon-surface-41915-large.mp4',
+      videoUrl: '/Isro mp.4.mp4',
       hqImage: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?q=80&w=1000',
       logoText: 'ISRO HQ // BENGALURU, INDIA'
     },
@@ -87,7 +87,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       accentColor: '#f43f5e',
       specialty: 'Chang\'e Lunar Sample Return & Tianwen Mars Rover Missions',
       brief: 'Headquartered in Beijing, managing national space administration and planetary research programs.',
-      videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-abstract-laser-lights-background-animation-free-video.mp4',
+      videoUrl: '/Cnsa mp.4.mp4',
       hqImage: 'https://images.unsplash.com/photo-1508803192460-4592044810f6?q=80&w=1000',
       logoText: 'CNSA HQ // BEIJING, CHINA'
     }
@@ -472,7 +472,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     onMouseEnter={() => setActiveAgency(agency.id)}
                     onMouseLeave={() => setActiveAgency(null)}
                   >
-                    {/* HTML5 Seamless Video Loop (Active when not hovered) */}
+                    {/* Local MP4 Video Loop (Active when not hovered) */}
                     {!isHovered && (
                       <video
                         className="agency-video-bg"
