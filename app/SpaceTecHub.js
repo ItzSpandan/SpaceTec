@@ -17,7 +17,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
   ];
 
-  // Agencies structured with your double-extension video files and exact headquarters images
+  // Agencies structured with your double-extension video files and exact headquarters images in /public
   const allAgencies = [
     {
       id: 'nasa',
@@ -520,7 +520,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                           backgroundImage: `url('${agency.hqImage}')`,
                           backgroundSize: 'cover',
                           backgroundPosition: 'center',
-                          opacity: 0.38,
+                          opacity: 0.45,
                           zIndex: 1,
                           filter: 'contrast(1.25) saturate(1.1)'
                         }}
@@ -580,10 +580,13 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           {/* EXPLORE MORE AGENCIES BUTTON */}
           <button 
             className="explore-btn"
-            onClick={() => setAgencyBatchIndex((prev) => (prev === 0 ? 1 : 0))}
+            onClick={() => {
+              // TODO: Change this to route to your expanded agencies page or open a modal
+              alert("Navigating to the complete directory of global space agencies...");
+            }}
           >
-            <span>Explore More Agencies // Switch to Batch {agencyBatchIndex === 0 ? '2' : '1'}</span>
-            <span>↓</span>
+            <span>Explore More Agencies</span>
+            <span>→</span>
           </button>
         </section>
 
