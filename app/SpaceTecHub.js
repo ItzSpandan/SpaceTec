@@ -17,78 +17,80 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
   ];
 
-  // Agencies structured with padded video loops and HQ expansion photography/logos
-  const agencyBatches = [
-    [
-      {
-        id: 'nasa',
-        name: 'NASA',
-        tagline: 'EUROPA CLIPPER & ARTEMIS',
-        accentColor: '#3b82f6',
-        specialty: 'Europa Clipper Mission & Deep Space Planetary Exploration',
-        brief: 'Headquartered in Washington, D.C., directing worldwide aeronautics research and manned space exploration.',
-        tileVideoEmbed: 'https://www.youtube.com/embed/ux5KMw1Bk6Q?autoplay=1&mute=1&loop=1&playlist=ux5KMw1Bk6Q&start=18&end=28&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
-        hqImage: 'https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?q=80&w=1000',
-        logoText: 'NASA HQ // WASHINGTON D.C.'
-      },
-      {
-        id: 'spacex',
-        name: 'SPACEX',
-        tagline: 'STARSHIP FLEET',
-        accentColor: '#ff6600',
-        specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture',
-        brief: 'Headquartered at Starbase & Rocket Road, revolutionizing aerospace manufacturing and transport.',
-        tileVideoEmbed: 'https://www.youtube.com/embed/zOO59PFnMQ4?autoplay=1&mute=1&loop=1&playlist=zOO59PFnMQ4&start=25&end=48&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
-        hqImage: 'https://images.unsplash.com/photo-1517976487504-63ec183d046e?q=80&w=1000',
-        logoText: 'SPACEX HQ // HAWTHORNE, CA'
-      },
-      {
-        id: 'esa',
-        name: 'ESA',
-        tagline: 'ARIANE 6 & SMILE MISSION',
-        accentColor: '#60a5fa',
-        specialty: 'Vega-C & European Cosmic Vision Space Probes',
-        brief: 'Headquartered in Paris, coordinating the space flight programs of 22 European member states.',
-        tileVideoEmbed: 'https://www.youtube.com/embed/ruoezIkhbZM?autoplay=1&mute=1&loop=1&playlist=ruoezIkhbZM&start=30&end=42&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
-        hqImage: 'https://images.unsplash.com/photo-1502134249126-9f3755a50d78?q=80&w=1000',
-        logoText: 'ESA HQ // PARIS, FRANCE'
-      }
-    ],
-    [
-      {
-        id: 'jaxa',
-        name: 'JAXA',
-        tagline: 'H3 & ASTEROID SAMPLING',
-        accentColor: '#2dd4bf',
-        specialty: 'H3 Next-Gen Rocket & Hayabusa Asteroid Sample Return',
-        brief: 'Headquartered in Tokyo, unifying Japan’s national aerospace research and orbital development.',
-        tileVideoEmbed: 'https://www.youtube.com/embed/EBEq84QrSEA?autoplay=1&mute=1&loop=1&playlist=EBEq84QrSEA&start=3443&end=3462&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
-        hqImage: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?q=80&w=1000',
-        logoText: 'JAXA HQ // TOKYO, JAPAN'
-      },
-      {
-        id: 'isro',
-        name: 'ISRO',
-        tagline: 'GSLV MK III & CHANDRAYAAN',
-        accentColor: '#ff9933',
-        specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan',
-        brief: 'Headquartered in Bengaluru, driving breakthrough cost-effective interplanetary and satellite missions.',
-        tileVideoEmbed: 'https://www.youtube.com/embed/Zfr1eVS5iX8?autoplay=1&mute=1&loop=1&playlist=Zfr1eVS5iX8&start=8&end=18&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
-        hqImage: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?q=80&w=1000',
-        logoText: 'ISRO HQ // BENGALURU, INDIA'
-      },
-      {
-        id: 'cnsa',
-        name: 'CNSA',
-        tagline: 'CHANG\'E & TIANWEN',
-        accentColor: '#f43f5e',
-        specialty: 'Chang\'e Lunar Sample Return & Tianwen Mars Rover Missions',
-        brief: 'Headquartered in Beijing, managing national space administration and planetary research programs.',
-        tileVideoEmbed: 'https://www.youtube.com/embed/_QOITfWlM3Y?autoplay=1&mute=1&loop=1&playlist=_QOITfWlM3Y&start=43&end=56&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
-        hqImage: 'https://images.unsplash.com/photo-1508803192460-4592044810f6?q=80&w=1000',
-        logoText: 'CNSA HQ // BEIJING, CHINA'
-      }
-    ]
+  // All agencies defined with padded video loops and authentic HQ imagery/logos
+  const allAgencies = [
+    {
+      id: 'nasa',
+      batch: 0,
+      name: 'NASA',
+      tagline: 'EUROPA CLIPPER & ARTEMIS',
+      accentColor: '#3b82f6',
+      specialty: 'Europa Clipper Mission & Deep Space Planetary Exploration',
+      brief: 'Headquartered in Washington, D.C., directing worldwide aeronautics research and manned space exploration.',
+      tileVideoEmbed: 'https://www.youtube.com/embed/ux5KMw1Bk6Q?autoplay=1&mute=1&loop=1&playlist=ux5KMw1Bk6Q&start=18&end=30&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
+      hqImage: 'https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?q=80&w=1000',
+      logoText: 'NASA HQ // WASHINGTON D.C.'
+    },
+    {
+      id: 'spacex',
+      batch: 0,
+      name: 'SPACEX',
+      tagline: 'STARSHIP FLEET',
+      accentColor: '#ff6600',
+      specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture',
+      brief: 'Headquartered at Starbase & Rocket Road, revolutionizing aerospace manufacturing and transport.',
+      tileVideoEmbed: 'https://www.youtube.com/embed/zOO59PFnMQ4?autoplay=1&mute=1&loop=1&playlist=zOO59PFnMQ4&start=25&end=50&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
+      hqImage: 'https://images.unsplash.com/photo-1517976487504-63ec183d046e?q=80&w=1000',
+      logoText: 'SPACEX HQ // HAWTHORNE, CA'
+    },
+    {
+      id: 'esa',
+      batch: 0,
+      name: 'ESA',
+      tagline: 'ARIANE 6 & SMILE MISSION',
+      accentColor: '#60a5fa',
+      specialty: 'Vega-C & European Cosmic Vision Space Probes',
+      brief: 'Headquartered in Paris, coordinating the space flight programs of 22 European member states.',
+      tileVideoEmbed: 'https://www.youtube.com/embed/ruoezIkhbZM?autoplay=1&mute=1&loop=1&playlist=ruoezIkhbZM&start=30&end=45&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
+      hqImage: 'https://images.unsplash.com/photo-1502134249126-9f3755a50d78?q=80&w=1000',
+      logoText: 'ESA HQ // PARIS, FRANCE'
+    },
+    {
+      id: 'jaxa',
+      batch: 1,
+      name: 'JAXA',
+      tagline: 'H3 & ASTEROID SAMPLING',
+      accentColor: '#2dd4bf',
+      specialty: 'H3 Next-Gen Rocket & Hayabusa Asteroid Sample Return',
+      brief: 'Headquartered in Tokyo, unifying Japan’s national aerospace research and orbital development.',
+      tileVideoEmbed: 'https://www.youtube.com/embed/EBEq84QrSEA?autoplay=1&mute=1&loop=1&playlist=EBEq84QrSEA&start=3443&end=3465&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
+      hqImage: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?q=80&w=1000',
+      logoText: 'JAXA HQ // TOKYO, JAPAN'
+    },
+    {
+      id: 'isro',
+      batch: 1,
+      name: 'ISRO',
+      tagline: 'GSLV MK III & CHANDRAYAAN',
+      accentColor: '#ff9933',
+      specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan',
+      brief: 'Headquartered in Bengaluru, driving breakthrough cost-effective interplanetary and satellite missions.',
+      tileVideoEmbed: 'https://www.youtube.com/embed/Zfr1eVS5iX8?autoplay=1&mute=1&loop=1&playlist=Zfr1eVS5iX8&start=8&end=20&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
+      hqImage: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?q=80&w=1000',
+      logoText: 'ISRO HQ // BENGALURU, INDIA'
+    },
+    {
+      id: 'cnsa',
+      batch: 1,
+      name: 'CNSA',
+      tagline: 'CHANG\'E & TIANWEN',
+      accentColor: '#f43f5e',
+      specialty: 'Chang\'e Lunar Sample Return & Tianwen Mars Rover Missions',
+      brief: 'Headquartered in Beijing, managing national space administration and planetary research programs.',
+      tileVideoEmbed: 'https://www.youtube.com/embed/_QOITfWlM3Y?autoplay=1&mute=1&loop=1&playlist=_QOITfWlM3Y&start=43&end=58&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
+      hqImage: 'https://images.unsplash.com/photo-1508803192460-4592044810f6?q=80&w=1000',
+      logoText: 'CNSA HQ // BEIJING, CHINA'
+    }
   ];
 
   useEffect(() => {
@@ -140,20 +142,17 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 
     const render = () => {
       ctx.clearRect(0, 0, width, height);
-
       stars.forEach((star) => {
         star.y -= star.speed;
         if (star.y < 0) {
           star.y = height;
           star.x = Math.random() * width;
         }
-
         ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
         ctx.beginPath();
         ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
         ctx.fill();
       });
-
       animationFrameId = requestAnimationFrame(render);
     };
 
@@ -174,6 +173,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.12 } }
   };
+
+  const currentBatchAgencies = allAgencies.filter(a => a.batch === agencyBatchIndex);
 
   return (
     <div style={{ backgroundColor: '#000000', color: '#ffffff', minHeight: '100vh', fontFamily: '"Space Grotesk", -apple-system, sans-serif', position: 'relative', overflowX: 'hidden' }}>
@@ -243,7 +244,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           transform: translate(-50%, -50%);
           pointer-events: none;
           z-index: 1;
-          opacity: 0.75;
           border: none;
         }
 
@@ -260,6 +260,17 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           pointer-events: none;
         }
       `}</style>
+
+      {/* HIDDEN PERSISTENT CONTAINER FOR ALL IFRAMES (PREVENTS RELOADING/STUTTER) */}
+      <div style={{ display: 'none' }}>
+        {allAgencies.map((agency) => (
+          <iframe
+            key={`preload-${agency.id}`}
+            src={agency.tileVideoEmbed}
+            title={`preload-${agency.name}`}
+          />
+        ))}
+      </div>
 
       {/* BACKGROUND SLIDESHOW */}
       {spaceBackgrounds.map((bgUrl, idx) => (
@@ -451,7 +462,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               className="glass-card" 
               style={{ display: 'flex', borderRadius: '2px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)' }}
             >
-              {agencyBatches[agencyBatchIndex].map((agency, index) => {
+              {currentBatchAgencies.map((agency, index) => {
                 const isHovered = activeAgency === agency.id;
                 let flexValue = 1;
                 if (activeAgency !== null) {
@@ -469,7 +480,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     onMouseEnter={() => setActiveAgency(agency.id)}
                     onMouseLeave={() => setActiveAgency(null)}
                   >
-                    {/* Normal Tile Background Video Loop */}
+                    {/* Background Video Loop (Active only when not hovered) */}
                     {!isHovered && (
                       <iframe
                         className="agency-iframe-bg"
