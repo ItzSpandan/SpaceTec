@@ -18,7 +18,8 @@ async function syncLaunches() {
         name: launch.name,
         status: launch.status?.name || 'Scheduled',
         net: launch.net,
-        provider: launch.launch_service_provider?.name || 'Unknown Agency'
+        provider: launch.launch_service_provider?.name || 'Unknown Agency',
+        pad_location: launch.pad?.location?.name || 'Global Launch Facility'
       };
 
       const { error } = await supabase
