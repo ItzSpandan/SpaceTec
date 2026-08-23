@@ -1,27 +1,44 @@
-import SpaceTecHub from './SpaceTecHub';
+'use client'
+import { useEffect, useState } from 'react'
+import { supabase } from './supabase'
 
-export default async function Home() {
-  const nasaApiKey = process.env.NASA_API_KEY || 'DEMO_KEY';
-  
-  let apodData = null;
-  let upcomingLaunches = [];
+export default function Home() {
+  const [launches, setLaunches] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  try {
-    const res = await fetch(`https://api.nasa.gov/planetary/apod?api_key=${nasaApiKey}`, { next: { revalidate: 3600 } });
-    if (res.ok) apodData = await res.json();
-  } catch (error) {
-    console.error("APOD Fetch Error:", error);
-  }
-
-  try {
-    const res = await fetch('https://lldev.thespacedevs.com/2.2.0/launch/upcoming/?limit=6', { next: { revalidate: 1800 } });
-    if (res.ok) {
-      const data = await res.json();
-      upcomingLaunches = data.results || [];
+  useEffect(() => {
+    async function fetchLaunches() {
+      const { data, error } = await supabase.from('launches').select('*')
+      if (error) {
+        console.error('Error fetching launches:', error)
+      } else {
+        setLaunches(data || [])
+      }
+      setLoading(false)
     }
-  } catch (error) {
-    console.error("Launch Fetch Error:", error);
-  }
 
-  return <SpaceTecHub apodData={apodData} upcomingLaunches={upcomingLaunches} />;
+    fetchLaunches()
+  }, [])
+
+  return (
+    <main style={{ padding: '40px', fontFamily: 'sans-serif', background: '#0b0f19', color: '#fff', minHeight: '100vh' }}>
+      <h1>🚀 SpaceTec Intelligence Platform</h1>
+      <p>Real-time launch tracking and orbital data.</p>
+      
+      <h2>Upcoming Launches</h2>
+      {loading ? (
+        <p>Loading database launches...</p>
+      ) : launches.length === 0 ? (
+        <p>No launches found in database yet. Ready to add some space missions!</p>
+      ) : (
+        <ul>
+          {launches.map((launch) => (
+            <li key={launch.id} style={{ marginBottom: '10px' }}>
+              <strong>{launch.name}</strong> - Status: {launch.status || 'Scheduled'}
+            </li>
+          ))}
+        </ul>
+      )}
+    </main>
+  )
 }
