@@ -100,12 +100,13 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     return () => clearInterval(bgTimer);
   }, [spaceBackgrounds.length]);
 
+  // Increased to 12 seconds (12000ms) here:
   useEffect(() => {
     const batchTimer = setInterval(() => {
       if (!activeAgency) {
         setAgencyBatchIndex((prev) => (prev === 0 ? 1 : 0));
       }
-    }, 8000);
+    }, 12000);
     return () => clearInterval(batchTimer);
   }, [activeAgency]);
 
