@@ -37,11 +37,11 @@ export default function OrbitalGlobe() {
       })
       .catch(err => console.log('GeoJSON load note:', err));
 
-    // Simulated real-time orbital tracking objects feed (Mocking live radar positions based on real inclinations)
+    // Simulated real-time orbital tracking objects feed
     const mockLiveSatellites = Array.from({ length: 45 }, (_, i) => ({
       id: i,
       name: i === 0 ? 'ISS (ZARYA)' : i < 15 ? `STARLINK-${1000 + i}` : `COSMOS/DEBRIS-${200 + i}`,
-      lat: Math.sin(i * 1.5) * 55, // orbital inclination bounds
+      lat: Math.sin(i * 1.5) * 55,
       lon: (i * 35 + Date.now() * 0.01) % 360 - 180,
       altitude: 400 + (i * 15)
     }));
@@ -91,7 +91,7 @@ export default function OrbitalGlobe() {
       const theta = (lon + 180) * (Math.PI / 180) + rotY;
 
       let x = -radius * Math.sin(phi) * Math.cos(theta);
-      let y = radius * Math.cos(phi);
+      let y = -radius * Math.cos(phi); // Flipped with minus sign so North stays at the top
       let z = radius * Math.sin(phi) * Math.sin(theta);
 
       const cosX = Math.cos(rotX);
@@ -197,7 +197,6 @@ export default function OrbitalGlobe() {
       // Mode 2: Satellite Radar View
       else {
         satellites.forEach((sat) => {
-          // Dynamic drift simulation for radar feel
           const currentLon = (sat.lon + rotationRef.current.y * 15) % 360;
           const pt = projectCoordinates(sat.lat, currentLon, globeRadius, rotationRef.current.x, rotationRef.current.y, centerX, centerY);
           
