@@ -46,7 +46,6 @@ export default function OrbitalGlobe() {
   const [satFilter, setSatFilter] = useState('stations'); 
   const [selectedPad, setSelectedPad] = useState(globalLaunchPads[0]);
   const [selectedSat, setSelectedSat] = useState(null);
-  const [isPaused, setIsPaused] = useState(false);
   
   const [satellites, setSatellites] = useState([]);
   const [loadingSats, setLoadingSats] = useState(false);
@@ -118,27 +117,19 @@ export default function OrbitalGlobe() {
     fetchRealSatellites();
   }, [satFilter]);
 
-  // Continuous 2D-style fluid spin rotation loop
+  // Force constant spinning via Three.js controls
   useEffect(() => {
-    let timer;
-    const setupRotation = () => {
-      if (globeRef.current && !isPaused) {
+    const timer = setTimeout(() => {
+      if (globeRef.current) {
         const controls = globeRef.current.controls();
         if (controls) {
           controls.autoRotate = true;
-          controls.autoRotateSpeed = 2.5; // Smooth continuous spin speed
-        }
-      } else if (globeRef.current && isPaused) {
-        const controls = globeRef.current.controls();
-        if (controls) {
-          controls.autoRotate = false;
+          controls.autoRotateSpeed = 2.0;
         }
       }
-      timer = requestAnimationFrame(setupRotation);
-    };
-    setupRotation();
-    return () => cancelAnimationFrame(timer);
-  }, [isPaused]);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Orbital paths generator
   const orbitalPaths = selectedSat ? (() => {
@@ -240,8 +231,6 @@ export default function OrbitalGlobe() {
       {/* Globe Component */}
       <div 
         className="glass-card" 
-        onMouseEnter={() => setIsPaused(true)}
-        onMouseLeave={() => setIsPaused(false)}
         style={{ position: 'relative', width: '100%', height: '550px', borderRadius: '2px', overflow: 'hidden', background: '#030712', border: '1px solid rgba(59, 130, 246, 0.2)' }}
       >
         <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
