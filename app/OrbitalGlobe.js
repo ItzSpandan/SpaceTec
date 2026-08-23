@@ -137,16 +137,20 @@ export default function OrbitalGlobe() {
       <style>{`
         @keyframes spaceScroll {
           0% { background-position: 0 0; }
-          100% { background-position: 1000px 500px; }
+          100% { background-position: -1000px 500px; }
         }
         .moving-space-bg {
+          background-color: #020617;
           background-image: 
-            radial-gradient(white, rgba(255,255,255,0.2) 2px, transparent 4px),
-            radial-gradient(white, rgba(255,255,255,0.1) 1px, transparent 2px),
-            radial-gradient(rgba(56,189,248,0.5), transparent 3px);
-          background-size: 550px 550px, 350px 350px, 200px 200px;
-          background-position: 0 0, 40px 60px, 100px 100px;
-          animation: spaceScroll 60s linear infinite;
+            radial-gradient(2px 2px at 20px 30px, #ffffff, rgba(0,0,0,0)),
+            radial-gradient(2px 2px at 40px 70px, #38bdf8, rgba(0,0,0,0)),
+            radial-gradient(1px 1px at 90px 40px, #ffffff, rgba(0,0,0,0)),
+            radial-gradient(2px 2px at 160px 120px, #93c5fd, rgba(0,0,0,0)),
+            radial-gradient(1.5px 1.5px at 230px 180px, #ffffff, rgba(0,0,0,0)),
+            radial-gradient(2px 2px at 300px 250px, #38bdf8, rgba(0,0,0,0));
+          background-repeat: repeat;
+          background-size: 350px 350px;
+          animation: spaceScroll 25s linear infinite;
         }
       `}</style>
 
@@ -231,16 +235,17 @@ export default function OrbitalGlobe() {
         )}
       </div>
 
-      {/* Globe Component with Constantly Moving Space Background */}
+      {/* Globe Component with Animated Space Background and Transparent WebGL Canvas */}
       <div 
-        className="glass-card moving-space-bg" 
-        style={{ position: 'relative', width: '100%', height: '550px', borderRadius: '2px', overflow: 'hidden', background: '#030712', border: '1px solid rgba(59, 130, 246, 0.2)' }}
+        className="moving-space-bg" 
+        style={{ position: 'relative', width: '100%', height: '550px', borderRadius: '2px', overflow: 'hidden', border: '1px solid rgba(59, 130, 246, 0.3)' }}
       >
         <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
           <ReactGlobe
             ref={globeRef}
             globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
             bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+            backgroundColor="rgba(0,0,0,0)"
             pointsData={viewMode === 'pads' ? filteredPads : satellites}
             pointLat="lat"
             pointLng="lng"
