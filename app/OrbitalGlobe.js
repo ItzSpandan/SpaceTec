@@ -117,20 +117,6 @@ export default function OrbitalGlobe() {
     fetchRealSatellites();
   }, [satFilter]);
 
-  // Force constant spinning via Three.js controls
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (globeRef.current) {
-        const controls = globeRef.current.controls();
-        if (controls) {
-          controls.autoRotate = true;
-          controls.autoRotateSpeed = 2.0;
-        }
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, []);
-
   // Orbital paths generator
   const orbitalPaths = selectedSat ? (() => {
     const points = [];
@@ -147,6 +133,23 @@ export default function OrbitalGlobe() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%', maxWidth: '1400px', margin: '0 auto' }}>
       
+      {/* Inline Styles for Moving Starfield Background Animation */}
+      <style>{`
+        @keyframes spaceScroll {
+          0% { background-position: 0 0; }
+          100% { background-position: 1000px 500px; }
+        }
+        .moving-space-bg {
+          background-image: 
+            radial-gradient(white, rgba(255,255,255,0.2) 2px, transparent 4px),
+            radial-gradient(white, rgba(255,255,255,0.1) 1px, transparent 2px),
+            radial-gradient(rgba(56,189,248,0.5), transparent 3px);
+          background-size: 550px 550px, 350px 350px, 200px 200px;
+          background-position: 0 0, 40px 60px, 100px 100px;
+          animation: spaceScroll 60s linear infinite;
+        }
+      `}</style>
+
       {/* View & Filter Controllers */}
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
@@ -228,9 +231,9 @@ export default function OrbitalGlobe() {
         )}
       </div>
 
-      {/* Globe Component */}
+      {/* Globe Component with Constantly Moving Space Background */}
       <div 
-        className="glass-card" 
+        className="glass-card moving-space-bg" 
         style={{ position: 'relative', width: '100%', height: '550px', borderRadius: '2px', overflow: 'hidden', background: '#030712', border: '1px solid rgba(59, 130, 246, 0.2)' }}
       >
         <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
