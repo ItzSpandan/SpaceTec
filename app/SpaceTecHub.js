@@ -17,7 +17,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
   ];
 
-  // Agencies with YouTube embed URLs (pointer-events: none completely intercepts and blocks any click/play overlay triggers)
+  // Agencies updated to use direct HTML5 video links to completely avoid play buttons and loading delays
   const agencyBatches = [
     [
       {
@@ -27,7 +27,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#3b82f6',
         specialty: 'Saturn V Lunar Legacy, Webb Telescope & Artemis Moon Missions',
         brief: 'Pioneering deep space exploration, advanced planetary defense, and sustained human habitats on the lunar surface.',
-        tileVideo: 'https://www.youtube.com/embed/-1wcilQ58hI?start=2701&end=2715&autoplay=1&mute=1&loop=1&playlist=-1wcilQ58hI&controls=0&rel=0&disablekb=1&fs=0&iv_load_policy=3',
+        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-digital-animation-of-screens-with-satellite-imagery-41961-large.mp4',
         expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-digital-animation-of-screens-with-satellite-imagery-41961-large.mp4'
       },
       {
@@ -37,7 +37,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#ff6600',
         specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture',
         brief: 'Developing fully reusable heavy-lift transportation systems designed to make humanity multi-planetary.',
-        tileVideo: 'https://www.youtube.com/embed/-1wcilQ58hI?start=2701&end=2715&autoplay=1&mute=1&loop=1&playlist=-1wcilQ58hI&controls=0&rel=0&disablekb=1&fs=0&iv_load_policy=3',
+        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-spinning-planet-earth-in-space-41959-large.mp4',
         expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-spinning-planet-earth-in-space-41959-large.mp4'
       },
       {
@@ -47,7 +47,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#60a5fa',
         specialty: 'Ariane 6 Heavy Lift System & Euclid Dark Energy Mapping',
         brief: 'Coordinating European collaboration in space research, satellite earth observation, and deep space probes.',
-        tileVideo: 'https://www.youtube.com/embed/-1wcilQ58hI?start=2701&end=2715&autoplay=1&mute=1&loop=1&playlist=-1wcilQ58hI&controls=0&rel=0&disablekb=1&fs=0&iv_load_policy=3',
+        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-animation-of-a-satellite-orbiting-the-earth-41960-large.mp4',
         expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-animation-of-a-satellite-orbiting-the-earth-41960-large.mp4'
       }
     ],
@@ -59,7 +59,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#2dd4bf',
         specialty: 'H3 Next-Gen Rocket & Hayabusa Asteroid Sample Return',
         brief: 'Advancing high-precision robotic asteroid exploration, global satellite navigation, and next-generation rocketry.',
-        tileVideo: 'https://www.youtube.com/embed/Zfr1eVS5iX8?start=8&end=12&autoplay=1&mute=1&loop=1&playlist=Zfr1eVS5iX8&controls=0&rel=0&disablekb=1&fs=0&iv_load_policy=3',
+        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-digital-animation-of-screens-with-satellite-imagery-41961-large.mp4',
         expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-digital-animation-of-screens-with-satellite-imagery-41961-large.mp4'
       },
       {
@@ -69,7 +69,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#ff9933',
         specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan',
         brief: 'Executing cost-effective lunar polar exploration, orbital space stations, and indigenous human spaceflight.',
-        tileVideo: 'https://www.youtube.com/embed/Zfr1eVS5iX8?start=8&end=12&autoplay=1&mute=1&loop=1&playlist=Zfr1eVS5iX8&controls=0&rel=0&disablekb=1&fs=0&iv_load_policy=3',
+        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-spinning-planet-earth-in-space-41959-large.mp4',
         expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-spinning-planet-earth-in-space-41959-large.mp4'
       },
       {
@@ -79,7 +79,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#f43f5e',
         specialty: 'Chang\'e Lunar Sample Return & Tianwen Mars Rover Missions',
         brief: 'Operating successful lunar far-side sample missions, orbital laboratories, and interplanetary rovers.',
-        tileVideo: 'https://www.youtube.com/embed/Zfr1eVS5iX8?start=8&end=12&autoplay=1&mute=1&loop=1&playlist=Zfr1eVS5iX8&controls=0&rel=0&disablekb=1&fs=0&iv_load_policy=3',
+        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-animation-of-a-satellite-orbiting-the-earth-41960-large.mp4',
         expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-animation-of-a-satellite-orbiting-the-earth-41960-large.mp4'
       }
     ]
@@ -228,8 +228,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           border-right: none;
         }
 
-        /* Immediate rendering with zero transition lag */
-        .agency-iframe-bg {
+        .agency-video-bg {
           position: absolute;
           top: 50%;
           left: 50%;
@@ -238,24 +237,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           min-width: 100%;
           min-height: 100%;
           transform: translate(-50%, -50%);
-          z-index: 1;
-          opacity: 0.9;
-          pointer-events: none;
-          border: none;
-        }
-
-        .agency-expanded-video {
-          position: absolute;
-          top: 0;
-          right: 0;
-          width: 65%;
-          height: 100%;
           object-fit: cover;
           z-index: 1;
           opacity: 0.9;
           pointer-events: none;
-          mask-image: linear-gradient(to right, transparent 0%, black 40%);
-          -webkit-mask-image: linear-gradient(to right, transparent 0%, black 40%);
         }
 
         .agency-content-layer {
@@ -263,12 +248,11 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           z-index: 3;
         }
 
-        /* Shifted black gradient layer to start heavily from the TOP and fade downward into the video */
+        /* Black gradient shield anchored at the TOP and fading smoothly downward */
         .agency-text-shield {
           position: absolute;
           inset: 0;
-          background: linear-gradient(to bottom, #000000 0%, rgba(0,0,0,0.8) 40%, rgba(0,0,0,0.2) 70%, transparent 100%),
-                      linear-gradient(to top, #000000 0%, rgba(0,0,0,0.6) 30%, transparent 60%);
+          background: linear-gradient(to bottom, #000000 0%, rgba(0,0,0,0.85) 40%, rgba(0,0,0,0.25) 70%, transparent 100%);
           z-index: 2;
           pointer-events: none;
         }
@@ -454,7 +438,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </section>
         )}
 
-        {/* AGENCIES SECTION WITH YOUTUBE EMBED TILE VIDEOS */}
+        {/* AGENCIES SECTION */}
         <section className="content-container" style={{ paddingBottom: '6rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.0rem' }}>
             <div>
@@ -500,30 +484,16 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     onMouseEnter={() => setActiveAgency(agency.id)}
                     onMouseLeave={() => setActiveAgency(null)}
                   >
-                    {/* Background Videos / YouTube Embed Clips & Top-heavy Fade Shield */}
-                    {!isHovered ? (
-                      <>
-                        <iframe
-                          className="agency-iframe-bg"
-                          src={agency.tileVideo}
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          title={`${agency.name} Launch Clip`}
-                        />
-                        <div className="agency-text-shield" />
-                      </>
-                    ) : (
-                      <>
-                        <video
-                          className="agency-expanded-video"
-                          src={agency.expandedVideo}
-                          autoPlay
-                          muted
-                          loop
-                          playsInline
-                        />
-                        <div className="agency-text-shield" />
-                      </>
-                    )}
+                    {/* Native HTML5 Video Background with Top-Heavy Fade Shield */}
+                    <video
+                      className="agency-video-bg"
+                      src={isHovered ? agency.expandedVideo : agency.tileVideo}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                    />
+                    <div className="agency-text-shield" />
 
                     <div className="agency-content-layer">
                       <span style={{ fontSize: '0.65rem', letterSpacing: '3px', textTransform: 'uppercase', color: isHovered ? agency.accentColor : '#a1a1aa', fontWeight: '800', transition: 'color 0.3s ease' }}>
