@@ -106,7 +106,7 @@ export default function OrbitalGlobe() {
           setSatellites(formattedSats);
         }
       } catch (err) {
-        console.log('Error fetching CelesTrak payload:', err);
+        console.log('Network block fallback triggered:', err);
       } finally {
         setLoadingSats(false);
       }
@@ -115,7 +115,6 @@ export default function OrbitalGlobe() {
     fetchRealSatellites();
   }, [satFilter]);
 
-  // Handle slow axis rotation loop
   useEffect(() => {
     let frameId;
     const rotateGlobe = () => {
@@ -240,7 +239,7 @@ export default function OrbitalGlobe() {
             pointLabel={d => `
               <div style="background: rgba(3, 7, 18, 0.95); padding: 10px 14px; border: 1px solid #3b82f6; font-family: monospace; font-size: 11px; color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
                 <b style="color: #38bdf8; font-size: 12px;">${d.name}</b><br/>
-                ${viewMode === 'pads' ? `Agency: ${d.agency}<br/>Country: ${d.country}` : `Org: ${d.organization}<br/>NORAD ID: ${d.id} | Vel: ${d.velocity}`}
+                ${viewMode === 'pads' ? `Agency: ${d.agency}<br/>Country:${d.country}` : `Org: ${d.organization}<br/>NORAD ID: ${d.id} \vert{} Vel:${d.velocity}`}
               </div>
             `}
           />
@@ -248,7 +247,7 @@ export default function OrbitalGlobe() {
 
         {loadingSats && (
           <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.85)', padding: '0.4rem 0.8rem', border: '1px solid #2dd4bf', zIndex: 10 }}>
-            <span style={{ fontSize: '0.65rem', color: '#2dd4bf', letterSpacing: '1px' }}>STREAMING FULL CATALOG ({sat.length || 'LIVE'})...</span>
+            <span style={{ fontSize: '0.65rem', color: '#2dd4bf', letterSpacing: '1px' }}>STREAMING FULL CATALOG ({satellites.length || 'LIVE'})...</span>
           </div>
         )}
 
@@ -315,17 +314,4 @@ export default function OrbitalGlobe() {
               </div>
               <div>
                 <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>ORBITAL VELOCITY</p>
-                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#ffffff' }}>{selectedSat.velocity}</p>
-              </div>
-            </div>
-          ) : (
-            <p style={{ margin: '0.6rem 0 0 0', fontSize: '0.8rem', color: '#a1a1aa' }}>
-              Click any 3D satellite to highlight its trajectory ring, view its operating organization, and track velocity metrics. Total loaded items: {satellites.length}
-            </p>
-          )}
-        </div>
-      )}
-
-    </div>
-  );
-}
+                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#ffffff'
