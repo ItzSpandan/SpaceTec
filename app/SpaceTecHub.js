@@ -17,7 +17,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
   ];
 
-  // Agencies with YouTube embed URLs for tile (launch snippet) and expanded (placeholder/expanded)
+  // Agencies with YouTube embed URLs (playlist loop enabled with &playlist=ID)
   const agencyBatches = [
     [
       {
@@ -27,7 +27,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#3b82f6',
         specialty: 'Saturn V Lunar Legacy, Webb Telescope & Artemis Moon Missions',
         brief: 'Pioneering deep space exploration, advanced planetary defense, and sustained human habitats on the lunar surface.',
-        tileVideo: 'https://www.youtube.com/embed/-1wcilQ58hI?start=2701&end=2715&autoplay=1&mute=1&loop=1&controls=0&rel=0',
+        tileVideo: 'https://www.youtube.com/embed/-1wcilQ58hI?start=2701&end=2715&autoplay=1&mute=1&loop=1&playlist=-1wcilQ58hI&controls=0&rel=0&modestbranding=1',
         expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-digital-animation-of-screens-with-satellite-imagery-41961-large.mp4'
       },
       {
@@ -37,7 +37,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#ff6600',
         specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture',
         brief: 'Developing fully reusable heavy-lift transportation systems designed to make humanity multi-planetary.',
-        tileVideo: 'https://www.youtube.com/embed/-1wcilQ58hI?start=2701&end=2715&autoplay=1&mute=1&loop=1&controls=0&rel=0',
+        tileVideo: 'https://www.youtube.com/embed/-1wcilQ58hI?start=2701&end=2715&autoplay=1&mute=1&loop=1&playlist=-1wcilQ58hI&controls=0&rel=0&modestbranding=1',
         expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-spinning-planet-earth-in-space-41959-large.mp4'
       },
       {
@@ -47,7 +47,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#60a5fa',
         specialty: 'Ariane 6 Heavy Lift System & Euclid Dark Energy Mapping',
         brief: 'Coordinating European collaboration in space research, satellite earth observation, and deep space probes.',
-        tileVideo: 'https://www.youtube.com/embed/-1wcilQ58hI?start=2701&end=2715&autoplay=1&mute=1&loop=1&controls=0&rel=0',
+        tileVideo: 'https://www.youtube.com/embed/-1wcilQ58hI?start=2701&end=2715&autoplay=1&mute=1&loop=1&playlist=-1wcilQ58hI&controls=0&rel=0&modestbranding=1',
         expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-animation-of-a-satellite-orbiting-the-earth-41960-large.mp4'
       }
     ],
@@ -59,7 +59,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#2dd4bf',
         specialty: 'H3 Next-Gen Rocket & Hayabusa Asteroid Sample Return',
         brief: 'Advancing high-precision robotic asteroid exploration, global satellite navigation, and next-generation rocketry.',
-        tileVideo: 'https://www.youtube.com/embed/Zfr1eVS5iX8?start=8&end=12&autoplay=1&mute=1&loop=1&controls=0&rel=0',
+        tileVideo: 'https://www.youtube.com/embed/Zfr1eVS5iX8?start=8&end=12&autoplay=1&mute=1&loop=1&playlist=Zfr1eVS5iX8&controls=0&rel=0&modestbranding=1',
         expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-digital-animation-of-screens-with-satellite-imagery-41961-large.mp4'
       },
       {
@@ -69,7 +69,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#ff9933',
         specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan',
         brief: 'Executing cost-effective lunar polar exploration, orbital space stations, and indigenous human spaceflight.',
-        tileVideo: 'https://www.youtube.com/embed/Zfr1eVS5iX8?start=8&end=12&autoplay=1&mute=1&loop=1&controls=0&rel=0',
+        tileVideo: 'https://www.youtube.com/embed/Zfr1eVS5iX8?start=8&end=12&autoplay=1&mute=1&loop=1&playlist=Zfr1eVS5iX8&controls=0&rel=0&modestbranding=1',
         expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-spinning-planet-earth-in-space-41959-large.mp4'
       },
       {
@@ -79,7 +79,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#f43f5e',
         specialty: 'Chang\'e Lunar Sample Return & Tianwen Mars Rover Missions',
         brief: 'Operating successful lunar far-side sample missions, orbital laboratories, and interplanetary rovers.',
-        tileVideo: 'https://www.youtube.com/embed/Zfr1eVS5iX8?start=8&end=12&autoplay=1&mute=1&loop=1&controls=0&rel=0',
+        tileVideo: 'https://www.youtube.com/embed/Zfr1eVS5iX8?start=8&end=12&autoplay=1&mute=1&loop=1&playlist=Zfr1eVS5iX8&controls=0&rel=0&modestbranding=1',
         expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-animation-of-a-satellite-orbiting-the-earth-41960-large.mp4'
       }
     ]
@@ -92,7 +92,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     return () => clearInterval(bgTimer);
   }, [spaceBackgrounds.length]);
 
-  // Pause automatic batch rotation when hovered
   useEffect(() => {
     const batchTimer = setInterval(() => {
       if (!activeAgency) {
@@ -229,7 +228,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           border-right: none;
         }
 
-        /* iframe container styling with delay simulation/smooth appearance */
+        /* Instant video mounting with zero delay */
         .agency-iframe-bg {
           position: absolute;
           top: 50%;
@@ -243,12 +242,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           opacity: 0.9;
           pointer-events: none;
           border: none;
-          animation: fadeInVideo 1s ease 0.4s forwards;
-        }
-
-        @keyframes fadeInVideo {
-          from { opacity: 0; }
-          to { opacity: 0.9; }
         }
 
         .agency-expanded-video {
@@ -270,14 +263,15 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           z-index: 3;
         }
 
-        /* Precisely shaped bottom-left organic corner gradient matching your sketch */
+        /* Completely seamless blur-into-video gradient shield with zero boxy shape */
         .agency-text-shield {
           position: absolute;
           bottom: 0;
           left: 0;
-          width: 55%;
-          height: 50%;
-          background: radial-gradient(circle at bottom left, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.85) 50%, transparent 100%);
+          width: 100%;
+          height: 85%;
+          background: linear-gradient(to top, #000000 0%, rgba(0,0,0,0.85) 35%, rgba(0,0,0,0.4) 60%, transparent 100%),
+                      linear-gradient(to right, #000000 0%, rgba(0,0,0,0.8) 30%, transparent 70%);
           z-index: 2;
           pointer-events: none;
         }
@@ -509,7 +503,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     onMouseEnter={() => setActiveAgency(agency.id)}
                     onMouseLeave={() => setActiveAgency(null)}
                   >
-                    {/* Background Videos / YouTube Embed Clips & Bottom-Left Organic Shield */}
+                    {/* Background Videos / YouTube Embed Clips & Seamless Blur Shield */}
                     {!isHovered ? (
                       <>
                         <iframe
