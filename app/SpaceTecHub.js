@@ -668,7 +668,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
                     <span style={{ fontSize: '0.65rem', letterSpacing: '2px', textTransform: 'uppercase', padding: '0.3rem 0.6rem', background: 'rgba(255, 255, 255, 0.08)', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.2)', fontWeight: '700' }}>
-                      {launch.launch_service_provider?.name || 'AGENCY'}
+                      {launch.provider || 'AGENCY'}
                     </span>
                     <span style={{ fontSize: '0.65rem', color: '#ffffff', letterSpacing: '2px', fontWeight: '700' }}>● SCHEDULED</span>
                   </div>
@@ -682,7 +682,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     NET: {new Date(launch.net).toUTCString().slice(0, 16)}
                   </p>
                   <p style={{ margin: 0, fontSize: '0.75rem', color: '#71717a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    PAD: {launch.pad?.location?.name || 'Vandenberg Space Force Base'}
+                    PAD: {launch.pad_location || 'Vandenberg Space Force Base'}
                   </p>
                 </div>
               </motion.div>
