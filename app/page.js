@@ -1,44 +1,35 @@
-'use client'
-import { useEffect, useState } from 'react'
-import { supabase } from './supabase'
+import SpaceTecHub from './SpaceTecHub';
+import { supabase } from './supabase'; // Import your configured Supabase client
 
-export default function Home() {
-  const [launches, setLaunches] = useState([])
-  const [loading, setLoading] = useState(true)
+export default async function Home() {
+  const nasaApiKey = process.env.NASA_API_KEY || 'DEMO_KEY';
+  
+  let apodData = null;
+  let upcomingLaunches = [];
 
-  useEffect(() => {
-    async function fetchLaunches() {
-      const { data, error } = await supabase.from('launches').select('*')
-      if (error) {
-        console.error('Error fetching launches:', error)
-      } else {
-        setLaunches(data || [])
-      }
-      setLoading(false)
-    }
+  // Fetch NASA APOD data
+  try {
+    const res = await fetch(`https://api.nasa.gov/planetary/apod?api_key=${nasaApiKey}`, { next: { revalidate: 3600 } });
+    if (res.ok) apodData = await res.json();
+  } catch (error) {
+    console.error("APOD Fetch Error:", error);
+  }
 
-    fetchLaunches()
-  }, [])
-
-  return (
-    <main style={{ padding: '40px', fontFamily: 'sans-serif', background: '#0b0f19', color: '#fff', minHeight: '100vh' }}>
-      <h1>🚀 SpaceTec Intelligence Platform</h1>
-      <p>Real-time launch tracking and orbital data.</p>
+  // Fetch launches from your Supabase database instead of the external API
+  try {
+    const { data, error } = await supabase
+      .from('launches')
+      .select('*')
+      .order('id', { ascending: true });
       
-      <h2>Upcoming Launches</h2>
-      {loading ? (
-        <p>Loading database launches...</p>
-      ) : launches.length === 0 ? (
-        <p>No launches found in database yet. Ready to add some space missions!</p>
-      ) : (
-        <ul>
-          {launches.map((launch) => (
-            <li key={launch.id} style={{ marginBottom: '10px' }}>
-              <strong>{launch.name}</strong> - Status: {launch.status || 'Scheduled'}
-            </li>
-          ))}
-        </ul>
-      )}
-    </main>
-  )
+    if (error) {
+      console.error("Supabase Launch Fetch Error:", error);
+    } else {
+      upcomingLaunches = data || [];
+    }
+  } catch (error) {
+    console.error("Database Fetch Error:", error);
+  }
+
+  return <SpaceTecHub apodData={apodData} upcomingLaunches={upcomingLaunches} />;
 }
