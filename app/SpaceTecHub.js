@@ -3,32 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Robust video sub-component to handle dynamic source changes in React
-function AgencyVideo({ src }) {
-  const videoRef = useRef(null);
-
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.load();
-      videoRef.current.play().catch((err) => {
-        console.log("Autoplay prevented or loading error:", err);
-      });
-    }
-  }, [src]);
-
-  return (
-    <video
-      ref={videoRef}
-      className="agency-video-bg"
-      src={src}
-      autoPlay
-      muted
-      loop
-      playsInline
-    />
-  );
-}
-
 export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   const [entered, setEntered] = useState(false);
   const [bgIndex, setBgIndex] = useState(0);
@@ -43,17 +17,18 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
   ];
 
+  // Agencies structured with your exact YouTube tile video IDs and timeframes (in seconds)
   const agencyBatches = [
     [
       {
         id: 'nasa',
         name: 'NASA',
-        tagline: 'SATURN V & ARTEMIS',
+        tagline: 'EUROPA CLIPPER & ARTEMIS',
         accentColor: '#3b82f6',
-        specialty: 'Saturn V Lunar Legacy, Webb Telescope & Artemis Moon Missions',
-        brief: 'Pioneering deep space exploration, advanced planetary defense, and sustained human habitats on the lunar surface.',
-        tileVideo: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-        expandedVideo: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
+        specialty: 'Europa Clipper Mission & Deep Space Planetary Exploration',
+        brief: 'Pioneering deep space exploration, advanced planetary defense, and sustained human habitats.',
+        // YouTube: https://www.youtube.com/watch?v=ux5KMw1Bk6Q | Time: 0:18 (18s) to 0:22 (22s)
+        tileVideoEmbed: 'https://www.youtube.com/embed/ux5KMw1Bk6Q?autoplay=1&mute=1&loop=1&playlist=ux5KMw1Bk6Q&start=18&end=22&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3'
       },
       {
         id: 'spacex',
@@ -62,18 +37,18 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#ff6600',
         specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture',
         brief: 'Developing fully reusable heavy-lift transportation systems designed to make humanity multi-planetary.',
-        tileVideo: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4', 
-        expandedVideo: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4'
+        // YouTube: https://www.youtube.com/watch?v=zOO59PFnMQ4 | Time: 0:25 (25s) to 0:40 (40s)
+        tileVideoEmbed: 'https://www.youtube.com/embed/zOO59PFnMQ4?autoplay=1&mute=1&loop=1&playlist=zOO59PFnMQ4&start=25&end=40&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3'
       },
       {
         id: 'esa',
         name: 'ESA',
-        tagline: 'ARIANE 6 & COSMIC VISION',
+        tagline: 'ARIANE 6 & SMILE MISSION',
         accentColor: '#60a5fa',
-        specialty: 'Ariane 6 Heavy Lift System & Euclid Dark Energy Mapping',
+        specialty: 'Vega-C & European Cosmic Vision Space Probes',
         brief: 'Coordinating European collaboration in space research, satellite earth observation, and deep space probes.',
-        tileVideo: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
-        expandedVideo: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4'
+        // YouTube: https://www.youtube.com/watch?v=ruoezIkhbZM | Time: 0:30 (30s) to 0:35 (35s)
+        tileVideoEmbed: 'https://www.youtube.com/embed/ruoezIkhbZM?autoplay=1&mute=1&loop=1&playlist=ruoezIkhbZM&start=30&end=35&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3'
       }
     ],
     [
@@ -84,8 +59,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#2dd4bf',
         specialty: 'H3 Next-Gen Rocket & Hayabusa Asteroid Sample Return',
         brief: 'Advancing high-precision robotic asteroid exploration, global satellite navigation, and next-generation rocketry.',
-        tileVideo: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-        expandedVideo: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
+        // YouTube: https://www.youtube.com/watch?v=EBEq84QrSEA | Time: 57:23 (3443s) to 57:33 (3453s)
+        tileVideoEmbed: 'https://www.youtube.com/embed/EBEq84QrSEA?autoplay=1&mute=1&loop=1&playlist=EBEq84QrSEA&start=3443&end=3453&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3'
       },
       {
         id: 'isro',
@@ -94,8 +69,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#ff9933',
         specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan',
         brief: 'Executing cost-effective lunar polar exploration, orbital space stations, and indigenous human spaceflight.',
-        tileVideo: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
-        expandedVideo: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4'
+        // YouTube: https://www.youtube.com/watch?v=Zfr1eVS5iX8 | Time: 0:08 (8s) to 0:12 (12s)
+        tileVideoEmbed: 'https://www.youtube.com/embed/Zfr1eVS5iX8?autoplay=1&mute=1&loop=1&playlist=Zfr1eVS5iX8&start=8&end=12&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3'
       },
       {
         id: 'cnsa',
@@ -104,8 +79,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#f43f5e',
         specialty: 'Chang\'e Lunar Sample Return & Tianwen Mars Rover Missions',
         brief: 'Operating successful lunar far-side sample missions, orbital laboratories, and interplanetary rovers.',
-        tileVideo: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
-        expandedVideo: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4'
+        // YouTube: https://www.youtube.com/watch?v=_QOITfWlM3Y | Time: 0:43 (43s) to 0:48 (48s)
+        tileVideoEmbed: 'https://www.youtube.com/embed/_QOITfWlM3Y?autoplay=1&mute=1&loop=1&playlist=_QOITfWlM3Y&start=43&end=48&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3'
       }
     ]
   ];
@@ -253,16 +228,18 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           border-right: none;
         }
 
-        .agency-video-bg {
+        /* Iframe wrapper for YouTube tile videos */
+        .agency-iframe-bg {
           position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          z-index: 1;
-          opacity: 0.85;
+          top: 50%;
+          left: 50%;
+          width: 300%;
+          height: 300%;
+          transform: translate(-50%, -50%);
           pointer-events: none;
+          z-index: 1;
+          opacity: 0.75;
+          border: none;
         }
 
         .agency-content-layer {
@@ -386,24 +363,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             <motion.p variants={fadeInUp} style={{ fontSize: '1.05rem', color: '#d4d4d8', lineHeight: '1.7', maxWidth: '680px', marginBottom: '2.5rem', fontWeight: '400' }}>
               Real-time trajectory tracking, global rocket launch manifests, and deep space observations aggregated directly from global aerospace networks.
             </motion.p>
-            
-            <motion.div variants={fadeInUp} style={{ display: 'flex', gap: '1.2rem', flexWrap: 'wrap' }}>
-              <motion.button 
-                whileHover={{ scale: 1.03, backgroundColor: '#ffffff', color: '#000000' }}
-                whileTap={{ scale: 0.97 }}
-                style={{ background: '#ffffff', color: '#000000', border: '1px solid #ffffff', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '900', fontSize: '0.75rem', padding: '1rem 2.2rem', cursor: 'pointer', transition: 'all 0.2s ease' }}
-              >
-                EXPLORE LAUNCHES
-              </motion.button>
-
-              <motion.button 
-                whileHover={{ scale: 1.03, backgroundColor: 'rgba(255, 255, 255, 0.15)', borderColor: '#ffffff' }}
-                whileTap={{ scale: 0.97 }}
-                style={{ background: 'transparent', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '900', fontSize: '0.75rem', padding: '1rem 2.2rem', cursor: 'pointer', transition: 'all 0.2s ease' }}
-              >
-                TELEMETRY DATA
-              </motion.button>
-            </motion.div>
           </motion.div>
         </section>
 
@@ -420,7 +379,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             {[
               { label: 'DEEP SPACE OBSERVATION', val: apodData?.title ? apodData.title.slice(0, 20) + '...' : 'NASA APOD' },
               { label: 'NETWORK NODES', val: '6 GLOBAL AGENCIES' },
-              { label: 'NEXT LAUNCH WINDOW', val: upcomingLaunches[0] ? new Date(upcomingLaunches[0].net).toLocaleDateString() : 'SYNCING...' },
+              { label: 'NEXT LAUNCH WINDOW', val: upcomingLaunches?.[0] ? new Date(upcomingLaunches[0].net).toLocaleDateString() : 'SYNCING...' },
               { label: 'SYSTEM STATUS', val: 'ONLINE / OPTICAL' }
             ].map((stat, idx) => (
               <div key={idx} style={{ overflow: 'hidden' }}>
@@ -435,31 +394,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </motion.div>
         </section>
 
-        {/* FEATURED OBSERVATION */}
-        {apodData && (
-          <section className="content-container" style={{ paddingBottom: '5rem' }}>
-            <motion.div 
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-              className="glass-card" 
-              style={{ padding: '3rem', borderRadius: '2px' }}
-            >
-              <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
-                // TODAY'S FEATURED DEEP SPACE OBSERVATION
-              </span>
-              <h2 style={{ fontSize: '2rem', textTransform: 'uppercase', margin: '1rem 0 1.2rem 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
-                {apodData.title}
-              </h2>
-              <p style={{ color: '#a1a1aa', lineHeight: '1.8', maxWidth: '900px', fontSize: '0.95rem', margin: 0, fontWeight: '300' }}>
-                {apodData.explanation}
-              </p>
-            </motion.div>
-          </section>
-        )}
-
-        {/* AGENCIES SECTION */}
+        {/* AGENCIES SECTION WITH YOUTUBE TILE EMBEDS */}
         <section className="content-container" style={{ paddingBottom: '6rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.0rem' }}>
             <div>
@@ -505,7 +440,13 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     onMouseEnter={() => setActiveAgency(agency.id)}
                     onMouseLeave={() => setActiveAgency(null)}
                   >
-                    <AgencyVideo src={isHovered ? agency.expandedVideo : agency.tileVideo} />
+                    {/* YouTube Tile Video Background iframe with explicit start/end timeframes */}
+                    <iframe
+                      className="agency-iframe-bg"
+                      src={agency.tileVideoEmbed}
+                      title={agency.name}
+                      allow="autoplay"
+                    />
                     <div className="agency-text-shield" />
 
                     <div className="agency-content-layer">
@@ -559,13 +500,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                 UPCOMING GLOBAL LAUNCHES
               </h2>
             </div>
-            <span style={{ fontSize: '0.7rem', letterSpacing: '3px', color: '#71717a', textTransform: 'uppercase' }}>
-              AUTO-SYNCED DATA
-            </span>
           </div>
 
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={staggerContainer} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-            {upcomingLaunches.map((launch) => (
+            {upcomingLaunches?.map((launch) => (
               <motion.div 
                 key={launch.id} 
                 variants={fadeInUp}
