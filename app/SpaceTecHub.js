@@ -27,7 +27,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#3b82f6',
         specialty: 'Europa Clipper Mission & Deep Space Planetary Exploration',
         brief: 'Pioneering deep space exploration, advanced planetary defense, and sustained human habitats.',
-        // YouTube: https://www.youtube.com/watch?v=ux5KMw1Bk6Q | Time: 0:18 (18s) to 0:22 (22s)
         tileVideoEmbed: 'https://www.youtube.com/embed/ux5KMw1Bk6Q?autoplay=1&mute=1&loop=1&playlist=ux5KMw1Bk6Q&start=18&end=22&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3'
       },
       {
@@ -37,7 +36,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#ff6600',
         specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture',
         brief: 'Developing fully reusable heavy-lift transportation systems designed to make humanity multi-planetary.',
-        // YouTube: https://www.youtube.com/watch?v=zOO59PFnMQ4 | Time: 0:25 (25s) to 0:40 (40s)
         tileVideoEmbed: 'https://www.youtube.com/embed/zOO59PFnMQ4?autoplay=1&mute=1&loop=1&playlist=zOO59PFnMQ4&start=25&end=40&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3'
       },
       {
@@ -47,7 +45,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#60a5fa',
         specialty: 'Vega-C & European Cosmic Vision Space Probes',
         brief: 'Coordinating European collaboration in space research, satellite earth observation, and deep space probes.',
-        // YouTube: https://www.youtube.com/watch?v=ruoezIkhbZM | Time: 0:30 (30s) to 0:35 (35s)
         tileVideoEmbed: 'https://www.youtube.com/embed/ruoezIkhbZM?autoplay=1&mute=1&loop=1&playlist=ruoezIkhbZM&start=30&end=35&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3'
       }
     ],
@@ -59,7 +56,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#2dd4bf',
         specialty: 'H3 Next-Gen Rocket & Hayabusa Asteroid Sample Return',
         brief: 'Advancing high-precision robotic asteroid exploration, global satellite navigation, and next-generation rocketry.',
-        // YouTube: https://www.youtube.com/watch?v=EBEq84QrSEA | Time: 57:23 (3443s) to 57:33 (3453s)
         tileVideoEmbed: 'https://www.youtube.com/embed/EBEq84QrSEA?autoplay=1&mute=1&loop=1&playlist=EBEq84QrSEA&start=3443&end=3453&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3'
       },
       {
@@ -69,7 +65,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#ff9933',
         specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan',
         brief: 'Executing cost-effective lunar polar exploration, orbital space stations, and indigenous human spaceflight.',
-        // YouTube: https://www.youtube.com/watch?v=Zfr1eVS5iX8 | Time: 0:08 (8s) to 0:12 (12s)
         tileVideoEmbed: 'https://www.youtube.com/embed/Zfr1eVS5iX8?autoplay=1&mute=1&loop=1&playlist=Zfr1eVS5iX8&start=8&end=12&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3'
       },
       {
@@ -79,7 +74,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#f43f5e',
         specialty: 'Chang\'e Lunar Sample Return & Tianwen Mars Rover Missions',
         brief: 'Operating successful lunar far-side sample missions, orbital laboratories, and interplanetary rovers.',
-        // YouTube: https://www.youtube.com/watch?v=_QOITfWlM3Y | Time: 0:43 (43s) to 0:48 (48s)
         tileVideoEmbed: 'https://www.youtube.com/embed/_QOITfWlM3Y?autoplay=1&mute=1&loop=1&playlist=_QOITfWlM3Y&start=43&end=48&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3'
       }
     ]
@@ -228,7 +222,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           border-right: none;
         }
 
-        /* Iframe wrapper for YouTube tile videos */
         .agency-iframe-bg {
           position: absolute;
           top: 50%;
@@ -394,7 +387,31 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </motion.div>
         </section>
 
-        {/* AGENCIES SECTION WITH YOUTUBE TILE EMBEDS */}
+        {/* FEATURED OBSERVATION (RESTORED) */}
+        {apodData && (
+          <section className="content-container" style={{ paddingBottom: '5rem' }}>
+            <motion.div 
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+              className="glass-card" 
+              style={{ padding: '3rem', borderRadius: '2px' }}
+            >
+              <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
+                // TODAY'S FEATURED DEEP SPACE OBSERVATION
+              </span>
+              <h2 style={{ fontSize: '2rem', textTransform: 'uppercase', margin: '1rem 0 1.2rem 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
+                {apodData.title}
+              </h2>
+              <p style={{ color: '#a1a1aa', lineHeight: '1.8', maxWidth: '900px', fontSize: '0.95rem', margin: 0, fontWeight: '300' }}>
+                {apodData.explanation}
+              </p>
+            </motion.div>
+          </section>
+        )}
+
+        {/* AGENCIES SECTION */}
         <section className="content-container" style={{ paddingBottom: '6rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.0rem' }}>
             <div>
@@ -440,7 +457,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     onMouseEnter={() => setActiveAgency(agency.id)}
                     onMouseLeave={() => setActiveAgency(null)}
                   >
-                    {/* YouTube Tile Video Background iframe with explicit start/end timeframes */}
                     <iframe
                       className="agency-iframe-bg"
                       src={agency.tileVideoEmbed}
