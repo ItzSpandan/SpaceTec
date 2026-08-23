@@ -17,7 +17,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
   ];
 
-  // Agencies configuration (SpaceX is ready for your video link)
+  // Agencies configuration with SpaceX tile video active
   const agencyBatches = [
     [
       {
@@ -37,9 +37,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#ff6600',
         specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture',
         brief: 'Developing fully reusable heavy-lift transportation systems designed to make humanity multi-planetary.',
-        // PASTE YOUR SPACEX VIDEO LINK / FILE PATH HERE:
-        tileVideo: '', 
-        expandedVideo: ''
+        // SpaceX tile video is now active (you can replace this URL anytime with your own):
+        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-spinning-planet-earth-in-space-41959-large.mp4', 
+        expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-spinning-planet-earth-in-space-41959-large.mp4'
       },
       {
         id: 'esa',
@@ -106,7 +106,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     const autoEnterTimer = setTimeout(() => {
       setEntered(true);
     }, 2500);
-    return () => clearTimeout(autoEnterTimer);
+    return () => clearInterval(autoEnterTimer);
   }, []);
 
   useEffect(() => {
