@@ -54,20 +54,20 @@ export default function OrbitalGlobe() {
 
   useEffect(() => {
     const fetchRealSatellites = async () => {
-      let endpointGroup = 'stations'; 
-      if (satFilter === 'starlink') endpointGroup = 'starlink';
-      else if (satFilter === 'visual') endpointGroup = 'visual';
-      else if (satFilter === 'weather') endpointGroup = 'weather';
-      else if (satFilter === 'active') endpointGroup = 'active';
+      let queryGroup = 'stations';
+      if (satFilter === 'starlink') queryGroup = 'starlink';
+      else if (satFilter === 'visual') queryGroup = 'visual';
+      else if (satFilter === 'weather') queryGroup = 'weather';
+      else if (satFilter === 'active') queryGroup = 'active';
 
-      if (satCacheRef.current[endpointGroup]) {
-        setSatellites(satCacheRef.current[endpointGroup]);
+      if (satCacheRef.current[queryGroup]) {
+        setSatellites(satCacheRef.current[queryGroup]);
         return;
       }
 
       setLoadingSats(true);
       try {
-        const res = await fetch(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${endpointGroup}&FORMAT=json`);
+        const res = await fetch(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${queryGroup}&FORMAT=json`);
         const data = await res.json();
 
         if (Array.isArray(data)) {
@@ -87,12 +87,13 @@ export default function OrbitalGlobe() {
             else if (nameStr.includes('COSMOS') || nameStr.includes('GLONASS')) org = 'Roscosmos (Russia)';
             else if (nameStr.includes('GPS') || nameStr.includes('USA')) org = 'US Space Force';
             else if (nameStr.includes('METEOR')) org = 'Roshydromet (Russia)';
+            else if (nameStr.includes('ONEWEB')) org = 'OneWeb (UK)';
 
             return {
               id: sat.NORAD_CAT_ID || index,
               name: nameStr,
               lat: incl > 90 ? 180 - incl : incl,
-              lng: (index * 18) % 360 - 180,
+              lng: (index * 15) % 360 - 180,
               altitude: alt / 3000, 
               color: nameStr.includes('ISS') ? '#22c55e' : nameStr.includes('STARLINK') ? '#38bdf8' : '#3b82f6',
               velocity: `${(Math.sqrt(398600 / (6371 + alt))).toFixed(2)} km/s`,
@@ -101,11 +102,11 @@ export default function OrbitalGlobe() {
             };
           });
 
-          satCacheRef.current[endpointGroup] = formattedSats;
+          satCacheRef.current[queryGroup] = formattedSats;
           setSatellites(formattedSats);
         }
       } catch (err) {
-        console.log('Network block fallback triggered:', err);
+        console.log('Error fetching CelesTrak payload:', err);
       } finally {
         setLoadingSats(false);
       }
@@ -114,11 +115,22 @@ export default function OrbitalGlobe() {
     fetchRealSatellites();
   }, [satFilter]);
 
+  // Handle slow axis rotation loop
   useEffect(() => {
-    if (globeRef.current) {
-      globeRef.current.controls().autoRotate = true;
-      globeRef.current.controls().autoRotateSpeed = 0.3; // Slower rotation speed
-    }
+    let frameId;
+    const rotateGlobe = () => {
+      if (globeRef.current) {
+        const controls = globeRef.current.controls();
+        if (controls) {
+          controls.autoRotate = true;
+          controls.autoRotateSpeed = 0.3;
+          controls.update();
+        }
+      }
+      frameId = requestAnimationFrame(rotateGlobe);
+    };
+    rotateGlobe();
+    return () => cancelAnimationFrame(frameId);
   }, []);
 
   return (
@@ -217,6 +229,10 @@ export default function OrbitalGlobe() {
             pointColor={d => viewMode === 'pads' ? (d.type === 'major' ? '#3b82f6' : '#2dd4bf') : d.color}
             pointRadius={viewMode === 'pads' ? 0.6 : 0.18}
             pointResolution={16}
+            ringsData={selectedSat ? [selectedSat] : []}
+            ringColor={() => '#38bdf8'}
+            ringMaxRadius={2}
+            ringPropagationSpeed={3}
             onPointClick={d => {
               if (viewMode === 'pads') setSelectedPad(d);
               else setSelectedSat(d);
@@ -232,7 +248,7 @@ export default function OrbitalGlobe() {
 
         {loadingSats && (
           <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.85)', padding: '0.4rem 0.8rem', border: '1px solid #2dd4bf', zIndex: 10 }}>
-            <span style={{ fontSize: '0.65rem', color: '#2dd4bf', letterSpacing: '1px' }}>STREAMING FULL CATALOG...</span>
+            <span style={{ fontSize: '0.65rem', color: '#2dd4bf', letterSpacing: '1px' }}>STREAMING FULL CATALOG ({sat.length || 'LIVE'})...</span>
           </div>
         )}
 
@@ -304,7 +320,7 @@ export default function OrbitalGlobe() {
             </div>
           ) : (
             <p style={{ margin: '0.6rem 0 0 0', fontSize: '0.8rem', color: '#a1a1aa' }}>
-              Click any 3D satellite or radar point floating above the globe to inspect its parent space agency, operating country, and real-time telemetry. Total loaded items: {satellites.length}
+              Click any 3D satellite to highlight its trajectory ring, view its operating organization, and track velocity metrics. Total loaded items: {satellites.length}
             </p>
           )}
         </div>
