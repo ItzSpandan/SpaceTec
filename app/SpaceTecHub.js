@@ -17,7 +17,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
   ];
 
-  // Agencies updated to use direct HTML5 video links to completely avoid play buttons and loading delays
+  // Agencies configuration
   const agencyBatches = [
     [
       {
@@ -37,8 +37,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#ff6600',
         specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture',
         brief: 'Developing fully reusable heavy-lift transportation systems designed to make humanity multi-planetary.',
-        tileVideo: 'https://assets.mixkit.co/videos/preview/mixkit-spinning-planet-earth-in-space-41959-large.mp4',
-        expandedVideo: 'https://assets.mixkit.co/videos/preview/mixkit-spinning-planet-earth-in-space-41959-large.mp4'
+        // PASTE YOUR SPACEX VIDEO LINK / FILE PATH HERE:
+        tileVideo: '', 
+        expandedVideo: ''
       },
       {
         id: 'esa',
@@ -248,7 +249,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           z-index: 3;
         }
 
-        /* Black gradient shield anchored at the TOP and fading smoothly downward */
         .agency-text-shield {
           position: absolute;
           inset: 0;
@@ -365,78 +365,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             <motion.p variants={fadeInUp} style={{ fontSize: '1.05rem', color: '#d4d4d8', lineHeight: '1.7', maxWidth: '680px', marginBottom: '2.5rem', fontWeight: '400' }}>
               Real-time trajectory tracking, global rocket launch manifests, and deep space observations aggregated directly from global aerospace networks.
             </motion.p>
-            
-            <motion.div variants={fadeInUp} style={{ display: 'flex', gap: '1.2rem', flexWrap: 'wrap' }}>
-              <motion.button 
-                whileHover={{ scale: 1.03, backgroundColor: '#ffffff', color: '#000000' }}
-                whileTap={{ scale: 0.97 }}
-                style={{ background: '#ffffff', color: '#000000', border: '1px solid #ffffff', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '900', fontSize: '0.75rem', padding: '1rem 2.2rem', cursor: 'pointer', transition: 'all 0.2s ease' }}
-              >
-                EXPLORE LAUNCHES
-              </motion.button>
-
-              <motion.button 
-                whileHover={{ scale: 1.03, backgroundColor: 'rgba(255, 255, 255, 0.15)', borderColor: '#ffffff' }}
-                whileTap={{ scale: 0.97 }}
-                style={{ background: 'transparent', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '900', fontSize: '0.75rem', padding: '1rem 2.2rem', cursor: 'pointer', transition: 'all 0.2s ease' }}
-              >
-                TELEMETRY DATA
-              </motion.button>
-            </motion.div>
           </motion.div>
         </section>
-
-        {/* TELEMETRY STRIP */}
-        <section className="content-container" style={{ paddingBottom: '5rem' }}>
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="glass-card" 
-            style={{ padding: '2rem 2.5rem', borderRadius: '2px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem' }}
-          >
-            {[
-              { label: 'DEEP SPACE OBSERVATION', val: apodData?.title ? apodData.title.slice(0, 20) + '...' : 'NASA APOD' },
-              { label: 'NETWORK NODES', val: '6 GLOBAL AGENCIES' },
-              { label: 'NEXT LAUNCH WINDOW', val: upcomingLaunches[0] ? new Date(upcomingLaunches[0].net).toLocaleDateString() : 'SYNCING...' },
-              { label: 'SYSTEM STATUS', val: 'ONLINE / OPTICAL' }
-            ].map((stat, idx) => (
-              <div key={idx} style={{ overflow: 'hidden' }}>
-                <span style={{ fontSize: '0.65rem', color: '#71717a', letterSpacing: '2px', display: 'block', marginBottom: '0.5rem', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {stat.label}
-                </span>
-                <span style={{ fontSize: '0.95rem', fontWeight: '700', letterSpacing: '1px', color: '#ffffff', textTransform: 'uppercase', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {stat.val}
-                </span>
-              </div>
-            ))}
-          </motion.div>
-        </section>
-
-        {/* FEATURED OBSERVATION */}
-        {apodData && (
-          <section className="content-container" style={{ paddingBottom: '5rem' }}>
-            <motion.div 
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-              className="glass-card" 
-              style={{ padding: '3rem', borderRadius: '2px' }}
-            >
-              <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
-                // TODAY'S FEATURED DEEP SPACE OBSERVATION
-              </span>
-              <h2 style={{ fontSize: '2rem', textTransform: 'uppercase', margin: '1rem 0 1.2rem 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
-                {apodData.title}
-              </h2>
-              <p style={{ color: '#a1a1aa', lineHeight: '1.8', maxWidth: '900px', fontSize: '0.95rem', margin: 0, fontWeight: '300' }}>
-                {apodData.explanation}
-              </p>
-            </motion.div>
-          </section>
-        )}
 
         {/* AGENCIES SECTION */}
         <section className="content-container" style={{ paddingBottom: '6rem' }}>
@@ -448,11 +378,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               <h2 style={{ fontSize: '2rem', textTransform: 'uppercase', margin: '0.5rem 0 0 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
                 EXPLORE SPACE AGENCIES ACROSS THE GLOBE
               </h2>
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.65rem', letterSpacing: '2px', color: '#a1a1aa', textTransform: 'uppercase' }}>
-                {activeAgency ? 'ROTATION PAUSED' : `BATCH ${agencyBatchIndex + 1} / 2`}
-              </span>
             </div>
           </div>
 
@@ -484,7 +409,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     onMouseEnter={() => setActiveAgency(agency.id)}
                     onMouseLeave={() => setActiveAgency(null)}
                   >
-                    {/* Native HTML5 Video Background with Top-Heavy Fade Shield */}
                     <video
                       className="agency-video-bg"
                       src={isHovered ? agency.expandedVideo : agency.tileVideo}
@@ -533,56 +457,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               })}
             </motion.div>
           </AnimatePresence>
-        </section>
-
-        {/* UPCOMING LAUNCHES */}
-        <section className="content-container" style={{ paddingBottom: '8rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
-            <div>
-              <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
-                // ORBITAL MANIFEST
-              </span>
-              <h2 style={{ fontSize: '1.8rem', textTransform: 'uppercase', margin: '0.5rem 0 0 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
-                UPCOMING GLOBAL LAUNCHES
-              </h2>
-            </div>
-            <span style={{ fontSize: '0.7rem', letterSpacing: '3px', color: '#71717a', textTransform: 'uppercase' }}>
-              AUTO-SYNCED DATA
-            </span>
-          </div>
-
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={staggerContainer} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-            {upcomingLaunches.map((launch) => (
-              <motion.div 
-                key={launch.id} 
-                variants={fadeInUp}
-                whileHover={{ y: -6, borderColor: '#ffffff' }}
-                className="glass-card" 
-                style={{ padding: '2rem', borderRadius: '2px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '220px', transition: 'border-color 0.3s ease' }}
-              >
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
-                    <span style={{ fontSize: '0.65rem', letterSpacing: '2px', textTransform: 'uppercase', padding: '0.3rem 0.6rem', background: 'rgba(255, 255, 255, 0.08)', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.2)', fontWeight: '700' }}>
-                      {launch.launch_service_provider?.name || 'AGENCY'}
-                    </span>
-                    <span style={{ fontSize: '0.65rem', color: '#ffffff', letterSpacing: '2px', fontWeight: '700' }}>● SCHEDULED</span>
-                  </div>
-                  <h3 style={{ fontSize: '1.05rem', margin: '0 0 1.2rem 0', fontWeight: '700', lineHeight: '1.4', letterSpacing: '1px', textTransform: 'uppercase', color: '#ffffff' }}>
-                    {launch.name}
-                  </h3>
-                </div>
-
-                <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '1rem' }}>
-                  <p style={{ margin: '0 0 0.4rem 0', fontSize: '0.8rem', color: '#a1a1aa', letterSpacing: '1px' }}>
-                    NET: {new Date(launch.net).toUTCString().slice(0, 16)}
-                  </p>
-                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#71717a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    PAD: {launch.pad?.location?.name || 'Vandenberg Space Force Base'}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
         </section>
 
       </motion.div>
