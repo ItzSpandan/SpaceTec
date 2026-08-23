@@ -4,7 +4,15 @@ import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 
-const DynamicGlobe = dynamic(() => import('globe.gl'), { ssr: false });
+// Proper dynamic client-side wrapper configuration for Globe.GL
+const Globe = dynamic(() => import('globe.gl'), {
+  ssr: false,
+  loading: () => (
+    <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#3b82f6', fontFamily: 'monospace', fontSize: '0.8rem' }}>
+      INITIALIZING 3D WEBGL ENGINE...
+    </div>
+  ),
+});
 
 const globalLaunchPads = [
   { id: 1, name: 'Kennedy Space Center (LC-39A)', agency: 'NASA / SpaceX', lat: 28.5858, lon: -80.6511, type: 'major', country: 'USA' },
@@ -184,11 +192,10 @@ export default function OrbitalGlobe() {
         )}
       </div>
 
-      {/* Explicit height wrapper so WebGL canvas renders correctly */}
-      <div className="glass-card" style={{ position: 'relative', width: '100%', height: '600px', borderRadius: '2px', overflow: 'hidden', background: '#030712' }}>
+      <div className="glass-card" style={{ position: 'relative', width: '100%', height: '550px', borderRadius: '2px', overflow: 'hidden', background: '#030712', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
         
-        <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-          <DynamicGlobe
+        <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
+          <Globe
             ref={globeRef}
             globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
             bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
