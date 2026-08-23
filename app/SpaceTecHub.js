@@ -229,31 +229,26 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           border-right: none;
         }
 
-        .agency-video-bg {
-          position: absolute;
-          inset: 0;
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          z-index: 1;
-          opacity: 0.45;
-          pointer-events: none;
-        }
-
-        /* iframe container styling for YouTube embed clips */
+        /* iframe container styling with delay simulation/smooth appearance */
         .agency-iframe-bg {
           position: absolute;
           top: 50%;
           left: 50%;
-          width: 177.77vh; /* 16:9 min-width scaling */
+          width: 177.77vh;
           height: 100vh;
           min-width: 100%;
           min-height: 100%;
           transform: translate(-50%, -50%);
           z-index: 1;
-          opacity: 0.55;
+          opacity: 0.9;
           pointer-events: none;
           border: none;
+          animation: fadeInVideo 1s ease 0.4s forwards;
+        }
+
+        @keyframes fadeInVideo {
+          from { opacity: 0; }
+          to { opacity: 0.9; }
         }
 
         .agency-expanded-video {
@@ -264,7 +259,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           height: 100%;
           object-fit: cover;
           z-index: 1;
-          opacity: 0.65;
+          opacity: 0.9;
           pointer-events: none;
           mask-image: linear-gradient(to right, transparent 0%, black 40%);
           -webkit-mask-image: linear-gradient(to right, transparent 0%, black 40%);
@@ -275,10 +270,14 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           z-index: 3;
         }
 
+        /* Precisely shaped bottom-left organic corner gradient matching your sketch */
         .agency-text-shield {
           position: absolute;
-          inset: 0;
-          background: linear-gradient(90deg, #000000 0%, #000000 45%, rgba(0,0,0,0.85) 70%, rgba(0,0,0,0.4) 100%);
+          bottom: 0;
+          left: 0;
+          width: 55%;
+          height: 50%;
+          background: radial-gradient(circle at bottom left, rgba(0,0,0,0.98) 0%, rgba(0,0,0,0.85) 50%, transparent 100%);
           z-index: 2;
           pointer-events: none;
         }
@@ -510,20 +509,19 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     onMouseEnter={() => setActiveAgency(agency.id)}
                     onMouseLeave={() => setActiveAgency(null)}
                   >
-                    {/* Background Videos / YouTube Embed Clips & Shields */}
+                    {/* Background Videos / YouTube Embed Clips & Bottom-Left Organic Shield */}
                     {!isHovered ? (
                       <>
-                        <div className="agency-text-shield" />
                         <iframe
                           className="agency-iframe-bg"
                           src={agency.tileVideo}
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           title={`${agency.name} Launch Clip`}
                         />
+                        <div className="agency-text-shield" />
                       </>
                     ) : (
                       <>
-                        <div className="agency-text-shield" />
                         <video
                           className="agency-expanded-video"
                           src={agency.expandedVideo}
@@ -532,6 +530,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                           loop
                           playsInline
                         />
+                        <div className="agency-text-shield" />
                       </>
                     )}
 
