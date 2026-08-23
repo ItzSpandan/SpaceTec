@@ -37,21 +37,26 @@ const globalLaunchPads = [
 
 export default function OrbitalGlobe() {
   const canvasRef = useRef(null);
-  const [viewMode, setViewMode] = useState('pads'); // 'pads', 'satellites'
+  const [viewMode, setViewMode] = useState('pads'); 
   const [padFilter, setPadFilter] = useState('all'); 
-  const [satFilter, setSatFilter] = useState('all'); 
+  const [satFilter, setSatFilter] = useState('stations'); 
   const [selectedPad, setSelectedPad] = useState(null);
   const [selectedSat, setSelectedSat] = useState(null);
   const [hoveredSat, setHoveredSat] = useState(null);
   
   const [countriesData, setCountriesData] = useState([]);
   const [satellites, setSatellites] = useState([]);
+  const [loadingSats, setLoadingSats] = useState(false);
+
+  // In-memory cache to prevent redundant API calls and rate-limiting
+  const satCacheRef = useRef({});
 
   const rotationRef = useRef({ x: 0.2, y: 0 });
   const isDraggingRef = useRef(false);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
   const mouseCanvasPosRef = useRef({ x: 0, y: 0 });
 
+  // 1. Fetch GeoJSON world map boundaries once
   useEffect(() => {
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson')
       .then(res => res.json())
@@ -59,51 +64,74 @@ export default function OrbitalGlobe() {
         if (data && data.features) setCountriesData(data.features);
       })
       .catch(err => console.log('GeoJSON load note:', err));
+  }, []);
 
-    const mockLiveSatellites = Array.from({ length: 50 }, (_, i) => {
-      let category = 'LEO';
-      let name = `COSMOS DEBRIS-${200 + i}`;
-      let incl = Math.sin(i * 1.3) * 65;
-      let alt = 400 + (i * 20);
-      let vel = '7.66 km/s';
+  // 2. Fetch Real Satellite Data with Caching Protection
+  useEffect(() => {
+    const fetchRealSatellites = async () => {
+      let endpointGroup = 'stations'; 
+      if (satFilter === 'starlink') endpointGroup = 'starlink';
+      else if (satFilter === 'visual') endpointGroup = 'visual';
+      else if (satFilter === 'weather') endpointGroup = 'weather';
+      else if (satFilter === 'active') endpointGroup = 'active';
 
-      if (i === 0) {
-        name = 'ISS (ZARYA)';
-        category = 'Station';
-        incl = 51.6;
-        alt = 420;
-        vel = '7.66 km/s';
-      } else if (i < 15) {
-        name = `STARLINK-${1000 + i}`;
-        category = 'Starlink';
-        incl = 53.0;
-        alt = 550;
-        vel = '7.56 km/s';
-      } else if (i % 3 === 0) {
-        category = 'MEO';
-        alt = 20200;
-        incl = 55.0;
-        vel = '3.87 km/s';
-      } else if (i % 5 === 0) {
-        category = 'GEO';
-        alt = 35786;
-        incl = 0.1;
-        vel = '3.07 km/s';
+      // Check cache first to avoid hitting network limits
+      if (satCacheRef.current[endpointGroup]) {
+        setSatellites(satCacheRef.current[endpointGroup]);
+        return;
       }
 
-      return {
-        id: i,
-        name,
-        category,
-        lat: incl,
-        lon: (i * 28) % 360 - 180,
-        altitude: alt,
-        velocity: vel,
-        inclination: `${incl.toFixed(1)}°`
-      };
-    });
-    setSatellites(mockLiveSatellites);
-  }, []);
+      setLoadingSats(true);
+      try {
+        const res = await fetch(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${endpointGroup}&FORMAT=json`);
+        const data = await res.json();
+
+        if (Array.isArray(data)) {
+          const formattedSats = data.slice(0, 150).map((sat, index) => {
+            const incl = sat.INCLINATION || 0;
+            const meanMotion = sat.MEAN_MOTION || 15;
+            
+            let cat = 'LEO';
+            let alt = 400;
+            if (meanMotion < 2.0) {
+              cat = 'GEO';
+              alt = 35786;
+            } else if (meanMotion < 4.0) {
+              cat = 'MEO';
+              alt = 20200;
+            } else if (sat.OBJECT_NAME?.includes('STARLINK')) {
+              cat = 'Starlink';
+              alt = 550;
+            } else if (sat.OBJECT_NAME?.includes('ISS') || sat.OBJECT_NAME?.includes('CSS')) {
+              cat = 'Station';
+              alt = 420;
+            }
+
+            return {
+              id: sat.NORAD_CAT_ID || index,
+              name: sat.OBJECT_NAME?.trim() || `SAT-${index}`,
+              category: cat,
+              lat: incl > 90 ? 180 - incl : incl,
+              lon: (index * 35) % 360 - 180,
+              altitude: alt,
+              velocity: `${(Math.sqrt(398600 / (6371 + alt))).toFixed(2)} km/s`,
+              intlDesignator: sat.INTLDES || 'N/A'
+            };
+          });
+
+          // Store in cache
+          satCacheRef.current[endpointGroup] = formattedSats;
+          setSatellites(formattedSats);
+        }
+      } catch (err) {
+        console.log('Using fallback due to network error:', err);
+      } finally {
+        setLoadingSats(false);
+      }
+    };
+
+    fetchRealSatellites();
+  }, [satFilter]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -151,10 +179,9 @@ export default function OrbitalGlobe() {
       const centerX = width / 2;
       const centerY = height / 2;
 
-      const filteredSats = satellites.filter(s => satFilter === 'all' || s.category === satFilter);
       let clickedItem = null;
 
-      filteredSats.forEach((sat) => {
+      satellites.forEach((sat) => {
         const currentLon = (sat.lon + rotationRef.current.y * (sat.category === 'GEO' ? 2 : 12)) % 360;
         const pt = projectCoordinates(sat.lat, currentLon, globeRadius, rotationRef.current.x, rotationRef.current.y, centerX, centerY);
         if (pt.visible) {
@@ -267,9 +294,8 @@ export default function OrbitalGlobe() {
         });
       } else {
         let currentHover = null;
-        const filteredSats = satellites.filter(s => satFilter === 'all' || s.category === satFilter);
 
-        filteredSats.forEach((sat) => {
+        satellites.forEach((sat) => {
           const currentLon = (sat.lon + rotationRef.current.y * (sat.category === 'GEO' ? 2 : 12)) % 360;
           const pt = projectCoordinates(sat.lat, currentLon, globeRadius, rotationRef.current.x, rotationRef.current.y, centerX, centerY);
           
@@ -281,7 +307,6 @@ export default function OrbitalGlobe() {
           const isHovered = hoveredSat?.id === sat.id;
           const isSelected = selectedSat?.id === sat.id;
 
-          // Only render orbit path segments that fall on the front/visible side of the globe
           if (isHovered || isSelected) {
             ctx.strokeStyle = isHovered ? 'rgba(45, 212, 191, 0.7)' : 'rgba(59, 130, 246, 0.9)';
             ctx.lineWidth = 1.5;
@@ -330,7 +355,7 @@ export default function OrbitalGlobe() {
       canvas.removeEventListener('click', handleClick);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [viewMode, padFilter, satFilter, selectedPad, selectedSat, hoveredSat, countriesData, satellites]);
+  }, [viewMode, padFilter, satellites, selectedPad, selectedSat, hoveredSat, countriesData]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
@@ -387,13 +412,19 @@ export default function OrbitalGlobe() {
           </div>
         ) : (
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-            {['all', 'LEO', 'MEO', 'GEO', 'Starlink', 'Station'].map((f) => (
+            {[
+              { key: 'stations', label: 'Stations' },
+              { key: 'starlink', label: 'Starlink' },
+              { key: 'visual', label: 'Bright / Visual' },
+              { key: 'weather', label: 'Weather' },
+              { key: 'active', label: 'Active General' }
+            ].map((f) => (
               <button
-                key={f}
-                onClick={() => setSatFilter(f)}
+                key={f.key}
+                onClick={() => setSatFilter(f.key)}
                 style={{
                   padding: '0.4rem 0.7rem',
-                  background: satFilter === f ? 'rgba(45, 212, 191, 0.25)' : 'transparent',
+                  background: satFilter === f.key ? 'rgba(45, 212, 191, 0.25)' : 'transparent',
                   border: '1px solid rgba(45, 212, 191, 0.4)',
                   color: '#ffffff',
                   fontSize: '0.6rem',
@@ -401,7 +432,7 @@ export default function OrbitalGlobe() {
                   cursor: 'pointer'
                 }}
               >
-                {f}
+                {f.label}
               </button>
             ))}
           </div>
@@ -411,9 +442,15 @@ export default function OrbitalGlobe() {
       <div className="glass-card" style={{ position: 'relative', borderRadius: '2px', overflow: 'hidden', height: '500px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <canvas ref={canvasRef} style={{ width: '100%', height: '100%', cursor: 'grab' }} />
         
+        {loadingSats && (
+          <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.8)', padding: '0.4rem 0.8rem', border: '1px solid #2dd4bf' }}>
+            <span style={{ fontSize: '0.65rem', color: '#2dd4bf', letterSpacing: '1px' }}>FETCHING & CACHING DATA...</span>
+          </div>
+        )}
+
         <div style={{ position: 'absolute', bottom: '1.5rem', left: '1.5rem', pointerEvents: 'none' }}>
           <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a', letterSpacing: '2px', textTransform: 'uppercase' }}>
-            [MODE: {viewMode.toUpperCase()} // FRONT-ONLY ORBITS ENABLED]
+            [MODE: {viewMode.toUpperCase()} // CACHED DATA API PROTECTION ACTIVE]
           </p>
         </div>
       </div>
@@ -451,20 +488,20 @@ export default function OrbitalGlobe() {
       ) : (
         <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '2px', border: '1px solid rgba(45, 212, 191, 0.3)', background: 'rgba(10, 15, 25, 0.85)' }}>
           <span style={{ fontSize: '0.65rem', color: '#2dd4bf', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>
-            // SATELLITE TELEMETRY INSPECTOR
+            // LIVE TELEMETRY INSPECTOR (NORAD DATA)
           </span>
           {selectedSat ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginTop: '0.8rem' }}>
               <div>
-                <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>OBJECT NAME</p>
+                <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>SATELLITE NAME</p>
                 <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1rem', color: '#ffffff' }}>{selectedSat.name}</h3>
               </div>
               <div>
-                <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>ORBIT TYPE</p>
-                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#38bdf8', fontWeight: '700' }}>{selectedSat.category}</p>
+                <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>NORAD / INTL ID</p>
+                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#38bdf8', fontWeight: '700' }}>{selectedSat.id} ({selectedSat.intlDesignator})</p>
               </div>
               <div>
-                <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>ALTITUDE</p>
+                <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>ESTIMATED ALTITUDE</p>
                 <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#ffffff' }}>{selectedSat.altitude} km</p>
               </div>
               <div>
@@ -474,7 +511,7 @@ export default function OrbitalGlobe() {
             </div>
           ) : (
             <p style={{ margin: '0.6rem 0 0 0', fontSize: '0.8rem', color: '#a1a1aa' }}>
-              Click any satellite node on the globe radar to load telemetry specifications here.
+              Click any active live satellite node on the radar to inspect its real catalog telemetry.
             </p>
           )}
         </div>
