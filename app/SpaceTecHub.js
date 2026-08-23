@@ -17,7 +17,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
   ];
 
-  // Agencies structured with background tile videos (looping silently) and separate imagery for expansion
+  // Agencies structured with padded video loops and HQ expansion photography/logos
   const agencyBatches = [
     [
       {
@@ -26,9 +26,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         tagline: 'EUROPA CLIPPER & ARTEMIS',
         accentColor: '#3b82f6',
         specialty: 'Europa Clipper Mission & Deep Space Planetary Exploration',
-        brief: 'Pioneering deep space exploration, advanced planetary defense, and sustained human habitats.',
-        tileVideoEmbed: 'https://www.youtube.com/embed/ux5KMw1Bk6Q?autoplay=1&mute=1&loop=1&playlist=ux5KMw1Bk6Q&start=18&end=24&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
-        expandedImage: 'https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?q=80&w=1000'
+        brief: 'Headquartered in Washington, D.C., directing worldwide aeronautics research and manned space exploration.',
+        tileVideoEmbed: 'https://www.youtube.com/embed/ux5KMw1Bk6Q?autoplay=1&mute=1&loop=1&playlist=ux5KMw1Bk6Q&start=18&end=28&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
+        hqImage: 'https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?q=80&w=1000',
+        logoText: 'NASA HQ // WASHINGTON D.C.'
       },
       {
         id: 'spacex',
@@ -36,9 +37,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         tagline: 'STARSHIP FLEET',
         accentColor: '#ff6600',
         specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture',
-        brief: 'Developing fully reusable heavy-lift transportation systems designed to make humanity multi-planetary.',
-        tileVideoEmbed: 'https://www.youtube.com/embed/zOO59PFnMQ4?autoplay=1&mute=1&loop=1&playlist=zOO59PFnMQ4&start=25&end=43&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
-        expandedImage: 'https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?q=80&w=1000'
+        brief: 'Headquartered at Starbase & Rocket Road, revolutionizing aerospace manufacturing and transport.',
+        tileVideoEmbed: 'https://www.youtube.com/embed/zOO59PFnMQ4?autoplay=1&mute=1&loop=1&playlist=zOO59PFnMQ4&start=25&end=48&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
+        hqImage: 'https://images.unsplash.com/photo-1517976487504-63ec183d046e?q=80&w=1000',
+        logoText: 'SPACEX HQ // HAWTHORNE, CA'
       },
       {
         id: 'esa',
@@ -46,9 +48,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         tagline: 'ARIANE 6 & SMILE MISSION',
         accentColor: '#60a5fa',
         specialty: 'Vega-C & European Cosmic Vision Space Probes',
-        brief: 'Coordinating European collaboration in space research, satellite earth observation, and deep space probes.',
-        tileVideoEmbed: 'https://www.youtube.com/embed/ruoezIkhbZM?autoplay=1&mute=1&loop=1&playlist=ruoezIkhbZM&start=30&end=37&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
-        expandedImage: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?q=80&w=1000'
+        brief: 'Headquartered in Paris, coordinating the space flight programs of 22 European member states.',
+        tileVideoEmbed: 'https://www.youtube.com/embed/ruoezIkhbZM?autoplay=1&mute=1&loop=1&playlist=ruoezIkhbZM&start=30&end=42&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
+        hqImage: 'https://images.unsplash.com/photo-1502134249126-9f3755a50d78?q=80&w=1000',
+        logoText: 'ESA HQ // PARIS, FRANCE'
       }
     ],
     [
@@ -58,9 +61,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         tagline: 'H3 & ASTEROID SAMPLING',
         accentColor: '#2dd4bf',
         specialty: 'H3 Next-Gen Rocket & Hayabusa Asteroid Sample Return',
-        brief: 'Advancing high-precision robotic asteroid exploration, global satellite navigation, and next-generation rocketry.',
-        tileVideoEmbed: 'https://www.youtube.com/embed/EBEq84QrSEA?autoplay=1&mute=1&loop=1&playlist=EBEq84QrSEA&start=3443&end=3455&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
-        expandedImage: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1000'
+        brief: 'Headquartered in Tokyo, unifying Japan’s national aerospace research and orbital development.',
+        tileVideoEmbed: 'https://www.youtube.com/embed/EBEq84QrSEA?autoplay=1&mute=1&loop=1&playlist=EBEq84QrSEA&start=3443&end=3462&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
+        hqImage: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?q=80&w=1000',
+        logoText: 'JAXA HQ // TOKYO, JAPAN'
       },
       {
         id: 'isro',
@@ -68,9 +72,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         tagline: 'GSLV MK III & CHANDRAYAAN',
         accentColor: '#ff9933',
         specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan',
-        brief: 'Executing cost-effective lunar polar exploration, orbital space stations, and indigenous human spaceflight.',
-        tileVideoEmbed: 'https://www.youtube.com/embed/Zfr1eVS5iX8?autoplay=1&mute=1&loop=1&playlist=Zfr1eVS5iX8&start=8&end=14&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
-        expandedImage: 'https://images.unsplash.com/photo-1517976487504-63ec183d046e?q=80&w=1000'
+        brief: 'Headquartered in Bengaluru, driving breakthrough cost-effective interplanetary and satellite missions.',
+        tileVideoEmbed: 'https://www.youtube.com/embed/Zfr1eVS5iX8?autoplay=1&mute=1&loop=1&playlist=Zfr1eVS5iX8&start=8&end=18&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
+        hqImage: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?q=80&w=1000',
+        logoText: 'ISRO HQ // BENGALURU, INDIA'
       },
       {
         id: 'cnsa',
@@ -78,9 +83,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         tagline: 'CHANG\'E & TIANWEN',
         accentColor: '#f43f5e',
         specialty: 'Chang\'e Lunar Sample Return & Tianwen Mars Rover Missions',
-        brief: 'Operating successful lunar far-side sample missions, orbital laboratories, and interplanetary rovers.',
-        tileVideoEmbed: 'https://www.youtube.com/embed/_QOITfWlM3Y?autoplay=1&mute=1&loop=1&playlist=_QOITfWlM3Y&start=43&end=50&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
-        expandedImage: 'https://images.unsplash.com/photo-1502134249126-9f3755a50d78?q=80&w=1000'
+        brief: 'Headquartered in Beijing, managing national space administration and planetary research programs.',
+        tileVideoEmbed: 'https://www.youtube.com/embed/_QOITfWlM3Y?autoplay=1&mute=1&loop=1&playlist=_QOITfWlM3Y&start=43&end=56&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
+        hqImage: 'https://images.unsplash.com/photo-1508803192460-4592044810f6?q=80&w=1000',
+        logoText: 'CNSA HQ // BEIJING, CHINA'
       }
     ]
   ];
@@ -417,7 +423,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </section>
         )}
 
-        {/* AGENCIES SECTION (WITH TILE VIDEOS ONLY, CLEAN EXPANSION) */}
+        {/* AGENCIES SECTION */}
         <section className="content-container" style={{ paddingBottom: '6rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.0rem' }}>
             <div>
@@ -463,7 +469,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     onMouseEnter={() => setActiveAgency(agency.id)}
                     onMouseLeave={() => setActiveAgency(null)}
                   >
-                    {/* YouTube Tile Video Background iframe - Only visible on un-expanded tiles, hidden or replaced cleanly when expanded if desired */}
+                    {/* Normal Tile Background Video Loop */}
                     {!isHovered && (
                       <iframe
                         className="agency-iframe-bg"
@@ -473,28 +479,37 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                       />
                     )}
 
-                    {/* Expanded background image instead of video iframe */}
+                    {/* Expanded Tile HQ Facility & Logo Backdrop */}
                     {isHovered && (
                       <div 
                         style={{
                           position: 'absolute',
                           inset: 0,
-                          backgroundImage: `url('${agency.expandedImage}')`,
+                          backgroundImage: `url('${agency.hqImage}')`,
                           backgroundSize: 'cover',
                           backgroundPosition: 'center',
                           opacity: 0.35,
                           zIndex: 1,
-                          filter: 'contrast(1.2)'
+                          filter: 'contrast(1.25) saturate(1.1)'
                         }}
                       />
                     )}
 
                     <div className="agency-text-shield" />
 
-                    <div className="agency-content-layer">
+                    <div className="agency-content-layer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.65rem', letterSpacing: '3px', textTransform: 'uppercase', color: isHovered ? agency.accentColor : '#a1a1aa', fontWeight: '800', transition: 'color 0.3s ease' }}>
                         // 0{agencyBatchIndex * 3 + index + 1}
                       </span>
+                      {isHovered && (
+                        <motion.span 
+                          initial={{ opacity: 0, x: 10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          style={{ fontSize: '0.65rem', letterSpacing: '2px', color: '#ffffff', background: 'rgba(0,0,0,0.6)', padding: '0.3rem 0.8rem', border: `1px solid ${agency.accentColor}`, fontWeight: '700' }}
+                        >
+                          {agency.logoText}
+                        </motion.span>
+                      )}
                     </div>
 
                     <div className="agency-content-layer" style={{ 
