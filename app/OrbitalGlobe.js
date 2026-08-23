@@ -4,14 +4,35 @@ import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 
 const globalLaunchPads = [
+  // USA
   { id: 1, name: 'Kennedy Space Center (LC-39A)', agency: 'NASA / SpaceX', lat: 28.5858, lon: -80.6511, type: 'major', country: 'USA' },
-  { id: 2, name: 'Vandenberg Space Force Base', agency: 'SpaceX / USSF', lat: 34.7420, lon: -120.5724, type: 'major', country: 'USA' },
-  { id: 3, name: 'Guiana Space Centre (Ariane ELA-4)', agency: 'ESA / Arianespace', lat: 5.2372, lon: -52.7683, type: 'major', country: 'French Guiana' },
-  { id: 4, name: 'Tanegashima Space Center', agency: 'JAXA', lat: 30.4000, lon: 130.9700, type: 'major', country: 'Japan' },
-  { id: 5, name: 'Satish Dhawan Space Centre (SDSC)', agency: 'ISRO', lat: 13.7199, lon: 80.2304, type: 'major', country: 'India' },
-  { id: 6, name: 'Wenchang Space Launch Site', agency: 'CNSA', lat: 19.6145, lon: 110.9510, type: 'major', country: 'China' },
-  { id: 7, name: 'Mahia Launch Complex 1', agency: 'Rocket Lab', lat: -39.2608, lon: 177.8656, type: 'minor', country: 'New Zealand' },
-  { id: 8, name: 'Baikonur Cosmodrome', agency: 'Roscosmos', lat: 45.9646, lon: 63.3052, type: 'major', country: 'Kazakhstan' }
+  { id: 2, name: 'Cape Canaveral Space Force Station (SLC-40)', agency: 'SpaceX / USSF', lat: 28.5619, lon: -80.5772, type: 'major', country: 'USA' },
+  { id: 3, name: 'Vandenberg Space Force Base (SLC-4E)', agency: 'SpaceX / USSF', lat: 34.7420, lon: -120.5724, type: 'major', country: 'USA' },
+  { id: 4, name: 'Wallops Flight Facility', agency: 'NASA / Northrop Grumman', lat: 37.9332, lon: -75.4836, type: 'minor', country: 'USA' },
+  { id: 5, name: 'Boca Chica Launch Site (Starbase)', agency: 'SpaceX', lat: 25.9973, lon: -97.1560, type: 'major', country: 'USA' },
+  { id: 6, name: 'Pacific Spaceport Complex (Alaska)', agency: 'Astra / USSF', lat: 57.4358, lon: -152.3477, type: 'minor', country: 'USA' },
+
+  // Europe & South America
+  { id: 7, name: 'Guiana Space Centre (Ariane ELA-4)', agency: 'ESA / Arianespace', lat: 5.2372, lon: -52.7683, type: 'major', country: 'French Guiana' },
+  { id: 8, name: 'Esrange Space Center', agency: 'SSC', lat: 67.8894, lon: 21.1050, type: 'minor', country: 'Sweden' },
+  { id: 9, name: 'Andøya Spaceport', agency: 'Andøya Space', lat: 69.2933, lon: 16.0167, type: 'minor', country: 'Norway' },
+
+  // Asia (Russia, India, China, Japan)
+  { id: 10, name: 'Baikonur Cosmodrome', agency: 'Roscosmos', lat: 45.9646, lon: 63.3052, type: 'major', country: 'Kazakhstan' },
+  { id: 11, name: 'Plesetsk Cosmodrome', agency: 'Roscosmos', lat: 62.9298, lon: 40.5735, type: 'major', country: 'Russia' },
+  { id: 12, name: 'Vostochny Cosmodrome', agency: 'Roscosmos', lat: 51.8841, lon: 128.3339, type: 'major', country: 'Russia' },
+  { id: 13, name: 'Satish Dhawan Space Centre (SDSC)', agency: 'ISRO', lat: 13.7199, lon: 80.2304, type: 'major', country: 'India' },
+  { id: 14, name: 'Jiuquan Satellite Launch Center', agency: 'CNSA', lat: 40.9575, lon: 100.2917, type: 'major', country: 'China' },
+  { id: 15, name: 'Wenchang Space Launch Site', agency: 'CNSA', lat: 19.6145, lon: 110.9510, type: 'major', country: 'China' },
+  { id: 16, name: 'Xichang Satellite Launch Center', agency: 'CNSA', lat: 28.2465, lon: 102.0264, type: 'minor', country: 'China' },
+  { id: 17, name: 'Taiyuan Satellite Launch Center', agency: 'CNSA', lat: 38.8490, lon: 111.6080, type: 'minor', country: 'China' },
+  { id: 18, name: 'Tanegashima Space Center', agency: 'JAXA', lat: 30.4000, lon: 130.9700, type: 'major', country: 'Japan' },
+  { id: 19, name: 'Uchinoura Space Center', agency: 'JAXA', lat: 31.2515, lon: 131.0825, type: 'minor', country: 'Japan' },
+  { id: 20, name: 'Naro Space Center', agency: 'KARI', lat: 34.4315, lon: 127.5350, type: 'minor', country: 'South Korea' },
+
+  // Oceania
+  { id: 21, name: 'Mahia Launch Complex 1', agency: 'Rocket Lab', lat: -39.2608, lon: 177.8656, type: 'minor', country: 'New Zealand' },
+  { id: 22, name: 'Arnhem Space Centre', agency: 'Equatorial Launch Australia', lat: -12.3780, lon: 136.8150, type: 'minor', country: 'Australia' }
 ];
 
 export default function OrbitalGlobe() {
@@ -26,7 +47,6 @@ export default function OrbitalGlobe() {
   const isDraggingRef = useRef(false);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
 
-  // Fetch simplified country borders GeoJSON on mount
   useEffect(() => {
     fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson')
       .then(res => res.json())
@@ -37,7 +57,6 @@ export default function OrbitalGlobe() {
       })
       .catch(err => console.log('GeoJSON load note:', err));
 
-    // Simulated real-time orbital tracking objects feed
     const mockLiveSatellites = Array.from({ length: 45 }, (_, i) => ({
       id: i,
       name: i === 0 ? 'ISS (ZARYA)' : i < 15 ? `STARLINK-${1000 + i}` : `COSMOS/DEBRIS-${200 + i}`,
@@ -91,7 +110,7 @@ export default function OrbitalGlobe() {
       const theta = (lon + 180) * (Math.PI / 180) + rotY;
 
       let x = -radius * Math.sin(phi) * Math.cos(theta);
-      let y = -radius * Math.cos(phi); // Correct orientation: North at the top
+      let y = -radius * Math.cos(phi); 
       let z = radius * Math.sin(phi) * Math.sin(theta);
 
       const cosX = Math.cos(rotX);
@@ -117,7 +136,6 @@ export default function OrbitalGlobe() {
         rotationRef.current.y += 0.002;
       }
 
-      // Atmosphere Glow
       const gradient = ctx.createRadialGradient(centerX, centerY, globeRadius * 0.9, centerX, centerY, globeRadius * 1.2);
       gradient.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
       gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
@@ -126,13 +144,11 @@ export default function OrbitalGlobe() {
       ctx.arc(centerX, centerY, globeRadius * 1.2, 0, Math.PI * 2);
       ctx.fill();
 
-      // Globe Base Fill
       ctx.fillStyle = '#030712';
       ctx.beginPath();
       ctx.arc(centerX, centerY, globeRadius, 0, Math.PI * 2);
       ctx.fill();
 
-      // Render Country Outlines from GeoJSON
       ctx.strokeStyle = 'rgba(59, 130, 246, 0.35)';
       ctx.lineWidth = 1;
 
@@ -165,14 +181,12 @@ export default function OrbitalGlobe() {
         });
       });
 
-      // Globe Rim Stroke
       ctx.strokeStyle = 'rgba(59, 130, 246, 0.6)';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(centerX, centerY, globeRadius, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Mode 1: Launch Pads View
       if (viewMode === 'pads') {
         const filteredPads = globalLaunchPads.filter(pad => filter === 'all' || pad.type === filter);
         filteredPads.forEach((pad) => {
@@ -193,9 +207,7 @@ export default function OrbitalGlobe() {
             }
           }
         });
-      } 
-      // Mode 2: Satellite Radar View
-      else {
+      } else {
         satellites.forEach((sat) => {
           const currentLon = (sat.lon + rotationRef.current.y * 15) % 360;
           const pt = projectCoordinates(sat.lat, currentLon, globeRadius, rotationRef.current.x, rotationRef.current.y, centerX, centerY);
@@ -226,7 +238,6 @@ export default function OrbitalGlobe() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
       
-      {/* VIEW MODE & FILTER TOGGLE BAR */}
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
           <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '700' }}>
@@ -280,7 +291,6 @@ export default function OrbitalGlobe() {
         )}
       </div>
 
-      {/* 3D CANVAS GLOBE CONTAINER */}
       <div className="glass-card" style={{ position: 'relative', borderRadius: '2px', overflow: 'hidden', height: '500px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <canvas ref={canvasRef} style={{ width: '100%', height: '100%', cursor: 'grab' }} />
         
@@ -291,9 +301,8 @@ export default function OrbitalGlobe() {
         </div>
       </div>
 
-      {/* LAUNCH PAD CARDS LIST (FILTERABLE) */}
       {viewMode === 'pads' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}>
           {globalLaunchPads
             .filter(pad => filter === 'all' || pad.type === filter)
             .map((pad) => (
