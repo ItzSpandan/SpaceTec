@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
+import OrbitalGlobe from './OrbitalGlobe';
 
 export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   const [entered, setEntered] = useState(false);
@@ -381,7 +382,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               Agencies
             </button>
             <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
-            <button className="nav-link" onClick={() => scrollToSection('launches')}>
+            <button className="nav-link" onClick={() => scrollToSection('orbital-map')}>
               Orbital Map
             </button>
           </div>
@@ -545,7 +546,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     onMouseEnter={() => setActiveAgency(agency.id)}
                     onMouseLeave={() => setActiveAgency(null)}
                   >
-                    {/* Local MP4 Video Loop (Active when not hovered) */}
                     {!isHovered && (
                       <video
                         className="agency-video-bg"
@@ -557,7 +557,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                       />
                     )}
 
-                    {/* Expanded Headquarters Facility Image */}
                     {isHovered && (
                       <div 
                         style={{
@@ -630,7 +629,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             </motion.div>
           </AnimatePresence>
 
-          {/* EXPLORE MORE AGENCIES BUTTON - TOGGLES BATCHES */}
           <button 
             className="explore-btn"
             onClick={() => {
@@ -641,6 +639,20 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             <span>Switch Agency Batch ({agencyBatchIndex === 0 ? 'Show JAXA, ISRO, CNSA' : 'Show NASA, SpaceX, ESA'})</span>
             <span>→</span>
           </button>
+        </section>
+
+        {/* ORBITAL MAP SECTION (NEW 3D GLOBE INTEGRATION) */}
+        <section id="orbital-map" className="content-container" style={{ paddingBottom: '6rem', scrollMarginTop: '8rem' }}>
+          <div style={{ marginBottom: '2.5rem' }}>
+            <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
+              // GLOBAL TELEMETRY & GEO-SPATIAL MAPPING
+            </span>
+            <h2 style={{ fontSize: '1.8rem', textTransform: 'uppercase', margin: '0.5rem 0 0 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
+              INTERACTIVE 3D ORBITAL GLOBE & LAUNCH PADS
+            </h2>
+          </div>
+
+          <OrbitalGlobe />
         </section>
 
         {/* UPCOMING LAUNCHES */}
