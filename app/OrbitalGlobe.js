@@ -52,7 +52,6 @@ export default function OrbitalGlobe() {
   const [loadingSats, setLoadingSats] = useState(false);
   const satCacheRef = useRef({});
 
-  // Filtered pads based on selected category (all, major, minor)
   const filteredPads = globalLaunchPads.filter(p => padFilter === 'all' || p.type === padFilter);
 
   // Fetch telemetry data from CelesTrak
@@ -119,20 +118,25 @@ export default function OrbitalGlobe() {
     fetchRealSatellites();
   }, [satFilter]);
 
-  // Auto-Rotation Setup
+  // Continuous 2D-style fluid spin rotation loop
   useEffect(() => {
     let timer;
-    const setupControls = () => {
-      if (globeRef.current) {
+    const setupRotation = () => {
+      if (globeRef.current && !isPaused) {
         const controls = globeRef.current.controls();
         if (controls) {
-          controls.autoRotate = !isPaused;
-          controls.autoRotateSpeed = 1.5;
+          controls.autoRotate = true;
+          controls.autoRotateSpeed = 2.5; // Smooth continuous spin speed
+        }
+      } else if (globeRef.current && isPaused) {
+        const controls = globeRef.current.controls();
+        if (controls) {
+          controls.autoRotate = false;
         }
       }
-      timer = requestAnimationFrame(setupControls);
+      timer = requestAnimationFrame(setupRotation);
     };
-    setupControls();
+    setupRotation();
     return () => cancelAnimationFrame(timer);
   }, [isPaused]);
 
@@ -297,7 +301,6 @@ export default function OrbitalGlobe() {
             <span style={{ fontSize: '0.6rem', color: '#71717a' }}>Click any card to lock target on globe</span>
           </div>
 
-          {/* Horizontal Scroller / Grid of Launch Pads matching the filter */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '0.8rem', maxHeight: '200px', overflowY: 'auto' }}>
             {filteredPads.map((pad) => {
               const isSelected = selectedPad?.id === pad.id;
