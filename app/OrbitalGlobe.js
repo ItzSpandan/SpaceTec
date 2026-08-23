@@ -44,7 +44,7 @@ export default function OrbitalGlobe() {
   const [viewMode, setViewMode] = useState('pads'); 
   const [padFilter, setPadFilter] = useState('all'); 
   const [satFilter, setSatFilter] = useState('stations'); 
-  const [selectedPad, setSelectedPad] = useState(null);
+  const [selectedPad, setSelectedPad] = useState(globalLaunchPads[0]);
   const [selectedSat, setSelectedSat] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
   
@@ -52,7 +52,10 @@ export default function OrbitalGlobe() {
   const [loadingSats, setLoadingSats] = useState(false);
   const satCacheRef = useRef({});
 
-  // Fetch real telemetry data from CelesTrak with corrected group endpoints
+  // Filtered pads based on selected category (all, major, minor)
+  const filteredPads = globalLaunchPads.filter(p => padFilter === 'all' || p.type === padFilter);
+
+  // Fetch telemetry data from CelesTrak
   useEffect(() => {
     const fetchRealSatellites = async () => {
       let queryGroup = satFilter;
@@ -116,7 +119,7 @@ export default function OrbitalGlobe() {
     fetchRealSatellites();
   }, [satFilter]);
 
-  // Robust Auto-Rotation Setup with a faster, visible speed
+  // Auto-Rotation Setup
   useEffect(() => {
     let timer;
     const setupControls = () => {
@@ -124,7 +127,7 @@ export default function OrbitalGlobe() {
         const controls = globeRef.current.controls();
         if (controls) {
           controls.autoRotate = !isPaused;
-          controls.autoRotateSpeed = 1.5; // Increased speed for visibility
+          controls.autoRotateSpeed = 1.5;
         }
       }
       timer = requestAnimationFrame(setupControls);
@@ -133,7 +136,7 @@ export default function OrbitalGlobe() {
     return () => cancelAnimationFrame(timer);
   }, [isPaused]);
 
-  // Generate continuous orbital paths around the globe
+  // Orbital paths generator
   const orbitalPaths = selectedSat ? (() => {
     const points = [];
     const inc = selectedSat.inclination || 45;
@@ -149,6 +152,7 @@ export default function OrbitalGlobe() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%', maxWidth: '1400px', margin: '0 auto' }}>
       
+      {/* View & Filter Controllers */}
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
           <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '700' }}>
@@ -160,7 +164,7 @@ export default function OrbitalGlobe() {
           ].map((btn) => (
             <button
               key={btn.key}
-              onClick={() => { setViewMode(btn.key); setSelectedSat(null); setSelectedPad(null); }}
+              onClick={() => { setViewMode(btn.key); setSelectedSat(null); }}
               style={{
                 padding: '0.5rem 1rem',
                 background: viewMode === btn.key ? '#3b82f6' : 'rgba(255,255,255,0.05)',
@@ -186,7 +190,7 @@ export default function OrbitalGlobe() {
                 onClick={() => setPadFilter(f)}
                 style={{
                   padding: '0.4rem 0.8rem',
-                  background: padFilter === f ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
+                  background: padFilter === f ? 'rgba(59, 130, 246, 0.4)' : 'transparent',
                   border: '1px solid rgba(59, 130, 246, 0.4)',
                   color: '#ffffff',
                   fontSize: '0.6rem',
@@ -229,18 +233,19 @@ export default function OrbitalGlobe() {
         )}
       </div>
 
+      {/* Globe Component */}
       <div 
         className="glass-card" 
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
-        style={{ position: 'relative', width: '100%', height: '600px', borderRadius: '2px', overflow: 'hidden', background: '#030712', border: '1px solid rgba(59, 130, 246, 0.2)' }}
+        style={{ position: 'relative', width: '100%', height: '550px', borderRadius: '2px', overflow: 'hidden', background: '#030712', border: '1px solid rgba(59, 130, 246, 0.2)' }}
       >
         <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
           <ReactGlobe
             ref={globeRef}
             globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
             bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-            pointsData={viewMode === 'pads' ? globalLaunchPads.filter(p => padFilter === 'all' || p.type === padFilter) : satellites}
+            pointsData={viewMode === 'pads' ? filteredPads : satellites}
             pointLat="lat"
             pointLng="lng"
             pointAltitude={viewMode === 'pads' ? 0.02 : 'altitude'}
@@ -282,29 +287,46 @@ export default function OrbitalGlobe() {
         )}
       </div>
 
-      {/* Restored Bottom Info Cards for Launch Pads and Satellites */}
-      {viewMode === 'pads' && selectedPad && (
-        <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '2px', border: '1px solid rgba(59, 130, 246, 0.3)', background: 'rgba(10, 15, 25, 0.85)' }}>
-          <span style={{ fontSize: '0.65rem', color: '#3b82f6', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>
-            // LAUNCH PAD TELEMETRY INSPECTOR
-          </span>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '0.8rem' }}>
-            <div>
-              <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>FACILITY NAME</p>
-              <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1rem', color: '#ffffff' }}>{selectedPad.name}</h3>
-            </div>
-            <div>
-              <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>OPERATING AGENCY</p>
-              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#2dd4bf', fontWeight: '700' }}>{selectedPad.agency}</p>
-            </div>
-            <div>
-              <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>COUNTRY / REGION</p>
-              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#38bdf8', fontWeight: '700' }}>{selectedPad.country}</p>
-            </div>
-            <div>
-              <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>COORDINATES</p>
-              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#ffffff' }}>{selectedPad.lat.toFixed(4)}°, {selectedPad.lng.toFixed(4)}°</p>
-            </div>
+      {/* Persistent Bottom Name Cards / Details Panel */}
+      {viewMode === 'pads' && (
+        <div className="glass-card" style={{ padding: '1.2rem', borderRadius: '2px', border: '1px solid rgba(59, 130, 246, 0.3)', background: 'rgba(10, 15, 25, 0.9)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
+            <span style={{ fontSize: '0.65rem', color: '#3b82f6', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>
+              // LAUNCH FACILITIES ({padFilter.toUpperCase()} FILTER: {filteredPads.length} SITES FOUND)
+            </span>
+            <span style={{ fontSize: '0.6rem', color: '#71717a' }}>Click any card to lock target on globe</span>
+          </div>
+
+          {/* Horizontal Scroller / Grid of Launch Pads matching the filter */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '0.8rem', maxHeight: '200px', overflowY: 'auto' }}>
+            {filteredPads.map((pad) => {
+              const isSelected = selectedPad?.id === pad.id;
+              return (
+                <div
+                  key={pad.id}
+                  onClick={() => {
+                    setSelectedPad(pad);
+                    if (globeRef.current) globeRef.current.pointOfView({ lat: pad.lat, lng: pad.lng, altitude: 1.5 }, 1000);
+                  }}
+                  style={{
+                    padding: '0.8rem',
+                    background: isSelected ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.02)',
+                    border: `1px solid ${isSelected ? '#3b82f6' : 'rgba(255, 255, 255, 0.08)'}`,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <h4 style={{ margin: 0, fontSize: '0.8rem', color: '#ffffff', fontWeight: '700' }}>{pad.name}</h4>
+                    <span style={{ fontSize: '0.55rem', padding: '2px 6px', background: pad.type === 'major' ? '#3b82f6' : '#2dd4bf', color: '#030712', fontWeight: '800' }}>
+                      {pad.type.toUpperCase()}
+                    </span>
+                  </div>
+                  <p style={{ margin: '0.3rem 0 0 0', fontSize: '0.7rem', color: '#2dd4bf' }}>{pad.agency}</p>
+                  <p style={{ margin: '0.1rem 0 0 0', fontSize: '0.65rem', color: '#a1a1aa' }}>Region: {pad.country}</p>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
