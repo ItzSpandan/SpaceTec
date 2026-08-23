@@ -3,6 +3,32 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Robust video sub-component to handle dynamic source changes in React
+function AgencyVideo({ src }) {
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.load();
+      videoRef.current.play().catch((err) => {
+        console.log("Autoplay prevented or loading error:", err);
+      });
+    }
+  }, [src]);
+
+  return (
+    <video
+      ref={videoRef}
+      className="agency-video-bg"
+      src={src}
+      autoPlay
+      muted
+      loop
+      playsInline
+    />
+  );
+}
+
 export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   const [entered, setEntered] = useState(false);
   const [bgIndex, setBgIndex] = useState(0);
@@ -220,7 +246,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           justify-content: space-between;
           padding: 2.5rem 2rem;
           box-sizing: border-box;
-          background: #111111;
+          background: #0b0b0b;
         }
 
         .agency-column:last-child {
@@ -236,7 +262,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           object-fit: cover;
           z-index: 1;
           opacity: 0.85;
-          pointer-events: auto;
+          pointer-events: none;
         }
 
         .agency-content-layer {
@@ -247,7 +273,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         .agency-text-shield {
           position: absolute;
           inset: 0;
-          background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.6) 80%, rgba(0,0,0,0.95) 100%);
+          background: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.5) 80%, rgba(0,0,0,0.9) 100%);
           z-index: 2;
           pointer-events: none;
         }
@@ -479,15 +505,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     onMouseEnter={() => setActiveAgency(agency.id)}
                     onMouseLeave={() => setActiveAgency(null)}
                   >
-                    <video
-                      className="agency-video-bg"
-                      src={isHovered ? agency.expandedVideo : agency.tileVideo}
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      controls
-                    />
+                    <AgencyVideo src={isHovered ? agency.expandedVideo : agency.tileVideo} />
                     <div className="agency-text-shield" />
 
                     <div className="agency-content-layer">
