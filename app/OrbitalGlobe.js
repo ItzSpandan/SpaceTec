@@ -163,7 +163,8 @@ export default function OrbitalGlobe() {
         }
       });
 
-      if (clickedItem) setSelectedSat(clickedItem);
+      // If user clicks the same satellite again or clicks empty space, toggle selection off
+      setSelectedSat(prev => (prev?.id === clickedItem?.id ? null : clickedItem));
     };
 
     canvas.addEventListener('mousedown', handleMouseDown);
@@ -401,7 +402,7 @@ export default function OrbitalGlobe() {
         
         <div style={{ position: 'absolute', bottom: '1.5rem', left: '1.5rem', pointerEvents: 'none' }}>
           <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a', letterSpacing: '2px', textTransform: 'uppercase' }}>
-            [MODE: {viewMode.toUpperCase()} // HOVER FOR ORBIT PATH // CLICK OBJECT FOR DETAILS]
+            [MODE: {viewMode.toUpperCase()} // HOVER FOR ORBIT PATH // CLICK OBJECT OR BG TO TOGGLE]
           </p>
         </div>
       </div>
