@@ -53,6 +53,7 @@ export default function OrbitalGlobe() {
   const [loadingSats, setLoadingSats] = useState(false);
   const satCacheRef = useRef({});
 
+  // Fetch real telemetry data from CelesTrak
   useEffect(() => {
     const fetchRealSatellites = async () => {
       let queryGroup = 'stations';
@@ -72,7 +73,10 @@ export default function OrbitalGlobe() {
         const data = await res.json();
 
         if (Array.isArray(data)) {
-          const formattedSats = data.map((sat, index) => {
+          // Limit heavy arrays like 'active' or 'starlink' to 1500 items to guarantee smooth performance
+          const targetData = data.length > 1500 ? data.slice(0, 1500) : data;
+
+          const formattedSats = targetData.map((sat, index) => {
             const incl = sat.INCLINATION || 0;
             const meanMotion = sat.MEAN_MOTION || 15;
             
@@ -87,14 +91,13 @@ export default function OrbitalGlobe() {
             else if (nameStr.includes('NOAA') || nameStr.includes('GOES')) org = 'NOAA (USA)';
             else if (nameStr.includes('COSMOS') || nameStr.includes('GLONASS')) org = 'Roscosmos (Russia)';
             else if (nameStr.includes('GPS') || nameStr.includes('USA')) org = 'US Space Force';
-            else if (nameStr.includes('METEOR')) org = 'Roshydromet (Russia)';
             else if (nameStr.includes('ONEWEB')) org = 'OneWeb (UK)';
 
             return {
               id: sat.NORAD_CAT_ID || index,
               name: nameStr,
               lat: incl > 90 ? 180 - incl : incl,
-              lng: (index * 15) % 360 - 180,
+              lng: (index * 25) % 360 - 180,
               altitude: alt / 2500, 
               color: nameStr.includes('ISS') ? '#22c55e' : nameStr.includes('STARLINK') ? '#38bdf8' : '#3b82f6',
               velocity: `${(Math.sqrt(398600 / (6371 + alt))).toFixed(2)} km/s`,
@@ -107,7 +110,7 @@ export default function OrbitalGlobe() {
           setSatellites(formattedSats);
         }
       } catch (err) {
-        console.log('Network block fallback triggered:', err);
+        console.log('Network fallback triggered:', err);
       } finally {
         setLoadingSats(false);
       }
@@ -116,23 +119,31 @@ export default function OrbitalGlobe() {
     fetchRealSatellites();
   }, [satFilter]);
 
-  // Smooth Globe Auto-Rotation Hook
+  // Robust Auto-Rotation Setup via ThreeJS OrbitControls
   useEffect(() => {
-    let frameId;
-    const rotateGlobe = () => {
-      if (globeRef.current && !isPaused) {
+    let timer;
+    const setupControls = () => {
+      if (globeRef.current) {
         const controls = globeRef.current.controls();
         if (controls) {
-          controls.autoRotate = true;
-          controls.autoRotateSpeed = 0.5;
-          controls.update();
+          controls.autoRotate = !isPaused;
+          controls.autoRotateSpeed = 0.8;
         }
       }
-      frameId = requestAnimationFrame(rotateGlobe);
+      timer = requestAnimationFrame(setupControls);
     };
-    rotateGlobe();
-    return () => cancelAnimationFrame(frameId);
+    setupControls();
+    return () => cancelAnimationFrame(timer);
   }, [isPaused]);
+
+  // Build orbital path arcs dynamically when a satellite is selected
+  const activeArcs = selectedSat ? [{
+    startLat: selectedSat.lat,
+    startLng: selectedSat.lng - 15,
+    endLat: selectedSat.lat,
+    endLng: selectedSat.lng + 25,
+    color: ['#38bdf8', '#22c55e']
+  }] : [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%', maxWidth: '1400px', margin: '0 auto' }}>
@@ -158,8 +169,7 @@ export default function OrbitalGlobe() {
                 fontWeight: '700',
                 letterSpacing: '1px',
                 textTransform: 'uppercase',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease'
+                cursor: 'pointer'
               }}
             >
               {btn.label}
@@ -167,34 +177,14 @@ export default function OrbitalGlobe() {
           ))}
         </div>
 
-        {viewMode === 'pads' ? (
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            {['all', 'major', 'minor'].map((f) => (
-              <button
-                key={f}
-                onClick={() => setPadFilter(f)}
-                style={{
-                  padding: '0.4rem 0.8rem',
-                  background: padFilter === f ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
-                  border: '1px solid rgba(59, 130, 246, 0.4)',
-                  color: '#ffffff',
-                  fontSize: '0.65rem',
-                  textTransform: 'uppercase',
-                  cursor: 'pointer'
-                }}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-        ) : (
+        {viewMode === 'satellites' && (
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
             {[
               { key: 'stations', label: 'Stations' },
               { key: 'starlink', label: 'Starlink' },
               { key: 'visual', label: 'Bright / Visual' },
               { key: 'weather', label: 'Weather' },
-              { key: 'active', label: 'Active General' }
+              { key: 'active', label: 'All Active (Massive)' }
             ].map((f) => (
               <button
                 key={f.key}
@@ -220,9 +210,8 @@ export default function OrbitalGlobe() {
         className="glass-card" 
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
-        style={{ position: 'relative', width: '100%', height: '600px', borderRadius: '2px', overflow: 'hidden', background: '#030712', border: '1px solid rgba(59, 130, 246, 0.2)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+        style={{ position: 'relative', width: '100%', height: '600px', borderRadius: '2px', overflow: 'hidden', background: '#030712', border: '1px solid rgba(59, 130, 246, 0.2)' }}
       >
-        
         <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
           <ReactGlobe
             ref={globeRef}
@@ -233,13 +222,20 @@ export default function OrbitalGlobe() {
             pointLng="lng"
             pointAltitude={viewMode === 'pads' ? 0.02 : 'altitude'}
             pointColor={d => viewMode === 'pads' ? (d.type === 'major' ? '#3b82f6' : '#2dd4bf') : d.color}
-            pointRadius={viewMode === 'pads' ? 1.2 : 0.55}
+            pointRadius={viewMode === 'pads' ? 1.5 : 0.6}
             pointResolution={24}
-            ringsData={selectedSat ? [selectedSat] : (selectedPad ? [selectedPad] : [] )}
+            arcsData={activeArcs}
+            arcColor="color"
+            arcAltitude={0.3}
+            arcStroke={1.5}
+            arcDashLength={0.5}
+            arcDashGap={0.2}
+            arcDashAnimateTime={2000}
+            ringsData={selectedSat ? [selectedSat] : (selectedPad ? [selectedPad] : [])}
             ringColor={() => '#38bdf8'}
-            ringMaxRadius={5}
-            ringPropagationSpeed={2}
-            ringRepeatPeriod={400}
+            ringMaxRadius={6}
+            ringPropagationSpeed={3}
+            ringRepeatPeriod={500}
             onPointClick={d => {
               if (viewMode === 'pads') {
                 setSelectedPad(d);
@@ -250,9 +246,9 @@ export default function OrbitalGlobe() {
               }
             }}
             pointLabel={d => `
-              <div style="background: rgba(3, 7, 18, 0.95); padding: 12px 16px; border: 1px solid #38bdf8; font-family: monospace; font-size: 12px; color: #fff; box-shadow: 0 4px 16px rgba(0,0,0,0.8); pointer-events: none;">
-                <b style="color: #38bdf8; font-size: 13px;">${d.name}</b><br/>
-                ${viewMode === 'pads' ? `Agency: ${d.agency}<br/>Country: ${d.country}` : `Org: ${d.organization}<br/>NORAD ID: ${d.id} | Vel: ${d.velocity}`}
+              <div style="background: rgba(3, 7, 18, 0.95); padding: 10px 14px; border: 1px solid #38bdf8; font-family: monospace; font-size: 11px; color: #fff; pointer-events: none;">
+                <b style="color: #38bdf8; font-size: 12px;">${d.name}</b><br/>
+                ${viewMode === 'pads' ? `Agency: ${d.agency}` : `Org: ${d.organization} | Vel: ${d.velocity}`}
               </div>
             `}
           />
@@ -260,56 +256,15 @@ export default function OrbitalGlobe() {
 
         {loadingSats && (
           <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.85)', padding: '0.4rem 0.8rem', border: '1px solid #2dd4bf', zIndex: 10 }}>
-            <span style={{ fontSize: '0.65rem', color: '#2dd4bf', letterSpacing: '1px' }}>STREAMING FULL CATALOG ({satellites.length || 'LIVE'})...</span>
+            <span style={{ fontSize: '0.65rem', color: '#2dd4bf', letterSpacing: '1px' }}>STREAMING SATELLITE CATALOG...</span>
           </div>
         )}
-
-        <div style={{ position: 'absolute', bottom: '1.5rem', left: '1.5rem', pointerEvents: 'none', zIndex: 10 }}>
-          <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a', letterSpacing: '2px', textTransform: 'uppercase' }}>
-            [MODE: {viewMode.toUpperCase()} // HOVER TO PAUSE ROTATION]
-          </p>
-        </div>
       </div>
 
-      {viewMode === 'pads' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', maxHeight: '380px', overflowY: 'auto', paddingRight: '0.5rem' }}>
-          {globalLaunchPads
-            .filter(pad => padFilter === 'all' || pad.type === padFilter)
-            .map((pad) => (
-              <motion.div
-                key={pad.id}
-                whileHover={{ scale: 1.02 }}
-                onClick={() => {
-                  setSelectedPad(pad);
-                  if (globeRef.current) {
-                    globeRef.current.pointOfView({ lat: pad.lat, lng: pad.lng, altitude: 1.5 }, 1000);
-                  }
-                }}
-                className="glass-card"
-                style={{
-                  padding: '1.2rem',
-                  borderRadius: '2px',
-                  cursor: 'pointer',
-                  border: selectedPad?.id === pad.id ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.12)',
-                  background: selectedPad?.id === pad.id ? 'rgba(59, 130, 246, 0.1)' : 'rgba(15, 15, 15, 0.75)'
-                }}
-              >
-                <span style={{ fontSize: '0.6rem', color: pad.type === 'major' ? '#3b82f6' : '#2dd4bf', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>
-                  // {pad.country} ({pad.type.toUpperCase()})
-                </span>
-                <h4 style={{ fontSize: '0.9rem', margin: '0.4rem 0', fontWeight: '700', color: '#ffffff', textTransform: 'uppercase' }}>
-                  {pad.name}
-                </h4>
-                <p style={{ margin: 0, fontSize: '0.75rem', color: '#a1a1aa' }}>
-                  Agency: {pad.agency}
-                </p>
-              </motion.div>
-            ))}
-        </div>
-      ) : (
+      {viewMode === 'satellites' && (
         <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '2px', border: '1px solid rgba(45, 212, 191, 0.3)', background: 'rgba(10, 15, 25, 0.85)' }}>
           <span style={{ fontSize: '0.65rem', color: '#2dd4bf', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>
-            // 3D TELEMETRY & ORGANIZATION INSPECTOR
+            // TELEMETRY INSPECTOR & ORBITAL PATH VIEWER
           </span>
           {selectedSat ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '0.8rem' }}>
@@ -318,12 +273,12 @@ export default function OrbitalGlobe() {
                 <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1rem', color: '#ffffff' }}>{selectedSat.name}</h3>
               </div>
               <div>
-                <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>OPERATING ORGANIZATION / AGENCY</p>
+                <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>OPERATING ORGANIZATION</p>
                 <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#2dd4bf', fontWeight: '700' }}>{selectedSat.organization}</p>
               </div>
               <div>
-                <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>NORAD ID & DESIGNATOR</p>
-                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#38bdf8', fontWeight: '700' }}>{selectedSat.id} ({selectedSat.intlDesignator})</p>
+                <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>NORAD ID</p>
+                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#38bdf8', fontWeight: '700' }}>{selectedSat.id}</p>
               </div>
               <div>
                 <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>ORBITAL VELOCITY</p>
@@ -332,7 +287,7 @@ export default function OrbitalGlobe() {
             </div>
           ) : (
             <p style={{ margin: '0.6rem 0 0 0', fontSize: '0.8rem', color: '#a1a1aa' }}>
-              Click any highlighted satellite point to trigger an orbital radar ping ring and view live agency metrics. Total loaded items: {satellites.length}
+              Click any satellite point to trace its animated orbital path arc across the globe. Total loaded items: {satellites.length}
             </p>
           )}
         </div>
