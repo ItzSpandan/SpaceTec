@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 
-// Proper dynamic client-side wrapper configuration for Globe.GL
-const Globe = dynamic(() => import('globe.gl'), {
+// Import the official React wrapper dynamically with SSR disabled
+const ReactGlobe = dynamic(() => import('react-globe.gl'), {
   ssr: false,
   loading: () => (
     <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#3b82f6', fontFamily: 'monospace', fontSize: '0.8rem' }}>
@@ -15,28 +15,17 @@ const Globe = dynamic(() => import('globe.gl'), {
 });
 
 const globalLaunchPads = [
-  { id: 1, name: 'Kennedy Space Center (LC-39A)', agency: 'NASA / SpaceX', lat: 28.5858, lon: -80.6511, type: 'major', country: 'USA' },
-  { id: 2, name: 'Cape Canaveral Space Force Station (SLC-40)', agency: 'SpaceX / USSF', lat: 28.5619, lon: -80.5772, type: 'major', country: 'USA' },
-  { id: 3, name: 'Vandenberg Space Force Base (SLC-4E)', agency: 'SpaceX / USSF', lat: 34.7420, lon: -120.5724, type: 'major', country: 'USA' },
-  { id: 4, name: 'Wallops Flight Facility', agency: 'NASA / Northrop Grumman', lat: 37.9332, lon: -75.4836, type: 'minor', country: 'USA' },
-  { id: 5, name: 'Boca Chica Launch Site (Starbase)', agency: 'SpaceX', lat: 25.9973, lon: -97.1560, type: 'major', country: 'USA' },
-  { id: 6, name: 'Pacific Spaceport Complex (Alaska)', agency: 'Astra / USSF', lat: 57.4358, lon: -152.3477, type: 'minor', country: 'USA' },
-  { id: 7, name: 'Guiana Space Centre (Ariane ELA-4)', agency: 'ESA / Arianespace', lat: 5.2372, lon: -52.7683, type: 'major', country: 'French Guiana' },
-  { id: 8, name: 'Esrange Space Center', agency: 'SSC', lat: 67.8894, lon: 21.1050, type: 'minor', country: 'Sweden' },
-  { id: 9, name: 'Andøya Spaceport', agency: 'Andøya Space', lat: 69.2933, lon: 16.0167, type: 'minor', country: 'Norway' },
-  { id: 10, name: 'Baikonur Cosmodrome', agency: 'Roscosmos', lat: 45.9646, lon: 63.3052, type: 'major', country: 'Kazakhstan' },
-  { id: 11, name: 'Plesetsk Cosmodrome', agency: 'Roscosmos', lat: 62.9298, lon: 40.5735, type: 'major', country: 'Russia' },
-  { id: 12, name: 'Vostochny Cosmodrome', agency: 'Roscosmos', lat: 51.8841, lon: 128.3339, type: 'major', country: 'Russia' },
-  { id: 13, name: 'Satish Dhawan Space Centre (SDSC)', agency: 'ISRO', lat: 13.7199, lon: 80.2304, type: 'major', country: 'India' },
-  { id: 14, name: 'Jiuquan Satellite Launch Center', agency: 'CNSA', lat: 40.9575, lon: 100.2917, type: 'major', country: 'China' },
-  { id: 15, name: 'Wenchang Space Launch Site', agency: 'CNSA', lat: 19.6145, lon: 110.9510, type: 'major', country: 'China' },
-  { id: 16, name: 'Xichang Satellite Launch Center', agency: 'CNSA', lat: 28.2465, lon: 102.0264, type: 'minor', country: 'China' },
-  { id: 17, name: 'Taiyuan Satellite Launch Center', agency: 'CNSA', lat: 38.8490, lon: 111.6080, type: 'minor', country: 'China' },
-  { id: 18, name: 'Tanegashima Space Center', agency: 'JAXA', lat: 30.4000, lon: 130.9700, type: 'major', country: 'Japan' },
-  { id: 19, name: 'Uchinoura Space Center', agency: 'JAXA', lat: 31.2515, lon: 131.0825, type: 'minor', country: 'Japan' },
-  { id: 20, name: 'Naro Space Center', agency: 'KARI', lat: 34.4315, lon: 127.5350, type: 'minor', country: 'South Korea' },
-  { id: 21, name: 'Mahia Launch Complex 1', agency: 'Rocket Lab', lat: -39.2608, lon: 177.8656, type: 'minor', country: 'New Zealand' },
-  { id: 22, name: 'Arnhem Space Centre', agency: 'Equatorial Launch Australia', lat: -12.3780, lon: 136.8150, type: 'minor', country: 'Australia' }
+  { id: 1, name: 'Kennedy Space Center (LC-39A)', agency: 'NASA / SpaceX', lat: 28.5858, lng: -80.6511, type: 'major', country: 'USA' },
+  { id: 2, name: 'Cape Canaveral Space Force Station (SLC-40)', agency: 'SpaceX / USSF', lat: 28.5619, lng: -80.5772, type: 'major', country: 'USA' },
+  { id: 3, name: 'Vandenberg Space Force Base (SLC-4E)', agency: 'SpaceX / USSF', lat: 34.7420, lng: -120.5724, type: 'major', country: 'USA' },
+  { id: 4, name: 'Wallops Flight Facility', agency: 'NASA / Northrop Grumman', lat: 37.9332, lng: -75.4836, type: 'minor', country: 'USA' },
+  { id: 5, name: 'Boca Chica Launch Site (Starbase)', agency: 'SpaceX', lat: 25.9973, lng: -97.1560, type: 'major', country: 'USA' },
+  { id: 6, name: 'Guiana Space Centre (Ariane ELA-4)', agency: 'ESA / Arianespace', lat: 5.2372, lng: -52.7683, type: 'major', country: 'French Guiana' },
+  { id: 7, name: 'Baikonur Cosmodrome', agency: 'Roscosmos', lat: 45.9646, lng: 63.3052, type: 'major', country: 'Kazakhstan' },
+  { id: 8, name: 'Satish Dhawan Space Centre (SDSC)', agency: 'ISRO', lat: 13.7199, lng: 80.2304, type: 'major', country: 'India' },
+  { id: 9, name: 'Jiuquan Satellite Launch Center', agency: 'CNSA', lat: 40.9575, lng: 100.2917, type: 'major', country: 'China' },
+  { id: 10, name: 'Tanegashima Space Center', agency: 'JAXA', lat: 30.4000, lng: 130.9700, type: 'major', country: 'Japan' },
+  { id: 11, name: 'Mahia Launch Complex 1', agency: 'Rocket Lab', lat: -39.2608, lng: 177.8656, type: 'minor', country: 'New Zealand' }
 ];
 
 export default function OrbitalGlobe() {
@@ -195,13 +184,13 @@ export default function OrbitalGlobe() {
       <div className="glass-card" style={{ position: 'relative', width: '100%', height: '550px', borderRadius: '2px', overflow: 'hidden', background: '#030712', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
         
         <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
-          <Globe
+          <ReactGlobe
             ref={globeRef}
             globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
             bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
             pointsData={viewMode === 'pads' ? globalLaunchPads.filter(p => padFilter === 'all' || p.type === padFilter) : satellites}
             pointLat="lat"
-            pointLng={viewMode === 'pads' ? 'lon' : 'lng'}
+            pointLng="lng"
             pointAltitude={viewMode === 'pads' ? 0.01 : 'altitude'}
             pointColor={d => viewMode === 'pads' ? (d.type === 'major' ? '#3b82f6' : '#2dd4bf') : d.color}
             pointRadius={viewMode === 'pads' ? 0.5 : 0.18}
@@ -243,7 +232,7 @@ export default function OrbitalGlobe() {
                 onClick={() => {
                   setSelectedPad(pad);
                   if (globeRef.current) {
-                    globeRef.current.pointOfView({ lat: pad.lat, lng: pad.lon, altitude: 1.5 }, 1000);
+                    globeRef.current.pointOfView({ lat: pad.lat, lng: pad.lng, altitude: 1.5 }, 1000);
                   }
                 }}
                 className="glass-card"
