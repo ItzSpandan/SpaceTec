@@ -91,7 +91,7 @@ export default function OrbitalGlobe() {
       const theta = (lon + 180) * (Math.PI / 180) + rotY;
 
       let x = -radius * Math.sin(phi) * Math.cos(theta);
-      let y = -radius * Math.cos(phi); // Flipped with minus sign so North stays at the top
+      let y = -radius * Math.cos(phi); // Correct orientation: North at the top
       let z = radius * Math.sin(phi) * Math.sin(theta);
 
       const cosX = Math.cos(rotX);
@@ -226,7 +226,7 @@ export default function OrbitalGlobe() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
       
-      {/* VIEW MODE TOGGLE BAR */}
+      {/* VIEW MODE & FILTER TOGGLE BAR */}
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
           <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '700' }}>
@@ -290,6 +290,39 @@ export default function OrbitalGlobe() {
           </p>
         </div>
       </div>
+
+      {/* LAUNCH PAD CARDS LIST (FILTERABLE) */}
+      {viewMode === 'pads' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+          {globalLaunchPads
+            .filter(pad => filter === 'all' || pad.type === filter)
+            .map((pad) => (
+              <motion.div
+                key={pad.id}
+                whileHover={{ scale: 1.02 }}
+                onClick={() => setSelectedPad(pad)}
+                className="glass-card"
+                style={{
+                  padding: '1.2rem',
+                  borderRadius: '2px',
+                  cursor: 'pointer',
+                  border: selectedPad?.id === pad.id ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.12)',
+                  background: selectedPad?.id === pad.id ? 'rgba(59, 130, 246, 0.1)' : 'rgba(15, 15, 15, 0.75)'
+                }}
+              >
+                <span style={{ fontSize: '0.6rem', color: pad.type === 'major' ? '#3b82f6' : '#2dd4bf', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>
+                  // {pad.country} ({pad.type.toUpperCase()})
+                </span>
+                <h4 style={{ fontSize: '0.9rem', margin: '0.4rem 0', fontWeight: '700', color: '#ffffff', textTransform: 'uppercase' }}>
+                  {pad.name}
+                </h4>
+                <p style={{ margin: 0, fontSize: '0.75rem', color: '#a1a1aa' }}>
+                  Agency: {pad.agency}
+                </p>
+              </motion.div>
+            ))}
+        </div>
+      )}
 
     </div>
   );
