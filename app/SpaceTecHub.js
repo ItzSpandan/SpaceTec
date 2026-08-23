@@ -17,7 +17,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2069'
   ];
 
-  // Agencies structured with your exact YouTube tile video IDs and timeframes (in seconds)
+  // Agencies structured with background tile videos (looping silently) and separate imagery for expansion
   const agencyBatches = [
     [
       {
@@ -27,7 +27,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#3b82f6',
         specialty: 'Europa Clipper Mission & Deep Space Planetary Exploration',
         brief: 'Pioneering deep space exploration, advanced planetary defense, and sustained human habitats.',
-        tileVideoEmbed: 'https://www.youtube.com/embed/ux5KMw1Bk6Q?autoplay=1&mute=1&loop=1&playlist=ux5KMw1Bk6Q&start=18&end=22&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3'
+        tileVideoEmbed: 'https://www.youtube.com/embed/ux5KMw1Bk6Q?autoplay=1&mute=1&loop=1&playlist=ux5KMw1Bk6Q&start=18&end=24&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
+        expandedImage: 'https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?q=80&w=1000'
       },
       {
         id: 'spacex',
@@ -36,7 +37,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#ff6600',
         specialty: 'Starship Super Heavy Launch & Reusable Mars Architecture',
         brief: 'Developing fully reusable heavy-lift transportation systems designed to make humanity multi-planetary.',
-        tileVideoEmbed: 'https://www.youtube.com/embed/zOO59PFnMQ4?autoplay=1&mute=1&loop=1&playlist=zOO59PFnMQ4&start=25&end=40&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3'
+        tileVideoEmbed: 'https://www.youtube.com/embed/zOO59PFnMQ4?autoplay=1&mute=1&loop=1&playlist=zOO59PFnMQ4&start=25&end=43&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
+        expandedImage: 'https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?q=80&w=1000'
       },
       {
         id: 'esa',
@@ -45,7 +47,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#60a5fa',
         specialty: 'Vega-C & European Cosmic Vision Space Probes',
         brief: 'Coordinating European collaboration in space research, satellite earth observation, and deep space probes.',
-        tileVideoEmbed: 'https://www.youtube.com/embed/ruoezIkhbZM?autoplay=1&mute=1&loop=1&playlist=ruoezIkhbZM&start=30&end=35&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3'
+        tileVideoEmbed: 'https://www.youtube.com/embed/ruoezIkhbZM?autoplay=1&mute=1&loop=1&playlist=ruoezIkhbZM&start=30&end=37&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
+        expandedImage: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?q=80&w=1000'
       }
     ],
     [
@@ -56,7 +59,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#2dd4bf',
         specialty: 'H3 Next-Gen Rocket & Hayabusa Asteroid Sample Return',
         brief: 'Advancing high-precision robotic asteroid exploration, global satellite navigation, and next-generation rocketry.',
-        tileVideoEmbed: 'https://www.youtube.com/embed/EBEq84QrSEA?autoplay=1&mute=1&loop=1&playlist=EBEq84QrSEA&start=3443&end=3453&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3'
+        tileVideoEmbed: 'https://www.youtube.com/embed/EBEq84QrSEA?autoplay=1&mute=1&loop=1&playlist=EBEq84QrSEA&start=3443&end=3455&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
+        expandedImage: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1000'
       },
       {
         id: 'isro',
@@ -65,7 +69,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#ff9933',
         specialty: 'GSLV Heavy Launcher, Chandrayaan South Pole & Gaganyaan',
         brief: 'Executing cost-effective lunar polar exploration, orbital space stations, and indigenous human spaceflight.',
-        tileVideoEmbed: 'https://www.youtube.com/embed/Zfr1eVS5iX8?autoplay=1&mute=1&loop=1&playlist=Zfr1eVS5iX8&start=8&end=12&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3'
+        tileVideoEmbed: 'https://www.youtube.com/embed/Zfr1eVS5iX8?autoplay=1&mute=1&loop=1&playlist=Zfr1eVS5iX8&start=8&end=14&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
+        expandedImage: 'https://images.unsplash.com/photo-1517976487504-63ec183d046e?q=80&w=1000'
       },
       {
         id: 'cnsa',
@@ -74,7 +79,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         accentColor: '#f43f5e',
         specialty: 'Chang\'e Lunar Sample Return & Tianwen Mars Rover Missions',
         brief: 'Operating successful lunar far-side sample missions, orbital laboratories, and interplanetary rovers.',
-        tileVideoEmbed: 'https://www.youtube.com/embed/_QOITfWlM3Y?autoplay=1&mute=1&loop=1&playlist=_QOITfWlM3Y&start=43&end=48&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3'
+        tileVideoEmbed: 'https://www.youtube.com/embed/_QOITfWlM3Y?autoplay=1&mute=1&loop=1&playlist=_QOITfWlM3Y&start=43&end=50&controls=0&disablekb=1&modestbranding=1&iv_load_policy=3',
+        expandedImage: 'https://images.unsplash.com/photo-1502134249126-9f3755a50d78?q=80&w=1000'
       }
     ]
   ];
@@ -387,7 +393,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </motion.div>
         </section>
 
-        {/* FEATURED OBSERVATION (RESTORED) */}
+        {/* FEATURED OBSERVATION */}
         {apodData && (
           <section className="content-container" style={{ paddingBottom: '5rem' }}>
             <motion.div 
@@ -411,7 +417,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </section>
         )}
 
-        {/* AGENCIES SECTION */}
+        {/* AGENCIES SECTION (WITH TILE VIDEOS ONLY, CLEAN EXPANSION) */}
         <section className="content-container" style={{ paddingBottom: '6rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.0rem' }}>
             <div>
@@ -457,12 +463,32 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     onMouseEnter={() => setActiveAgency(agency.id)}
                     onMouseLeave={() => setActiveAgency(null)}
                   >
-                    <iframe
-                      className="agency-iframe-bg"
-                      src={agency.tileVideoEmbed}
-                      title={agency.name}
-                      allow="autoplay"
-                    />
+                    {/* YouTube Tile Video Background iframe - Only visible on un-expanded tiles, hidden or replaced cleanly when expanded if desired */}
+                    {!isHovered && (
+                      <iframe
+                        className="agency-iframe-bg"
+                        src={agency.tileVideoEmbed}
+                        title={agency.name}
+                        allow="autoplay"
+                      />
+                    )}
+
+                    {/* Expanded background image instead of video iframe */}
+                    {isHovered && (
+                      <div 
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          backgroundImage: `url('${agency.expandedImage}')`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          opacity: 0.35,
+                          zIndex: 1,
+                          filter: 'contrast(1.2)'
+                        }}
+                      />
+                    )}
+
                     <div className="agency-text-shield" />
 
                     <div className="agency-content-layer">
@@ -540,7 +566,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                 </div>
 
                 <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '1rem' }}>
-                  <p style={{ margin: '0 0 0.4rem 0', fontSize: '0.8rem', color: '#a1a1aa', letterSpacing: '1px' }}>
+                  <p style={{ margin: '0 0 0.4rem 0', fontSize: '0.80rem', color: '#a1a1aa', letterSpacing: '1px' }}>
                     NET: {new Date(launch.net).toUTCString().slice(0, 16)}
                   </p>
                   <p style={{ margin: 0, fontSize: '0.75rem', color: '#71717a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
