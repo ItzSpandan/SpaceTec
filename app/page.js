@@ -1,5 +1,5 @@
 import SpaceTecHub from './SpaceTecHub';
-import { supabase } from './supabase'; // Import your configured Supabase client
+import { supabase } from './supabase';
 
 export default async function Home() {
   const nasaApiKey = process.env.NASA_API_KEY || 'DEMO_KEY';
@@ -15,12 +15,12 @@ export default async function Home() {
     console.error("APOD Fetch Error:", error);
   }
 
-  // Fetch launches from your Supabase database instead of the external API
+  // Fetch real global launches from Supabase, sorted by upcoming launch time
   try {
     const { data, error } = await supabase
       .from('launches')
       .select('*')
-      .order('id', { ascending: true });
+      .order('net', { ascending: true });
       
     if (error) {
       console.error("Supabase Launch Fetch Error:", error);
