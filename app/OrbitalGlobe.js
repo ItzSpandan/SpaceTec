@@ -163,7 +163,6 @@ export default function OrbitalGlobe() {
         }
       });
 
-      // If user clicks the same satellite again or clicks empty space, toggle selection off
       setSelectedSat(prev => (prev?.id === clickedItem?.id ? null : clickedItem));
     };
 
@@ -277,25 +276,37 @@ export default function OrbitalGlobe() {
           if (pt.visible) {
             const dist = Math.hypot(pt.x - mouseCanvasPosRef.current.x, pt.y - mouseCanvasPosRef.current.y);
             if (dist < 10) currentHover = sat;
+          }
 
-            const isHovered = hoveredSat?.id === sat.id;
-            const isSelected = selectedSat?.id === sat.id;
+          const isHovered = hoveredSat?.id === sat.id;
+          const isSelected = selectedSat?.id === sat.id;
 
-            if (isHovered || isSelected) {
-              ctx.strokeStyle = isHovered ? 'rgba(45, 212, 191, 0.6)' : 'rgba(59, 130, 246, 0.8)';
-              ctx.lineWidth = 1.5;
-              ctx.beginPath();
-              for (let lonStep = -180; lonStep <= 180; lonStep += 5) {
-                const ringLon = (lonStep + rotationRef.current.y * (sat.category === 'GEO' ? 2 : 12)) % 360;
-                const orbitPt = projectCoordinates(sat.lat, ringLon, globeRadius, rotationRef.current.x, rotationRef.current.y, centerX, centerY);
-                if (orbitPt.visible) {
-                  if (lonStep === -180) ctx.moveTo(orbitPt.x, orbitPt.y);
-                  else ctx.lineTo(orbitPt.x, orbitPt.y);
+          // Only render orbit path segments that fall on the front/visible side of the globe
+          if (isHovered || isSelected) {
+            ctx.strokeStyle = isHovered ? 'rgba(45, 212, 191, 0.7)' : 'rgba(59, 130, 246, 0.9)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            let orbitStarted = false;
+
+            for (let lonStep = -180; lonStep <= 180; lonStep += 2) {
+              const ringLon = (lonStep + rotationRef.current.y * (sat.category === 'GEO' ? 2 : 12)) % 360;
+              const orbitPt = projectCoordinates(sat.lat, ringLon, globeRadius, rotationRef.current.x, rotationRef.current.y, centerX, centerY);
+              
+              if (orbitPt.visible) {
+                if (!orbitStarted) {
+                  ctx.moveTo(orbitPt.x, orbitPt.y);
+                  orbitStarted = true;
+                } else {
+                  ctx.lineTo(orbitPt.x, orbitPt.y);
                 }
+              } else {
+                orbitStarted = false;
               }
-              ctx.stroke();
             }
+            ctx.stroke();
+          }
 
+          if (pt.visible) {
             ctx.fillStyle = sat.category === 'Station' ? '#22c55e' : sat.category === 'Starlink' ? '#38bdf8' : '#3b82f6';
             ctx.beginPath();
             ctx.arc(pt.x, pt.y, isHovered || isSelected ? 5 : 2.5, 0, Math.PI * 2);
@@ -402,7 +413,7 @@ export default function OrbitalGlobe() {
         
         <div style={{ position: 'absolute', bottom: '1.5rem', left: '1.5rem', pointerEvents: 'none' }}>
           <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a', letterSpacing: '2px', textTransform: 'uppercase' }}>
-            [MODE: {viewMode.toUpperCase()} // HOVER FOR ORBIT PATH // CLICK OBJECT OR BG TO TOGGLE]
+            [MODE: {viewMode.toUpperCase()} // FRONT-ONLY ORBITS ENABLED]
           </p>
         </div>
       </div>
