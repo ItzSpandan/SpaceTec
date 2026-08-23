@@ -16,17 +16,35 @@ const globalLaunchPads = [
   { id: 1, name: 'Kennedy Space Center (LC-39A)', agency: 'NASA / SpaceX', lat: 28.5858, lng: -80.6511, type: 'major', country: 'USA' },
   { id: 2, name: 'Cape Canaveral Space Force Station (SLC-40)', agency: 'SpaceX / USSF', lat: 28.5619, lng: -80.5772, type: 'major', country: 'USA' },
   { id: 3, name: 'Vandenberg Space Force Base (SLC-4E)', agency: 'SpaceX / USSF', lat: 34.7420, lng: -120.5724, type: 'major', country: 'USA' },
+  { id: 4, name: 'Wallops Flight Facility', agency: 'NASA / Northrop Grumman', lat: 37.9332, lng: -75.4836, type: 'minor', country: 'USA' },
   { id: 5, name: 'Boca Chica Launch Site (Starbase)', agency: 'SpaceX', lat: 25.9973, lng: -97.1560, type: 'major', country: 'USA' },
+  { id: 6, name: 'Pacific Spaceport Complex (Alaska)', agency: 'Astra / USSF', lat: 57.4358, lng: -152.3477, type: 'minor', country: 'USA' },
   { id: 7, name: 'Guiana Space Centre (Ariane ELA-4)', agency: 'ESA / Arianespace', lat: 5.2372, lng: -52.7683, type: 'major', country: 'French Guiana' },
+  { id: 8, name: 'Esrange Space Center', agency: 'SSC', lat: 67.8894, lng: 21.1050, type: 'minor', country: 'Sweden' },
+  { id: 9, name: 'Andøya Spaceport', agency: 'Andøya Space', lat: 69.2933, lng: 16.0167, type: 'minor', country: 'Norway' },
   { id: 10, name: 'Baikonur Cosmodrome', agency: 'Roscosmos', lat: 45.9646, lng: 63.3052, type: 'major', country: 'Kazakhstan' },
+  { id: 11, name: 'Plesetsk Cosmodrome', agency: 'Roscosmos', lat: 62.9298, lng: 40.5735, type: 'major', country: 'Russia' },
+  { id: 12, name: 'Vostochny Cosmodrome', agency: 'Roscosmos', lat: 51.8841, lng: 128.3339, type: 'major', country: 'Russia' },
   { id: 13, name: 'Satish Dhawan Space Centre (SDSC)', agency: 'ISRO', lat: 13.7199, lng: 80.2304, type: 'major', country: 'India' },
-  { id: 14, name: 'Jiuquan Satellite Launch Center', agency: 'CNSA', lat: 40.9575, lng: 100.2917, type: 'major', country: 'China' }
+  { id: 14, name: 'Jiuquan Satellite Launch Center', agency: 'CNSA', lat: 40.9575, lng: 100.2917, type: 'major', country: 'China' },
+  { id: 15, name: 'Wenchang Space Launch Site', agency: 'CNSA', lat: 19.6145, lng: 110.9510, type: 'major', country: 'China' },
+  { id: 16, name: 'Xichang Satellite Launch Center', agency: 'CNSA', lat: 28.2465, lng: 102.0264, type: 'minor', country: 'China' },
+  { id: 17, name: 'Taiyuan Satellite Launch Center', agency: 'CNSA', lat: 38.8490, lng: 111.6080, type: 'minor', country: 'China' },
+  { id: 18, name: 'Tanegashima Space Center', agency: 'JAXA', lat: 30.4000, lng: 130.9700, type: 'major', country: 'Japan' },
+  { id: 19, name: 'Uchinoura Space Center', agency: 'JAXA', lat: 31.2515, lng: 131.0825, type: 'minor', country: 'Japan' },
+  { id: 20, name: 'Naro Space Center', agency: 'KARI', lat: 34.4315, lng: 127.5350, type: 'minor', country: 'South Korea' },
+  { id: 21, name: 'Mahia Launch Complex 1', agency: 'Rocket Lab', lat: -39.2608, lng: 177.8656, type: 'minor', country: 'New Zealand' },
+  { id: 22, name: 'Arnhem Space Centre', agency: 'Equatorial Launch Australia', lat: -12.3780, lng: 136.8150, type: 'minor', country: 'Australia' },
+  { id: 23, name: 'Imam Khomeini Spaceport', agency: 'ISA', lat: 35.2344, lng: 53.9211, type: 'minor', country: 'Iran' },
+  { id: 24, name: 'Al-Dahik Launch Site', agency: 'NARSS', lat: 28.4890, lng: 30.4120, type: 'minor', country: 'Egypt' }
 ];
 
 export default function OrbitalGlobe() {
   const globeRef = useRef(null);
-  const [viewMode, setViewMode] = useState('satellites'); 
+  const [viewMode, setViewMode] = useState('pads'); 
+  const [padFilter, setPadFilter] = useState('all'); 
   const [satFilter, setSatFilter] = useState('stations'); 
+  const [selectedPad, setSelectedPad] = useState(null);
   const [selectedSat, setSelectedSat] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
   
@@ -34,12 +52,11 @@ export default function OrbitalGlobe() {
   const [loadingSats, setLoadingSats] = useState(false);
   const satCacheRef = useRef({});
 
-  // Fetch real telemetry data from CelesTrak with reliable groups
+  // Fetch real telemetry data from CelesTrak with robust mapping
   useEffect(() => {
     const fetchRealSatellites = async () => {
-      // Map 'active' or heavy queries to 'visual' or 'active-payloads' to prevent timeouts
       let queryGroup = satFilter;
-      if (satFilter === 'active') queryGroup = 'visual'; 
+      if (satFilter === 'active') queryGroup = 'visual'; // Fallback mapping to ensure smooth stream for massive data lists
 
       if (satCacheRef.current[queryGroup]) {
         setSatellites(satCacheRef.current[queryGroup]);
@@ -52,7 +69,7 @@ export default function OrbitalGlobe() {
         const data = await res.json();
 
         if (Array.isArray(data)) {
-          const targetData = data.length > 1200 ? data.slice(0, 1200) : data;
+          const targetData = data.length > 1500 ? data.slice(0, 1500) : data;
 
           const formattedSats = targetData.map((sat, index) => {
             const incl = sat.INCLINATION || 0;
@@ -77,7 +94,7 @@ export default function OrbitalGlobe() {
               lng: (index * 25) % 360 - 180,
               inclination: incl,
               altitude: alt / 2500, 
-              color: nameStr.includes('ISS') ? '#22c55e' : nameStr.includes('STARLINK') ? '#38bdf8' : '#ffffff',
+              color: nameStr.includes('ISS') ? '#22c55e' : nameStr.includes('STARLINK') ? '#38bdf8' : '#3b82f6',
               velocity: `${(Math.sqrt(398600 / (6371 + alt))).toFixed(2)} km/s`,
               organization: org
             };
@@ -113,11 +130,10 @@ export default function OrbitalGlobe() {
     return () => cancelAnimationFrame(timer);
   }, [isPaused]);
 
-  // Generate a true orbital ring path looping around the earth based on inclination
+  // Generate true continuous orbital path loops around the globe
   const orbitalPaths = selectedSat ? (() => {
     const points = [];
     const inc = selectedSat.inclination || 45;
-    // Build a complete 360-degree orbital loop path around the globe
     for (let i = 0; i <= 360; i += 5) {
       const rad = (i * Math.PI) / 180;
       const lat = Math.sin(rad) * inc;
@@ -141,7 +157,7 @@ export default function OrbitalGlobe() {
           ].map((btn) => (
             <button
               key={btn.key}
-              onClick={() => { setViewMode(btn.key); setSelectedSat(null); }}
+              onClick={() => { setViewMode(btn.key); setSelectedSat(null); setSelectedPad(null); }}
               style={{
                 padding: '0.5rem 1rem',
                 background: viewMode === btn.key ? '#3b82f6' : 'rgba(255,255,255,0.05)',
@@ -158,6 +174,28 @@ export default function OrbitalGlobe() {
             </button>
           ))}
         </div>
+
+        {viewMode === 'pads' && (
+          <div style={{ display: 'flex', gap: '0.4rem' }}>
+            {['all', 'major', 'minor'].map((f) => (
+              <button
+                key={f}
+                onClick={() => setPadFilter(f)}
+                style={{
+                  padding: '0.4rem 0.8rem',
+                  background: padFilter === f ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
+                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                  color: '#ffffff',
+                  fontSize: '0.6rem',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer'
+                }}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        )}
 
         {viewMode === 'satellites' && (
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
@@ -199,11 +237,11 @@ export default function OrbitalGlobe() {
             ref={globeRef}
             globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
             bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-            pointsData={viewMode === 'pads' ? globalLaunchPads : satellites}
+            pointsData={viewMode === 'pads' ? globalLaunchPads.filter(p => padFilter === 'all' || p.type === padFilter) : satellites}
             pointLat="lat"
             pointLng="lng"
             pointAltitude={viewMode === 'pads' ? 0.02 : 'altitude'}
-            pointColor={d => viewMode === 'pads' ? '#3b82f6' : d.color}
+            pointColor={d => viewMode === 'pads' ? (d.type === 'major' ? '#3b82f6' : '#2dd4bf') : d.color}
             pointRadius={viewMode === 'pads' ? 1.5 : 0.6}
             pathsData={orbitalPaths}
             pathColor={() => '#ffffff'}
@@ -211,13 +249,16 @@ export default function OrbitalGlobe() {
             pathDashGap={0.05}
             pathDashAnimateTime={3000}
             pathStroke={2}
-            ringsData={selectedSat ? [selectedSat] : []}
+            ringsData={selectedSat ? [selectedSat] : (selectedPad ? [selectedPad] : [])}
             ringColor={() => '#38bdf8'}
             ringMaxRadius={6}
             ringPropagationSpeed={3}
             ringRepeatPeriod={500}
             onPointClick={d => {
-              if (viewMode === 'satellites') {
+              if (viewMode === 'pads') {
+                setSelectedPad(d);
+                if (globeRef.current) globeRef.current.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.5 }, 1000);
+              } else {
                 setSelectedSat(d);
                 if (globeRef.current) globeRef.current.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.8 }, 1000);
               }
@@ -225,14 +266,14 @@ export default function OrbitalGlobe() {
             pointLabel={d => `
               <div style="background: rgba(3, 7, 18, 0.95); padding: 10px 14px; border: 1px solid #38bdf8; font-family: monospace; font-size: 11px; color: #fff; pointer-events: none;">
                 <b style="color: #38bdf8; font-size: 12px;">${d.name}</b><br/>
-                Org: ${d.organization} | Vel: ${d.velocity}
+                ${viewMode === 'pads' ? `Agency: ${d.agency}` : `Org: ${d.organization} | Vel: ${d.velocity}`}
               </div>
             `}
           />
         </div>
 
         {loadingSats && (
-          <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.85)', padding: '0.4rem 0.8-rem', border: '1px solid #38bdf8', zIndex: 10 }}>
+          <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.85)', padding: '0.4rem 0.8rem', border: '1px solid #38bdf8', zIndex: 10 }}>
             <span style={{ fontSize: '0.65rem', color: '#38bdf8', letterSpacing: '1px' }}>STREAMING SATELLITE CATALOG...</span>
           </div>
         )}
