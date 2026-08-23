@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 
-// Dynamically import Globe.GL to prevent Server-Side Rendering (SSR) WebGL crashes in Next.js
 const DynamicGlobe = dynamic(() => import('globe.gl'), { ssr: false });
 
 const globalLaunchPads = [
@@ -185,30 +184,33 @@ export default function OrbitalGlobe() {
         )}
       </div>
 
-      <div className="glass-card" style={{ position: 'relative', borderRadius: '2px', overflow: 'hidden', height: '520px', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#030712' }}>
+      {/* Explicit height wrapper so WebGL canvas renders correctly */}
+      <div className="glass-card" style={{ position: 'relative', width: '100%', height: '600px', borderRadius: '2px', overflow: 'hidden', background: '#030712' }}>
         
-        <DynamicGlobe
-          ref={globeRef}
-          globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
-          bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-          pointsData={viewMode === 'pads' ? globalLaunchPads.filter(p => padFilter === 'all' || p.type === padFilter) : satellites}
-          pointLat="lat"
-          pointLng={viewMode === 'pads' ? 'lon' : 'lng'}
-          pointAltitude={viewMode === 'pads' ? 0.01 : 'altitude'}
-          pointColor={d => viewMode === 'pads' ? (d.type === 'major' ? '#3b82f6' : '#2dd4bf') : d.color}
-          pointRadius={viewMode === 'pads' ? 0.5 : 0.18}
-          pointResolution={16}
-          onPointClick={d => {
-            if (viewMode === 'pads') setSelectedPad(d);
-            else setSelectedSat(d);
-          }}
-          pointLabel={d => `
-            <div style="background: rgba(3, 7, 18, 0.9); padding: 8px 12px; border: 1px solid #3b82f6; font-family: monospace; font-size: 11px; color: #fff;">
-              <b>${d.name}</b><br/>
-              ${viewMode === 'pads' ? `Agency: ${d.agency}` : `NORAD ID: ${d.id} | Vel: ${d.velocity}`}
-            </div>
-          `}
-        />
+        <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+          <DynamicGlobe
+            ref={globeRef}
+            globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
+            bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+            pointsData={viewMode === 'pads' ? globalLaunchPads.filter(p => padFilter === 'all' || p.type === padFilter) : satellites}
+            pointLat="lat"
+            pointLng={viewMode === 'pads' ? 'lon' : 'lng'}
+            pointAltitude={viewMode === 'pads' ? 0.01 : 'altitude'}
+            pointColor={d => viewMode === 'pads' ? (d.type === 'major' ? '#3b82f6' : '#2dd4bf') : d.color}
+            pointRadius={viewMode === 'pads' ? 0.5 : 0.18}
+            pointResolution={16}
+            onPointClick={d => {
+              if (viewMode === 'pads') setSelectedPad(d);
+              else setSelectedSat(d);
+            }}
+            pointLabel={d => `
+              <div style="background: rgba(3, 7, 18, 0.9); padding: 8px 12px; border: 1px solid #3b82f6; font-family: monospace; font-size: 11px; color: #fff;">
+                <b>${d.name}</b><br/>
+                ${viewMode === 'pads' ? `Agency: ${d.agency}` : `NORAD ID: ${d.id} | Vel: ${d.velocity}`}
+              </div>
+            `}
+          />
+        </div>
 
         {loadingSats && (
           <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.85)', padding: '0.4rem 0.8rem', border: '1px solid #2dd4bf', zIndex: 10 }}>
