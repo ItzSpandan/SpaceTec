@@ -2,6 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 const ReactGlobe = dynamic(() => import('react-globe.gl'), {
   ssr: false,
@@ -53,73 +59,55 @@ export default function OrbitalGlobe() {
 
   const filteredPads = globalLaunchPads.filter(p => padFilter === 'all' || p.type === padFilter);
 
-  // Fetch telemetry data with network safety and fallback guards
+  // Fetch telemetry data from Supabase Database instead of live external API calls
   useEffect(() => {
-    const fetchRealSatellites = async () => {
-      let queryGroup = satFilter;
-      if (satFilter === 'active') queryGroup = 'active'; 
-      if (satFilter === 'starlink') queryGroup = 'starlink';
-      if (satFilter === 'visual') queryGroup = 'visual';
-      if (satFilter === 'stations') queryGroup = 'stations';
-
-      if (satCacheRef.current[queryGroup]) {
-        setSatellites(satCacheRef.current[queryGroup]);
+    const fetchSupabaseSatellites = async () => {
+      if (satCacheRef.current[satFilter]) {
+        setSatellites(satCacheRef.current[satFilter]);
         return;
       }
 
       setLoadingSats(true);
       try {
-        const res = await fetch(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${queryGroup}&FORMAT=json`);
-        
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        
-        const data = await res.json();
+        let query = supabase.from('satellites').select('*');
 
-        if (Array.isArray(data)) {
-          // Cap the massive active payload to prevent browser memory crashes while keeping rendering smooth
-          const targetData = (satFilter === 'active' && data.length > 3000) ? data.slice(0, 3000) : data;
+        // Apply filters directly based on user's category choices
+        if (satFilter === 'stations') {
+          query = query.ilike('name', '%ISS%');
+        } else if (satFilter === 'starlink') {
+          query = query.ilike('name', '%STARLINK%');
+        } else if (satFilter === 'weather') {
+          query = query.or('name.ilike.%NOAA%,name.ilike.%GOES%');
+        } else if (satFilter === 'active') {
+          // Cap heavy payload view for browser optimization
+          query = query.limit(3000);
+        }
 
-          const formattedSats = targetData.map((sat, index) => {
-            const incl = sat.INCLINATION || 0;
-            const meanMotion = sat.MEAN_MOTION || 15;
-            
-            let alt = 400; 
-            if (meanMotion < 2.0) alt = 1200; 
-            else if (meanMotion < 4.0) alt = 800;
+        const { data, error } = await query;
 
-            const nameStr = sat.OBJECT_NAME?.trim() || `SAT-${index}`;
-            let org = 'Independent / International';
-            if (nameStr.includes('ISS') || nameStr.includes('ZARYA')) org = 'NASA / Roscosmos / International';
-            else if (nameStr.includes('STARLINK')) org = 'SpaceX (USA)';
-            else if (nameStr.includes('NOAA') || nameStr.includes('GOES')) org = 'NOAA (USA)';
-            else if (nameStr.includes('COSMOS')) org = 'Roscosmos (Russia)';
-            else if (nameStr.includes('GPS')) org = 'US Space Force';
+        if (error) throw error;
 
+        if (data) {
+          const formattedSats = data.map((sat) => {
+            const nameStr = sat.name || 'UNKNOWN';
             return {
-              id: sat.NORAD_CAT_ID || index,
-              name: nameStr,
-              lat: incl > 90 ? 180 - incl : incl,
-              lng: (index * 25) % 360 - 180,
-              inclination: incl,
-              altitude: alt / 2500, 
+              ...sat,
               color: nameStr.includes('ISS') ? '#22c55e' : nameStr.includes('STARLINK') ? '#38bdf8' : '#3b82f6',
-              velocity: `${(Math.sqrt(398600 / (6371 + alt))).toFixed(2)} km/s`,
-              organization: org
             };
           });
 
-          satCacheRef.current[queryGroup] = formattedSats;
+          satCacheRef.current[satFilter] = formattedSats;
           setSatellites(formattedSats);
         }
       } catch (err) {
-        console.log('CelesTrak fetch error or timeout:', err);
+        console.log('Supabase fetch error:', err);
         setSatellites([]);
       } finally {
         setLoadingSats(false);
       }
     };
 
-    fetchRealSatellites();
+    fetchSupabaseSatellites();
   }, [satFilter]);
 
   // Orbital paths generator
@@ -166,7 +154,7 @@ export default function OrbitalGlobe() {
           </span>
           {[
             { key: 'pads', label: 'Launch Pads' },
-            { key: 'satellites', label: `Live 3D WebGL Satellites (${satellites.length})` }
+            { key: 'satellites', label: `Live Database Satellites (${satellites.length})` }
           ].map((btn) => (
             <button
               key={btn.key}
@@ -287,7 +275,7 @@ export default function OrbitalGlobe() {
 
         {loadingSats && (
           <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.85)', padding: '0.4rem 0.8rem', border: '1px solid #38bdf8', zIndex: 10 }}>
-            <span style={{ fontSize: '0.65rem', color: '#38bdf8', letterSpacing: '1px' }}>STREAMING SATELLITE CATALOG...</span>
+            <span style={{ fontSize: '0.65rem', color: '#38bdf8', letterSpacing: '1px' }}>QUERYING SUPABASE DATABASE...</span>
           </div>
         )}
       </div>
