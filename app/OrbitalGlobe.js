@@ -55,8 +55,14 @@ export default function OrbitalGlobe() {
   const [hoveredSat, setHoveredSat] = useState(null);
 
   const [satellites, setSatellites] = useState([]);
+  
+  // Wiki Pagination State
   const [wikiData, setWikiData] = useState([]);
   const [wikiSearch, setWikiSearch] = useState('');
+  const [wikiPage, setWikiPage] = useState(0);
+  const [totalWikiCount, setTotalWikiCount] = useState(0);
+  const pageSize = 50;
+
   const [loadingSats, setLoadingSats] = useState(false);
   const satCacheRef = useRef({});
 
@@ -96,7 +102,7 @@ export default function OrbitalGlobe() {
               ...sat,
               lat: sat.lat || ((index * 37) % 140) - 70,
               lng: sat.lng || ((index * 53) % 360) - 180,
-              altitude: sat.altitude || 0.1,
+              altitude: sat.altitude || 0.15, // Elevated slightly to eliminate depth-buffer flicker
               speed: 0.05 + ((index % 5) * 0.02),
               inclination: sat.inclination || (45 + (index % 30)),
               color: nameStr.includes('ISS') ? '#22c55e' : nameStr.includes('STARLINK') ? '#38bdf8' : '#3b82f6',
@@ -117,20 +123,30 @@ export default function OrbitalGlobe() {
     fetchSupabaseSatellites();
   }, [satFilter, viewMode]);
 
-  // Lazy load Wiki master catalog
+  // Paginated Wiki master catalog fetch with count
   useEffect(() => {
     if (viewMode !== 'wiki') return;
     const fetchWikiCatalog = async () => {
       setLoadingSats(true);
       try {
-        const { data, error } = await supabase
+        const from = wikiPage * pageSize;
+        const to = from + pageSize - 1;
+
+        let query = supabase
           .from('satellites')
-          .select('*')
-          .ilike('name', `%${wikiSearch}%`)
-          .limit(100);
+          .select('*', { count: 'exact' });
+
+        if (wikiSearch.trim() !== '') {
+          query = query.ilike('name', `%${wikiSearch}%`);
+        }
+
+        const { data, count, error } = await query
+          .order('id', { ascending: true })
+          .range(from, to);
 
         if (error) throw error;
         setWikiData(data || []);
+        setTotalWikiCount(count || 0);
       } catch (err) {
         console.error('Wiki fetch error:', err);
       } finally {
@@ -139,7 +155,7 @@ export default function OrbitalGlobe() {
     };
     const timer = setTimeout(fetchWikiCatalog, 300);
     return () => clearTimeout(timer);
-  }, [wikiSearch, viewMode]);
+  }, [wikiSearch, wikiPage, viewMode]);
 
   // Real-time orbital motion animation loop for satellites + syncing selectedSat coordinates
   useEffect(() => {
@@ -151,7 +167,6 @@ export default function OrbitalGlobe() {
           return { ...sat, lng: nextLng };
         });
 
-        // Keep selectedSat coordinates updated in real-time if one is active
         setSelectedSat(currSelected => {
           if (!currSelected) return null;
           const match = updated.find(s => s.id === currSelected.id);
@@ -164,7 +179,7 @@ export default function OrbitalGlobe() {
     return () => clearInterval(interval);
   }, [viewMode]);
 
-  // Processed satellites with focus mode and perfectly proportioned clickable point sizing
+  // Processed satellites with focus mode and anti-flicker altitude layering
   const renderSatellites = useMemo(() => {
     return satellites.map(sat => {
       const isFocused = hoveredSat?.id === sat.id || selectedSat?.id === sat.id;
@@ -172,7 +187,8 @@ export default function OrbitalGlobe() {
       return {
         ...sat,
         color: isDimmed ? 'rgba(59, 130, 246, 0.15)' : sat.color,
-        radius: isFocused ? 1.2 : 0.75
+        radius: isFocused ? 1.2 : 0.75,
+        altitude: isFocused ? 0.22 : 0.15
       };
     });
   }, [satellites, hoveredSat, selectedSat]);
@@ -185,10 +201,12 @@ export default function OrbitalGlobe() {
     for (let i = -180; i <= 180; i += 4) {
       const rad = (i * Math.PI) / 180;
       const lat = Math.sin(rad) * inc;
-      points.push({ lat, lng: i, altitude: (selectedSat.altitude || 0.1) + 0.02 });
+      points.push({ lat, lng: i, altitude: 0.18 });
     }
     return [points];
   }, [selectedSat]);
+
+  const maxPages = Math.ceil(totalWikiCount / pageSize);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%', maxWidth: '1400px', margin: '0 auto' }}>
@@ -211,9 +229,9 @@ export default function OrbitalGlobe() {
         }
       `}</style>
 
-      {/* View & Filter Controllers */}
+      {/* View & Filter Controllers with Properly Placed Wiki Mode Button */}
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '700' }}>
             // DISPLAY MODE:
           </span>
@@ -352,17 +370,17 @@ export default function OrbitalGlobe() {
           )}
         </div>
       ) : (
-        /* Satellite Wiki Master Catalog View */
+        /* Satellite Wiki Master Catalog View with Pagination */
         <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '2px', border: '1px solid rgba(56, 189, 248, 0.3)', background: 'rgba(10, 15, 25, 0.9)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
             <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>
-              // SATELLITE WIKI & MASTER DIRECTORY (16K+ RECORDS)
+              // SATELLITE WIKI & MASTER DIRECTORY (TOTAL RECORDS: {totalWikiCount})
             </span>
             <input
               type="text"
               placeholder="Search by satellite name or NORAD ID..."
               value={wikiSearch}
-              onChange={e => setWikiSearch(e.target.value)}
+              onChange={e => { setWikiSearch(e.target.value); setWikiPage(0); }}
               style={{
                 background: 'rgba(0,0,0,0.5)',
                 border: '1px solid rgba(56, 189, 248, 0.4)',
@@ -376,7 +394,7 @@ export default function OrbitalGlobe() {
             />
           </div>
 
-          <div style={{ maxHeight: '450px', overflowY: 'auto' }}>
+          <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', fontFamily: 'monospace', color: '#d1d5db' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(56, 189, 248, 0.3)', textAlign: 'left', color: '#38bdf8' }}>
@@ -397,6 +415,43 @@ export default function OrbitalGlobe() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Pagination Controls Bar */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', borderTop: '1px solid rgba(56, 189, 248, 0.2)', paddingTop: '0.8rem' }}>
+            <span style={{ fontSize: '0.65rem', color: '#a1a1aa' }}>
+              PAGE {wikiPage + 1} OF {Math.max(1, maxPages)}
+            </span>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                disabled={wikiPage === 0}
+                onClick={() => setWikiPage(p => Math.max(0, p - 1))}
+                style={{
+                  padding: '0.4rem 0.8rem',
+                  background: wikiPage === 0 ? 'rgba(255,255,255,0.02)' : 'rgba(56, 189, 248, 0.2)',
+                  border: '1px solid rgba(56, 189, 248, 0.4)',
+                  color: wikiPage === 0 ? '#52525b' : '#ffffff',
+                  fontSize: '0.65rem',
+                  cursor: wikiPage === 0 ? 'not-allowed' : 'pointer'
+                }}
+              >
+                PREV PAGE
+              </button>
+              <button
+                disabled={wikiPage + 1 >= maxPages}
+                onClick={() => setWikiPage(p => p + 1)}
+                style={{
+                  padding: '0.4rem 0.8rem',
+                  background: wikiPage + 1 >= maxPages ? 'rgba(255,255,255,0.02)' : 'rgba(56, 189, 248, 0.2)',
+                  border: '1px solid rgba(56, 189, 248, 0.4)',
+                  color: wikiPage + 1 >= maxPages ? '#52525b' : '#ffffff',
+                  fontSize: '0.65rem',
+                  cursor: wikiPage + 1 >= maxPages ? 'not-allowed' : 'pointer'
+                }}
+              >
+                NEXT PAGE
+              </button>
+            </div>
           </div>
         </div>
       )}
