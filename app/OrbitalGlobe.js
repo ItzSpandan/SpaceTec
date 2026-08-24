@@ -53,7 +53,7 @@ export default function OrbitalGlobe() {
 
   const filteredPads = globalLaunchPads.filter(p => padFilter === 'all' || p.type === padFilter);
 
-  // Fetch telemetry data from CelesTrak
+  // Fetch telemetry data from CelesTrak without length limits
   useEffect(() => {
     const fetchRealSatellites = async () => {
       let queryGroup = satFilter;
@@ -73,9 +73,8 @@ export default function OrbitalGlobe() {
         const data = await res.json();
 
         if (Array.isArray(data)) {
-          const targetData = data.length > 1500 ? data.slice(0, 1500) : data;
-
-          const formattedSats = targetData.map((sat, index) => {
+          // Limit removed: mapping every single satellite returned from the endpoint
+          const formattedSats = data.map((sat, index) => {
             const incl = sat.INCLINATION || 0;
             const meanMotion = sat.MEAN_MOTION || 15;
             
@@ -133,7 +132,6 @@ export default function OrbitalGlobe() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%', maxWidth: '1400px', margin: '0 auto' }}>
       
-      {/* Inline Styles for Moving Starfield Background Animation */}
       <style>{`
         @keyframes spaceScroll {
           0% { background-position: 0 0; }
@@ -162,7 +160,7 @@ export default function OrbitalGlobe() {
           </span>
           {[
             { key: 'pads', label: 'Launch Pads' },
-            { key: 'satellites', label: 'Live 3D WebGL Satellite Radar' }
+            { key: 'satellites', label: `Live 3D WebGL Satellites (${satellites.length})` }
           ].map((btn) => (
             <button
               key={btn.key}
@@ -235,7 +233,7 @@ export default function OrbitalGlobe() {
         )}
       </div>
 
-      {/* Globe Component with Animated Space Background and Transparent WebGL Canvas */}
+      {/* Globe Component */}
       <div 
         className="moving-space-bg" 
         style={{ position: 'relative', width: '100%', height: '550px', borderRadius: '2px', overflow: 'hidden', border: '1px solid rgba(59, 130, 246, 0.3)' }}
@@ -251,7 +249,7 @@ export default function OrbitalGlobe() {
             pointLng="lng"
             pointAltitude={viewMode === 'pads' ? 0.02 : 'altitude'}
             pointColor={d => viewMode === 'pads' ? (d.type === 'major' ? '#3b82f6' : '#2dd4bf') : d.color}
-            pointRadius={viewMode === 'pads' ? 1.5 : 0.6}
+            pointRadius={viewMode === 'pads' ? 1.5 : 0.5}
             pathsData={orbitalPaths}
             pathColor={() => '#ffffff'}
             pathDashLength={0.15}
@@ -283,12 +281,12 @@ export default function OrbitalGlobe() {
 
         {loadingSats && (
           <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.85)', padding: '0.4rem 0.8rem', border: '1px solid #38bdf8', zIndex: 10 }}>
-            <span style={{ fontSize: '0.65rem', color: '#38bdf8', letterSpacing: '1px' }}>STREAMING SATELLITE CATALOG...</span>
+            <span style={{ fontSize: '0.65rem', color: '#38bdf8', letterSpacing: '1px' }}>STREAMING FULL SATELLITE CATALOG...</span>
           </div>
         )}
       </div>
 
-      {/* Persistent Bottom Name Cards / Details Panel */}
+      {/* Details Panels */}
       {viewMode === 'pads' && (
         <div className="glass-card" style={{ padding: '1.2rem', borderRadius: '2px', border: '1px solid rgba(59, 130, 246, 0.3)', background: 'rgba(10, 15, 25, 0.9)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
@@ -339,7 +337,7 @@ export default function OrbitalGlobe() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '0.8rem' }}>
             <div>
               <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>OBJECT NAME</p>
-              <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1rem', color: '#ffffff' }}>{selectedSat.name}</h3>
+              <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1.0rem', color: '#ffffff' }}>{selectedSat.name}</h3>
             </div>
             <div>
               <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>ORGANIZATION</p>
