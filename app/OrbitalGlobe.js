@@ -64,7 +64,7 @@ export default function OrbitalGlobe() {
 
   // Fetch core performance-capped telemetry from Supabase for the 3D globe
   useEffect(() => {
-    if (viewMode === 'wiki') return; // Don't fetch globe sats if viewing wiki
+    if (viewMode === 'wiki') return;
 
     const fetchSupabaseSatellites = async () => {
       if (satCacheRef.current[satFilter]) {
@@ -92,13 +92,13 @@ export default function OrbitalGlobe() {
         if (data) {
           const formattedSats = data.map((sat, index) => {
             const nameStr = sat.name || 'UNKNOWN';
-            // Give them starting orbital parameters based on index if missing
             return {
               ...sat,
               lat: sat.lat || ((index * 37) % 140) - 70,
               lng: sat.lng || ((index * 53) % 360) - 180,
               altitude: sat.altitude || 0.1,
               speed: 0.05 + ((index % 5) * 0.02),
+              inclination: sat.inclination || (45 + (index % 30)),
               color: nameStr.includes('ISS') ? '#22c55e' : nameStr.includes('STARLINK') ? '#38bdf8' : '#3b82f6',
             };
           });
@@ -117,7 +117,7 @@ export default function OrbitalGlobe() {
     fetchSupabaseSatellites();
   }, [satFilter, viewMode]);
 
-  // Lazy load Wiki master catalog (all records / searchable)
+  // Lazy load Wiki master catalog
   useEffect(() => {
     if (viewMode !== 'wiki') return;
     const fetchWikiCatalog = async () => {
@@ -127,7 +127,7 @@ export default function OrbitalGlobe() {
           .from('satellites')
           .select('*')
           .ilike('name', `%${wikiSearch}%`)
-          .limit(100); // Pagination buffer for fast render
+          .limit(100);
 
         if (error) throw error;
         setWikiData(data || []);
@@ -141,21 +141,30 @@ export default function OrbitalGlobe() {
     return () => clearTimeout(timer);
   }, [wikiSearch, viewMode]);
 
-  // Real-time orbital motion animation loop for satellites
+  // Real-time orbital motion animation loop for satellites + syncing selectedSat coordinates
   useEffect(() => {
     if (viewMode !== 'satellites') return;
     const interval = setInterval(() => {
-      setSatellites(prev =>
-        prev.map(sat => ({
-          ...sat,
-          lng: (sat.lng + (sat.speed || 0.05)) > 180 ? -180 : sat.lng + (sat.speed || 0.05)
-        }))
-      );
+      setSatellites(prev => {
+        const updated = prev.map(sat => {
+          const nextLng = (sat.lng + (sat.speed || 0.05)) > 180 ? -180 : sat.lng + (sat.speed || 0.05);
+          return { ...sat, lng: nextLng };
+        });
+
+        // Keep selectedSat coordinates updated in real-time if one is active
+        setSelectedSat(currSelected => {
+          if (!currSelected) return null;
+          const match = updated.find(s => s.id === currSelected.id);
+          return match ? { ...currSelected, lat: match.lat, lng: match.lng } : currSelected;
+        });
+
+        return updated;
+      });
     }, 50);
     return () => clearInterval(interval);
   }, [viewMode]);
 
-  // Processed satellites with focus mode (dimming background items on hover/selection)
+  // Processed satellites with focus mode and perfectly proportioned clickable point sizing
   const renderSatellites = useMemo(() => {
     return satellites.map(sat => {
       const isFocused = hoveredSat?.id === sat.id || selectedSat?.id === sat.id;
@@ -163,23 +172,23 @@ export default function OrbitalGlobe() {
       return {
         ...sat,
         color: isDimmed ? 'rgba(59, 130, 246, 0.15)' : sat.color,
-        radius: isFocused ? 0.9 : 0.4
+        radius: isFocused ? 1.2 : 0.75
       };
     });
   }, [satellites, hoveredSat, selectedSat]);
 
-  // Orbital paths generator for selected satellite
-  const orbitalPaths = selectedSat ? (() => {
+  // Validated spherical orbital paths generator for selected satellite
+  const orbitalPaths = useMemo(() => {
+    if (!selectedSat) return [];
     const points = [];
     const inc = selectedSat.inclination || 45;
-    for (let i = 0; i <= 360; i += 5) {
+    for (let i = -180; i <= 180; i += 4) {
       const rad = (i * Math.PI) / 180;
       const lat = Math.sin(rad) * inc;
-      const lng = i - 180;
-      points.push({ lat, lng, altitude: (selectedSat.altitude || 0.1) + 0.02 });
+      points.push({ lat, lng: i, altitude: (selectedSat.altitude || 0.1) + 0.02 });
     }
     return [points];
-  })() : [];
+  }, [selectedSat]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%', maxWidth: '1400px', margin: '0 auto' }}>
@@ -300,18 +309,21 @@ export default function OrbitalGlobe() {
               pointLng="lng"
               pointAltitude={viewMode === 'pads' ? 0.02 : 'altitude'}
               pointColor={d => viewMode === 'pads' ? (d.type === 'major' ? '#3b82f6' : '#2dd4bf') : d.color}
-              pointRadius={viewMode === 'pads' ? 1.5 : (d => d.radius || 0.4)}
-              pathsData={orbitalPaths}
-              pathColor={() => '#ffffff'}
-              pathDashLength={0.15}
-              pathDashGap={0.05}
-              pathDashAnimateTime={3000}
-              pathStroke={2}
-              ringsData={selectedSat ? [selectedSat] : (selectedPad ? [selectedPad] : [])}
+              pointRadius={viewMode === 'pads' ? 1.5 : (d => d.radius || 0.75)}
+              pathsData={viewMode === 'satellites' ? orbitalPaths : []}
+              pathColor={() => '#38bdf8'}
+              pathDashLength={0.2}
+              pathDashGap={0.08}
+              pathDashAnimateTime={2000}
+              pathStroke={2.5}
+              ringsData={viewMode === 'satellites' && selectedSat ? [selectedSat] : (viewMode === 'pads' && selectedPad ? [selectedPad] : [])}
               ringColor={() => '#38bdf8'}
               ringMaxRadius={6}
               ringPropagationSpeed={3}
               ringRepeatPeriod={500}
+              onGlobeClick={() => {
+                if (viewMode === 'satellites') setSelectedSat(null);
+              }}
               onPointClick={d => {
                 if (viewMode === 'pads') {
                   setSelectedPad(d);
@@ -389,7 +401,36 @@ export default function OrbitalGlobe() {
         </div>
       )}
 
-      {/* Bottom Selected Satellite Inspector Card */}
+      {/* Bottom Contextual Panels: Launch Pads vs Selected Satellite Inspector */}
+      {viewMode === 'pads' && selectedPad && (
+        <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '2px', border: '1px solid rgba(59, 130, 246, 0.3)', background: 'rgba(10, 15, 25, 0.85)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.65rem', color: '#3b82f6', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>
+              // ACTIVE LAUNCH FACILITY TELEMETRY
+            </span>
+            <span style={{ fontSize: '0.65rem', color: '#2dd4bf' }}>STATUS: OPERATIONAL</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '0.8rem' }}>
+            <div>
+              <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>FACILITY NAME</p>
+              <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1.0rem', color: '#ffffff' }}>{selectedPad.name}</h3>
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>OPERATING AGENCY</p>
+              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#3b82f6', fontWeight: '700' }}>{selectedPad.agency}</p>
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>COUNTRY / REGION</p>
+              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#ffffff' }}>{selectedPad.country}</p>
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>COORDINATES</p>
+              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#2dd4bf' }}>{selectedPad.lat.toFixed(4)}°, {selectedPad.lng.toFixed(4)}°</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {viewMode === 'satellites' && selectedSat && (
         <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '2px', border: '1px solid rgba(56, 189, 248, 0.3)', background: 'rgba(10, 15, 25, 0.85)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
