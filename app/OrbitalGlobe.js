@@ -56,7 +56,7 @@ export default function OrbitalGlobe() {
 
   const [satellites, setSatellites] = useState([]);
   
-  // Wiki Pagination State
+  // Wiki Pagination & Universal Search State
   const [wikiData, setWikiData] = useState([]);
   const [wikiSearch, setWikiSearch] = useState('');
   const [wikiPage, setWikiPage] = useState(0);
@@ -68,7 +68,7 @@ export default function OrbitalGlobe() {
 
   const filteredPads = globalLaunchPads.filter(p => padFilter === 'all' || p.type === padFilter);
 
-  // Fetch core performance-capped telemetry from Supabase for the 3D globe
+  // Fetch core telemetry from Supabase for the 3D globe (capped safely for performance)
   useEffect(() => {
     if (viewMode === 'wiki') return;
 
@@ -85,11 +85,11 @@ export default function OrbitalGlobe() {
         if (satFilter === 'stations') {
           query = query.ilike('name', '%ISS%');
         } else if (satFilter === 'starlink') {
-          query = query.ilike('name', '%STARLINK%').limit(1500);
+          query = query.ilike('name', '%STARLINK%').limit(1000); // Reduced cap slightly to prevent WebGL point crowding/flicker
         } else if (satFilter === 'weather') {
           query = query.or('name.ilike.%NOAA%,name.ilike.%GOES%');
         } else if (satFilter === 'active') {
-          query = query.limit(2500);
+          query = query.limit(1500); // Optimized cap for smooth 60 FPS rendering without depth fighting
         }
 
         const { data, error } = await query;
@@ -102,8 +102,8 @@ export default function OrbitalGlobe() {
               ...sat,
               lat: sat.lat || ((index * 37) % 140) - 70,
               lng: sat.lng || ((index * 53) % 360) - 180,
-              altitude: sat.altitude || 0.15, // Elevated slightly to eliminate depth-buffer flicker
-              speed: 0.05 + ((index % 5) * 0.02),
+              altitude: sat.altitude || 0.18, 
+              speed: 0.03 + ((index % 5) * 0.015),
               inclination: sat.inclination || (45 + (index % 30)),
               color: nameStr.includes('ISS') ? '#22c55e' : nameStr.includes('STARLINK') ? '#38bdf8' : '#3b82f6',
             };
@@ -123,7 +123,7 @@ export default function OrbitalGlobe() {
     fetchSupabaseSatellites();
   }, [satFilter, viewMode]);
 
-  // Paginated Wiki master catalog fetch with count
+  // Universal Database Server-Side Search & Pagination for Wiki (Searches ID/Name globally across all 16k+ records)
   useEffect(() => {
     if (viewMode !== 'wiki') return;
     const fetchWikiCatalog = async () => {
@@ -136,8 +136,14 @@ export default function OrbitalGlobe() {
           .from('satellites')
           .select('*', { count: 'exact' });
 
-        if (wikiSearch.trim() !== '') {
-          query = query.ilike('name', `%${wikiSearch}%`);
+        const trimmedSearch = wikiSearch.trim();
+        if (trimmedSearch !== '') {
+          // If input is purely numeric, search both ID and name; otherwise search by name
+          if (!isNaN(trimmedSearch)) {
+            query = query.or(`name.ilike.%${trimmedSearch}%,id.eq.${trimmedSearch}`);
+          } else {
+            query = query.ilike('name', `%${trimmedSearch}%`);
+          }
         }
 
         const { data, count, error } = await query
@@ -187,8 +193,8 @@ export default function OrbitalGlobe() {
       return {
         ...sat,
         color: isDimmed ? 'rgba(59, 130, 246, 0.15)' : sat.color,
-        radius: isFocused ? 1.2 : 0.75,
-        altitude: isFocused ? 0.22 : 0.15
+        radius: isFocused ? 1.2 : 0.7,
+        altitude: isFocused ? 0.25 : 0.18
       };
     });
   }, [satellites, hoveredSat, selectedSat]);
@@ -201,7 +207,7 @@ export default function OrbitalGlobe() {
     for (let i = -180; i <= 180; i += 4) {
       const rad = (i * Math.PI) / 180;
       const lat = Math.sin(rad) * inc;
-      points.push({ lat, lng: i, altitude: 0.18 });
+      points.push({ lat, lng: i, altitude: 0.20 });
     }
     return [points];
   }, [selectedSat]);
@@ -229,7 +235,7 @@ export default function OrbitalGlobe() {
         }
       `}</style>
 
-      {/* View & Filter Controllers with Properly Placed Wiki Mode Button */}
+      {/* View & Filter Controllers */}
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '700' }}>
@@ -310,7 +316,7 @@ export default function OrbitalGlobe() {
         )}
       </div>
 
-      {/* Conditional Globe vs Wiki View */}
+      {/* Conditional Globe vs Fully Transparent/Black Wiki View */}
       {viewMode !== 'wiki' ? (
         <div 
           className="moving-space-bg" 
@@ -327,7 +333,7 @@ export default function OrbitalGlobe() {
               pointLng="lng"
               pointAltitude={viewMode === 'pads' ? 0.02 : 'altitude'}
               pointColor={d => viewMode === 'pads' ? (d.type === 'major' ? '#3b82f6' : '#2dd4bf') : d.color}
-              pointRadius={viewMode === 'pads' ? 1.5 : (d => d.radius || 0.75)}
+              pointRadius={viewMode === 'pads' ? 1.5 : (d => d.radius || 0.7)}
               pathsData={viewMode === 'satellites' ? orbitalPaths : []}
               pathColor={() => '#38bdf8'}
               pathDashLength={0.2}
@@ -370,34 +376,34 @@ export default function OrbitalGlobe() {
           )}
         </div>
       ) : (
-        /* Satellite Wiki Master Catalog View with Pagination */
-        <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '2px', border: '1px solid rgba(56, 189, 248, 0.3)', background: 'rgba(10, 15, 25, 0.9)' }}>
+        /* Satellite Wiki Master Catalog View with Transparent/Black Command Styling */
+        <div style={{ padding: '1.5rem', borderRadius: '2px', border: '1px solid rgba(56, 189, 248, 0.3)', background: '#020617' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
             <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>
-              // SATELLITE WIKI & MASTER DIRECTORY (TOTAL RECORDS: {totalWikiCount})
+              // SATELLITE WIKI & MASTER DIRECTORY (TOTAL MATCHES: {totalWikiCount})
             </span>
             <input
               type="text"
-              placeholder="Search by satellite name or NORAD ID..."
+              placeholder="Search by name or NORAD ID across all records..."
               value={wikiSearch}
               onChange={e => { setWikiSearch(e.target.value); setWikiPage(0); }}
               style={{
-                background: 'rgba(0,0,0,0.5)',
+                background: 'rgba(0,0,0,0.8)',
                 border: '1px solid rgba(56, 189, 248, 0.4)',
                 padding: '0.5rem 1rem',
                 color: '#fff',
                 fontSize: '0.75rem',
                 fontFamily: 'monospace',
-                width: '300px',
+                width: '320px',
                 outline: 'none'
               }}
             />
           </div>
 
           <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', fontFamily: 'monospace', color: '#d1d5db' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', fontFamily: 'monospace', color: '#d1d5db', background: 'transparent' }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid rgba(56, 189, 248, 0.3)', textAlign: 'left', color: '#38bdf8' }}>
+                <tr style={{ borderBottom: '1px solid rgba(56, 189, 248, 0.3)', textAlign: 'left', color: '#38bdf8', background: 'rgba(0,0,0,0.4)' }}>
                   <th style={{ padding: '0.6rem' }}>NORAD ID</th>
                   <th style={{ padding: '0.6rem' }}>OBJECT NAME</th>
                   <th style={{ padding: '0.6rem' }}>ORGANIZATION</th>
@@ -406,7 +412,7 @@ export default function OrbitalGlobe() {
               </thead>
               <tbody>
                 {wikiData.map((item) => (
-                  <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
                     <td style={{ padding: '0.6rem', color: '#2dd4bf' }}>{item.id}</td>
                     <td style={{ padding: '0.6rem', color: '#fff', fontWeight: 'bold' }}>{item.name}</td>
                     <td style={{ padding: '0.6rem' }}>{item.organization || 'Unknown'}</td>
@@ -418,7 +424,7 @@ export default function OrbitalGlobe() {
           </div>
 
           {/* Pagination Controls Bar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', borderTop: '1px solid rgba(56, 189, 248, 0.2)', paddingTop: '0.8rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', borderTop: '1px solid rgba(56, 189, 248, 0.2)', paddingTop: '0.8rem', background: 'transparent' }}>
             <span style={{ fontSize: '0.65rem', color: '#a1a1aa' }}>
               PAGE {wikiPage + 1} OF {Math.max(1, maxPages)}
             </span>
