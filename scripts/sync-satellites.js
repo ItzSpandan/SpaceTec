@@ -39,7 +39,8 @@ async function runSync() {
 
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false }, realtime: { autoConnect: false } }
   );
 
   console.log(`Syncing ${formattedSats.length} satellites to Supabase...`);
