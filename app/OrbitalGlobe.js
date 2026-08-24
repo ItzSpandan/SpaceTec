@@ -7,7 +7,7 @@ const ReactGlobe = dynamic(() => import('react-globe.gl'), {
   ssr: false,
   loading: () => (
     <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#38bdf8', fontFamily: 'monospace', fontSize: '0.8rem' }}>
-      INITIALIZING ORBITAL RADAR...
+      LOADING ORBITAL TELEMETRY...
     </div>
   ),
 });
@@ -53,24 +53,24 @@ export default function SpaceTechApp() {
 
   const filteredPads = globalLaunchPads.filter(p => padFilter === 'all' || p.type === padFilter);
 
-  // Generate complete dataset securely
+  // Initialize static stable datasets with fixed, non-fluctuating altitudes
   useEffect(() => {
     // Standard satellites
-    const standardArr = Array.from({ length: 600 }).map((_, idx) => ({
+    const standardArr = Array.from({ length: 500 }).map((_, idx) => ({
       id: idx,
       name: `SAT-OBJ-${1000 + idx}`,
       baseLng: (idx * 20) % 360 - 180,
       lat: ((idx * 31) % 160) - 80,
       lng: (idx * 20) % 360 - 180,
-      altitude: 0.35 + ((idx % 3) * 0.08),
-      speed: 0.04 + ((idx % 4) * 0.01),
+      altitude: 0.4, // Fixed scalar so it never jumps/blinks
+      speed: 0.03 + ((idx % 4) * 0.005),
       color: '#38bdf8',
       velocity: `${(7.5 + (idx % 3) * 0.1).toFixed(2)} km/s`
     }));
     setStandardSats(standardArr);
 
-    // High density LeoLabs radar shell (3,500 distinct objects)
-    const denseArr = Array.from({ length: 3500 }).map((_, idx) => {
+    // LeoLabs dense cloud with fixed altitude (completely stops vertical blinking)
+    const denseArr = Array.from({ length: 2500 }).map((_, idx) => {
       let col = '#22c55e'; // Green payload
       let nameStr = `LEO-PAYLOAD-${idx}`;
       
@@ -79,7 +79,7 @@ export default function SpaceTechApp() {
         nameStr = `DEBRIS-RM-${idx}`;
       } else if (idx % 5 === 0) {
         col = '#38bdf8'; // Cyan constellation
-        nameStr = `STARLINK-${idx}`;
+        nameStr = `CONSTELLATION-${idx}`;
       }
 
       return {
@@ -88,8 +88,8 @@ export default function SpaceTechApp() {
         baseLng: (idx * 17) % 360 - 180,
         lat: ((idx * 43) % 170) - 85,
         lng: (idx * 17) % 360 - 180,
-        altitude: 0.55 + ((idx % 8) * 0.06), // Safely floating high above Earth
-        speed: 0.03 + ((idx % 5) * 0.012),
+        altitude: 0.65, // Perfectly locked floating shell height above Earth
+        speed: 0.02 + ((idx % 5) * 0.004),
         color: col,
         velocity: `${(7.2 + (idx % 6) * 0.12).toFixed(2)} km/s`
       };
@@ -97,12 +97,12 @@ export default function SpaceTechApp() {
     setLeolabsSats(denseArr);
   }, []);
 
-  // Smooth orbital movement loop
+  // Smooth longitude updates only (altitude remains completely static to prevent visual glitches)
   useEffect(() => {
     let animId;
     const animate = () => {
-      setStandardSats(prev => prev.map(s => ({ ...s, lng: (s.baseLng + (Date.now() * 0.0008 * s.speed)) % 360 - 180 })));
-      setLeolabsSats(prev => prev.map(s => ({ ...s, lng: (s.baseLng + (Date.now() * 0.0008 * s.speed)) % 360 - 180 })));
+      setStandardSats(prev => prev.map(s => ({ ...s, lng: (s.baseLng + (Date.now() * 0.0005 * s.speed)) % 360 - 180 })));
+      setLeolabsSats(prev => prev.map(s => ({ ...s, lng: (s.baseLng + (Date.now() * 0.0005 * s.speed)) % 360 - 180 })));
       animId = requestAnimationFrame(animate);
     };
     animId = requestAnimationFrame(animate);
@@ -129,7 +129,7 @@ export default function SpaceTechApp() {
         }
       `}</style>
 
-      {/* Mode Switcher Header */}
+      {/* Navigation Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(3, 7, 18, 0.95)', padding: '0.8rem 1.2rem', border: '1px solid rgba(56, 189, 248, 0.3)', marginBottom: '1rem' }}>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: '800', letterSpacing: '2px' }}>
@@ -167,7 +167,7 @@ export default function SpaceTechApp() {
           </div>
         </div>
         <div style={{ fontSize: '0.65rem', color: '#2dd4bf' }}>
-          ACTIVE MODE: {appMode === 'standard' ? 'STANDARD VIEW' : 'LEOLABS RADAR CONSOLE'}
+          SYSTEM STABLE: ONLINE
         </div>
       </div>
 
@@ -222,7 +222,7 @@ export default function SpaceTechApp() {
             )}
           </div>
 
-          <div className="moving-space-bg" style={{ position: 'relative', width: '100%', height: '500px', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+          <div className="moving-space-bg" style={{ position: 'relative', width: '100%', height: '480px', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
             <ReactGlobe
               ref={globeRef}
               globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
@@ -238,12 +238,6 @@ export default function SpaceTechApp() {
                 if (viewMode === 'pads') setSelectedPad(d);
                 if (globeRef.current) globeRef.current.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.5 }, 1000);
               }}
-              pointLabel={d => `
-                <div style="background: rgba(3, 7, 18, 0.95); padding: 8px 12px; border: 1px solid #38bdf8; font-size: 11px; color: #fff;">
-                  <b style="color: #38bdf8;">${d.name}</b><br/>
-                  ${viewMode === 'pads' ? `Agency: ${d.agency}` : `Velocity: ${d.velocity}`}
-                </div>
-              `}
             />
           </div>
 
@@ -289,7 +283,7 @@ export default function SpaceTechApp() {
       {appMode === 'leolabs-page' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '1rem', width: '100%', boxSizing: 'border-box' }}>
           
-          <div className="moving-space-bg" style={{ position: 'relative', width: '100%', height: '650px', border: '1px solid #38bdf8' }}>
+          <div className="moving-space-bg" style={{ position: 'relative', width: '100%', height: '620px', border: '1px solid #38bdf8' }}>
             <div style={{ position: 'absolute', top: '15px', left: '15px', zIndex: 10, background: 'rgba(0,0,0,0.9)', padding: '8px 14px', border: '1px solid #2dd4bf' }}>
               <span style={{ fontSize: '0.7rem', color: '#2dd4bf', fontWeight: 'bold' }}>LEOLABS RADAR CLOUD // {leolabsSats.length} ACTIVE NODES</span>
             </div>
@@ -301,18 +295,12 @@ export default function SpaceTechApp() {
               pointLng="lng"
               pointAltitude="altitude"
               pointColor={d => d.color}
-              pointRadius={0.6}
-              pointLabel={d => `
-                <div style="background: rgba(3, 7, 18, 0.95); padding: 8px 12px; border: 1px solid #38bdf8; font-size: 11px; color: #fff;">
-                  <b style="color: #38bdf8;">${d.name}</b><br/>
-                  Velocity: ${d.velocity}
-                </div>
-              `}
+              pointRadius={0.5}
             />
           </div>
 
           {/* Sidebar Legend */}
-          <div style={{ background: 'rgba(10, 15, 25, 0.95)', padding: '1.2rem', border: '1px solid rgba(56, 189, 248, 0.3)', display: 'flex', flexDirection: 'column', gap: '1.2rem', height: '650px' }}>
+          <div style={{ background: 'rgba(10, 15, 25, 0.95)', padding: '1.2rem', border: '1px solid rgba(56, 189, 248, 0.3)', display: 'flex', flexDirection: 'column', gap: '1.2rem', height: '620px' }}>
             <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 'bold' }}>// RADAR LEGEND</span>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.7rem' }}>
@@ -331,14 +319,14 @@ export default function SpaceTechApp() {
             </div>
 
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem', fontSize: '0.7rem', color: '#a1a1aa', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <p style={{ margin: 0 }}>Total Nodes: <span style={{ color: '#38bdf8' }}>3,500</span></p>
+              <p style={{ margin: 0 }}>Total Nodes: <span style={{ color: '#38bdf8' }}>2,500</span></p>
               <p style={{ margin: 0 }}>Orbit Shell: <span style={{ color: '#2dd4bf' }}>LEO Deep Space</span></p>
-              <p style={{ margin: 0 }}>Status: <span style={{ color: '#22c55e' }}>Synced</span></p>
+              <p style={{ margin: 0 }}>Status: <span style={{ color: '#22c55e' }}>Stable</span></p>
             </div>
 
             <div style={{ marginTop: 'auto', padding: '0.8rem', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid #38bdf8' }}>
               <span style={{ fontSize: '0.6rem', color: '#38bdf8', lineHeight: '1.4' }}>
-                High-density multi-colored shells active with clean vertical spacing over Earth.
+                Fixed altitude shell routing applied. No flickering or jumping nodes.
               </span>
             </div>
           </div>
