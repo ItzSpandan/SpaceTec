@@ -53,7 +53,7 @@ export default function OrbitalGlobe() {
 
   const filteredPads = globalLaunchPads.filter(p => padFilter === 'all' || p.type === padFilter);
 
-  // Fetch telemetry data from CelesTrak without length limits
+  // Fetch telemetry data with network safety and fallback guards
   useEffect(() => {
     const fetchRealSatellites = async () => {
       let queryGroup = satFilter;
@@ -70,11 +70,16 @@ export default function OrbitalGlobe() {
       setLoadingSats(true);
       try {
         const res = await fetch(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${queryGroup}&FORMAT=json`);
+        
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        
         const data = await res.json();
 
         if (Array.isArray(data)) {
-          // Limit removed: mapping every single satellite returned from the endpoint
-          const formattedSats = data.map((sat, index) => {
+          // Cap the massive active payload to prevent browser memory crashes while keeping rendering smooth
+          const targetData = (satFilter === 'active' && data.length > 3000) ? data.slice(0, 3000) : data;
+
+          const formattedSats = targetData.map((sat, index) => {
             const incl = sat.INCLINATION || 0;
             const meanMotion = sat.MEAN_MOTION || 15;
             
@@ -107,7 +112,8 @@ export default function OrbitalGlobe() {
           setSatellites(formattedSats);
         }
       } catch (err) {
-        console.log('Network fallback triggered:', err);
+        console.log('CelesTrak fetch error or timeout:', err);
+        setSatellites([]);
       } finally {
         setLoadingSats(false);
       }
@@ -281,7 +287,7 @@ export default function OrbitalGlobe() {
 
         {loadingSats && (
           <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.85)', padding: '0.4rem 0.8rem', border: '1px solid #38bdf8', zIndex: 10 }}>
-            <span style={{ fontSize: '0.65rem', color: '#38bdf8', letterSpacing: '1px' }}>STREAMING FULL SATELLITE CATALOG...</span>
+            <span style={{ fontSize: '0.65rem', color: '#38bdf8', letterSpacing: '1px' }}>STREAMING SATELLITE CATALOG...</span>
           </div>
         )}
       </div>
