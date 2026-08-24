@@ -7,7 +7,7 @@ const ReactGlobe = dynamic(() => import('react-globe.gl'), {
   ssr: false,
   loading: () => (
     <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#38bdf8', fontFamily: 'monospace', fontSize: '0.8rem' }}>
-      INITIALIZING ORBITAL RADAR...
+      INITIALIZING ORBITAL GLOBE...
     </div>
   ),
 });
@@ -39,64 +39,36 @@ const globalLaunchPads = [
   { id: 24, name: 'Al-Dahik Launch Site', agency: 'NARSS', lat: 28.4890, lng: 30.4120, type: 'minor', country: 'Egypt' }
 ];
 
-export default function SpaceTechApp() {
+export default function OrbitalGlobeApp() {
   const globeRef = useRef(null);
   
-  const [appMode, setAppMode] = useState('standard'); 
-  const [viewMode, setViewMode] = useState('pads'); 
-  const [padFilter, setPadFilter] = useState('all'); 
+  const [viewMode, setViewMode] = useState('pads'); // 'pads' or 'satellites'
+  const [padFilter, setPadFilter] = useState('all'); // 'all', 'major', 'minor'
   const [selectedPad, setSelectedPad] = useState(globalLaunchPads[0]);
-  
-  const [standardSats, setStandardSats] = useState([]);
-  const [leolabsSats, setLeolabsSats] = useState([]);
+  const [satellites, setSatellites] = useState([]);
 
   const filteredPads = globalLaunchPads.filter(p => padFilter === 'all' || p.type === padFilter);
 
-  // Initialize stable datasets
+  // Generate clean satellite data simulation
   useEffect(() => {
-    const standardArr = Array.from({ length: 400 }).map((_, idx) => ({
+    const sats = Array.from({ length: 300 }).map((_, idx) => ({
       id: idx,
-      name: `SAT-OBJ-${1000 + idx}`,
-      baseLng: (idx * 25) % 360 - 180,
-      lat: ((idx * 37) % 150) - 75,
-      lng: (idx * 25) % 360 - 180,
+      name: `SAT-${1000 + idx}`,
+      baseLng: (idx * 30) % 360 - 180,
+      lat: ((idx * 23) % 140) - 70,
+      lng: (idx * 30) % 360 - 180,
       speed: 0.02 + ((idx % 3) * 0.005),
       color: '#38bdf8',
       velocity: `${(7.5 + (idx % 3) * 0.1).toFixed(2)} km/s`
     }));
-    setStandardSats(standardArr);
-
-    const denseArr = Array.from({ length: 1500 }).map((_, idx) => {
-      let col = '#22c55e'; 
-      let nameStr = `LEO-PAYLOAD-${idx}`;
-      if (idx % 4 === 0) {
-        col = '#ef4444'; 
-        nameStr = `DEBRIS-RM-${idx}`;
-      } else if (idx % 5 === 0) {
-        col = '#38bdf8'; 
-        nameStr = `CONSTELLATION-${idx}`;
-      }
-
-      return {
-        id: idx,
-        name: nameStr,
-        baseLng: (idx * 19) % 360 - 180,
-        lat: ((idx * 41) % 160) - 80,
-        lng: (idx * 19) % 360 - 180,
-        speed: 0.015 + ((idx % 4) * 0.003),
-        color: col,
-        velocity: `${(7.2 + (idx % 6) * 0.12).toFixed(2)} km/s`
-      };
-    });
-    setLeolabsSats(denseArr);
+    setSatellites(sats);
   }, []);
 
-  // Smooth longitude rotation loop
+  // Smooth orbit rotation
   useEffect(() => {
     let animId;
     const animate = () => {
-      setStandardSats(prev => prev.map(s => ({ ...s, lng: (s.baseLng + (Date.now() * 0.0004 * s.speed)) % 360 - 180 })));
-      setLeolabsSats(prev => prev.map(s => ({ ...s, lng: (s.baseLng + (Date.now() * 0.0004 * s.speed)) % 360 - 180 })));
+      setSatellites(prev => prev.map(s => ({ ...s, lng: (s.baseLng + (Date.now() * 0.0003 * s.speed)) % 360 - 180 })));
       animId = requestAnimationFrame(animate);
     };
     animId = requestAnimationFrame(animate);
@@ -104,7 +76,7 @@ export default function SpaceTechApp() {
   }, []);
 
   return (
-    <div style={{ width: '100%', maxWidth: '1440px', margin: '0 auto', padding: '1rem', boxSizing: 'border-box', fontFamily: 'monospace' }}>
+    <div style={{ width: '100%', maxWidth: '1400px', margin: '0 auto', padding: '1rem', boxSizing: 'border-box', fontFamily: 'monospace' }}>
       
       <style>{`
         @keyframes spaceScroll {
@@ -122,200 +94,123 @@ export default function SpaceTechApp() {
         }
       `}</style>
 
-      {/* Navigation Header */}
+      {/* Header Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(3, 7, 18, 0.95)', padding: '0.8rem 1.2rem', border: '1px solid rgba(56, 189, 248, 0.3)', marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: '800', letterSpacing: '2px' }}>
-            // SPACETEC COMMAND CENTER
-          </span>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              onClick={() => setAppMode('standard')}
-              style={{
-                padding: '0.4rem 0.9rem',
-                background: appMode === 'standard' ? '#0284c7' : 'transparent',
-                border: '1px solid #38bdf8',
-                color: '#fff',
-                fontSize: '0.65rem',
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              Standard Global View
-            </button>
-            <button
-              onClick={() => setAppMode('leolabs-page')}
-              style={{
-                padding: '0.4rem 0.9rem',
-                background: appMode === 'leolabs-page' ? '#0284c7' : 'transparent',
-                border: '1px solid #38bdf8',
-                color: '#fff',
-                fontSize: '0.65rem',
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              LeoLabs Full Page Radar Console
-            </button>
-          </div>
-        </div>
-        <div style={{ fontSize: '0.65rem', color: '#2dd4bf' }}>
-          STATUS: OPERATIONAL
-        </div>
+        <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: '800', letterSpacing: '2px' }}>
+          // SPACETEC ORBITAL GLOBE & LAUNCH PADS
+        </span>
+        <span style={{ fontSize: '0.65rem', color: '#2dd4bf' }}>STATUS: ONLINE</span>
       </div>
 
-      {/* STANDARD MODE */}
-      {appMode === 'standard' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-            <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
-              {[
-                { key: 'pads', label: 'Launch Facilities' },
-                { key: 'satellites', label: 'Satellite Cloud' }
-              ].map((btn) => (
-                <button
-                  key={btn.key}
-                  onClick={() => setViewMode(btn.key)}
+      {/* Controls / View Switcher */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
+          {[
+            { key: 'pads', label: 'Launch Facilities' },
+            { key: 'satellites', label: 'Satellite Constellation' }
+          ].map((btn) => (
+            <button
+              key={btn.key}
+              onClick={() => setViewMode(btn.key)}
+              style={{
+                padding: '0.5rem 1rem',
+                background: viewMode === btn.key ? '#0284c7' : 'rgba(255,255,255,0.05)',
+                border: `1px solid ${viewMode === btn.key ? '#38bdf8' : 'rgba(255,255,255,0.15)'}`,
+                color: '#ffffff',
+                fontSize: '0.7rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                textTransform: 'uppercase'
+              }}
+            >
+              {btn.label}
+            </button>
+          ))}
+        </div>
+
+        {viewMode === 'pads' && (
+          <div style={{ display: 'flex', gap: '0.4rem' }}>
+            {['all', 'major', 'minor'].map((f) => (
+              <button
+                key={f}
+                onClick={() => setPadFilter(f)}
+                style={{
+                  padding: '0.4rem 0.8rem',
+                  background: padFilter === f ? 'rgba(59, 130, 246, 0.4)' : 'transparent',
+                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                  color: '#ffffff',
+                  fontSize: '0.6rem',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer'
+                }}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Globe Container */}
+      <div className="moving-space-bg" style={{ position: 'relative', width: '100%', height: '480px', border: '1px solid rgba(56, 189, 248, 0.3)', marginBottom: '1rem' }}>
+        <ReactGlobe
+          ref={globeRef}
+          globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
+          bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+          backgroundColor="rgba(0,0,0,0)"
+          pointsData={viewMode === 'pads' ? filteredPads : satellites}
+          pointLat="lat"
+          pointLng="lng"
+          pointAltitude={0}
+          pointColor={d => viewMode === 'pads' ? '#38bdf8' : d.color}
+          pointRadius={viewMode === 'pads' ? 1.0 : 0.4}
+          onPointClick={d => {
+            if (viewMode === 'pads') setSelectedPad(d);
+            if (globeRef.current) globeRef.current.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.5 }, 1000);
+          }}
+          pointLabel={d => `
+            <div style="background: rgba(3, 7, 18, 0.95); padding: 8px 12px; border: 1px solid #38bdf8; font-size: 11px; color: #fff;">
+              <b style="color: #38bdf8;">${d.name}</b><br/>
+              ${viewMode === 'pads' ? `Agency: ${d.agency}` : `Velocity: ${d.velocity}`}
+            </div>
+          `}
+        />
+      </div>
+
+      {/* Launch Pad Cards Section */}
+      {viewMode === 'pads' && (
+        <div style={{ padding: '1.2rem', border: '1px solid rgba(59, 130, 246, 0.3)', background: 'rgba(10, 15, 25, 0.9)' }}>
+          <span style={{ fontSize: '0.65rem', color: '#3b82f6', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800', display: 'block', marginBottom: '0.8rem' }}>
+            // LAUNCH FACILITIES ({padFilter.toUpperCase()}: {filteredPads.length} SITES)
+          </span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '0.8rem', maxHeight: '200px', overflowY: 'auto' }}>
+            {filteredPads.map((pad) => {
+              const isSelected = selectedPad?.id === pad.id;
+              return (
+                <div
+                  key={pad.id}
+                  onClick={() => {
+                    setSelectedPad(pad);
+                    if (globeRef.current) globeRef.current.pointOfView({ lat: pad.lat, lng: pad.lng, altitude: 1.5 }, 1000);
+                  }}
                   style={{
-                    padding: '0.5rem 1rem',
-                    background: viewMode === btn.key ? '#0284c7' : 'rgba(255,255,255,0.05)',
-                    border: `1px solid ${viewMode === btn.key ? '#38bdf8' : 'rgba(255,255,255,0.15)'}`,
-                    color: '#ffffff',
-                    fontSize: '0.7rem',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    textTransform: 'uppercase'
+                    padding: '0.8rem',
+                    background: isSelected ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.02)',
+                    border: `1px solid ${isSelected ? '#3b82f6' : 'rgba(255, 255, 255, 0.08)'}`,
+                    cursor: 'pointer'
                   }}
                 >
-                  {btn.label}
-                </button>
-              ))}
-            </div>
-
-            {viewMode === 'pads' && (
-              <div style={{ display: 'flex', gap: '0.4rem' }}>
-                {['all', 'major', 'minor'].map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setPadFilter(f)}
-                    style={{
-                      padding: '0.4rem 0.8rem',
-                      background: padFilter === f ? 'rgba(59, 130, 246, 0.4)' : 'transparent',
-                      border: '1px solid rgba(59, 130, 246, 0.4)',
-                      color: '#ffffff',
-                      fontSize: '0.6rem',
-                      textTransform: 'uppercase',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {f}
-                  </button>
-                ))}
-              </div>
-            )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <h4 style={{ margin: 0, fontSize: '0.8rem', color: '#ffffff', fontWeight: '700' }}>{pad.name}</h4>
+                    <span style={{ fontSize: '0.55rem', padding: '2px 6px', background: pad.type === 'major' ? '#3b82f6' : '#2dd4bf', color: '#030712', fontWeight: '800' }}>
+                      {pad.type.toUpperCase()}
+                    </span>
+                  </div>
+                  <p style={{ margin: '0.3rem 0 0 0', fontSize: '0.7rem', color: '#2dd4bf' }}>{pad.agency}</p>
+                </div>
+              );
+            })}
           </div>
-
-          <div className="moving-space-bg" style={{ position: 'relative', width: '100%', height: '450px', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
-            <ReactGlobe
-              ref={globeRef}
-              globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
-              bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-              backgroundColor="rgba(0,0,0,0)"
-              pointsData={viewMode === 'pads' ? filteredPads : standardSats}
-              pointLat="lat"
-              pointLng="lng"
-              pointAltitude={0} // Forces flat circular dots on Earth's surface, removing all pillar bugs
-              pointColor={d => viewMode === 'pads' ? '#38bdf8' : d.color}
-              pointRadius={viewMode === 'pads' ? 0.8 : 0.4}
-              onPointClick={d => {
-                if (viewMode === 'pads') setSelectedPad(d);
-                if (globeRef.current) globeRef.current.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.5 }, 1000);
-              }}
-            />
-          </div>
-
-          {viewMode === 'pads' && (
-            <div style={{ padding: '1rem', border: '1px solid rgba(59, 130, 246, 0.3)', background: 'rgba(10, 15, 25, 0.9)' }}>
-              <span style={{ fontSize: '0.65rem', color: '#3b82f6', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800', display: 'block', marginBottom: '0.8rem' }}>
-                // LAUNCH FACILITIES ({padFilter.toUpperCase()}: {filteredPads.length} SITES)
-              </span>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '0.8rem', maxHeight: '160px', overflowY: 'auto' }}>
-                {filteredPads.map((pad) => {
-                  const isSelected = selectedPad?.id === pad.id;
-                  return (
-                    <div
-                      key={pad.id}
-                      onClick={() => {
-                        setSelectedPad(pad);
-                        if (globeRef.current) globeRef.current.pointOfView({ lat: pad.lat, lng: pad.lng, altitude: 1.5 }, 1000);
-                      }}
-                      style={{
-                        padding: '0.7rem',
-                        background: isSelected ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.02)',
-                        border: `1px solid ${isSelected ? '#3b82f6' : 'rgba(255, 255, 255, 0.08)'}`,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <h4 style={{ margin: 0, fontSize: '0.75rem', color: '#ffffff', fontWeight: '700' }}>{pad.name}</h4>
-                        <span style={{ fontSize: '0.5rem', padding: '2px 5px', background: pad.type === 'major' ? '#3b82f6' : '#2dd4bf', color: '#030712', fontWeight: '800' }}>
-                          {pad.type.toUpperCase()}
-                        </span>
-                      </div>
-                      <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.65rem', color: '#2dd4bf' }}>{pad.agency}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* LEOLABS FULL-PAGE CONSOLE MODE */}
-      {appMode === 'leolabs-page' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '1rem', width: '100%', boxSizing: 'border-box' }}>
-          
-          <div className="moving-space-bg" style={{ position: 'relative', width: '100%', height: '580px', border: '1px solid #38bdf8' }}>
-            <div style={{ position: 'absolute', top: '15px', left: '15px', zIndex: 10, background: 'rgba(0,0,0,0.9)', padding: '6px 12px', border: '1px solid #2dd4bf' }}>
-              <span style={{ fontSize: '0.65rem', color: '#2dd4bf', fontWeight: 'bold' }}>LEOLABS RADAR CLOUD // {leolabsSats.length} NODES</span>
-            </div>
-            <ReactGlobe
-              globeImageUrl="//unpkg.com/three-globe/example/img/earth-dark.jpg"
-              backgroundColor="rgba(0,0,0,0)"
-              pointsData={leolabsSats}
-              pointLat="lat"
-              pointLng="lng"
-              pointAltitude={0} // Completely flattens nodes to Earth surface, eliminating any jumping/pillar glitches
-              pointColor={d => d.color}
-              pointRadius={0.35}
-            />
-          </div>
-
-          <div style={{ background: 'rgba(10, 15, 25, 0.95)', padding: '1.2rem', border: '1px solid rgba(56, 189, 248, 0.3)', display: 'flex', flexDirection: 'column', gap: '1.2rem', height: '580px' }}>
-            <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 'bold' }}>// RADAR LEGEND</span>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.7rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '10px', height: '10px', background: '#22c55e' }}></div>
-                <span style={{ color: '#fff' }}>Payloads</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '10px', height: '10px', background: '#38bdf8' }}></div>
-                <span style={{ color: '#fff' }}>Constellations</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '10px', height: '10px', background: '#ef4444' }}></div>
-                <span style={{ color: '#fff' }}>Space Debris</span>
-              </div>
-            </div>
-
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem', fontSize: '0.7rem', color: '#a1a1aa', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <p style={{ margin: 0 }}>Total Nodes: <span style={{ color: '#38bdf8' }}>1,500</span></p>
-              <p style={{ margin: 0 }}>Status: <span style={{ color: '#22c55e' }}>Fully Stable</span></p>
-            </div>
-          </div>
-
         </div>
       )}
 
