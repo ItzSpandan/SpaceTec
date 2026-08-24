@@ -7,7 +7,7 @@ const ReactGlobe = dynamic(() => import('react-globe.gl'), {
   ssr: false,
   loading: () => (
     <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#38bdf8', fontFamily: 'monospace', fontSize: '0.8rem' }}>
-      INITIALIZING SPACE DOMAIN AWARENESS ENGINE...
+      INITIALIZING LEOLABS SPACE DOMAIN ENGINE...
     </div>
   ),
 });
@@ -46,7 +46,7 @@ export default function OrbitalGlobeApp() {
   const [appMode, setAppMode] = useState('standard'); // 'standard' or 'deep-analysis'
   const [viewMode, setViewMode] = useState('pads'); 
   const [padFilter, setPadFilter] = useState('all'); 
-  const [satFilter, setSatFilter] = useState('stations'); 
+  const [satFilter, setSatFilter] = useState('active'); 
   const [selectedPad, setSelectedPad] = useState(globalLaunchPads[0]);
   const [selectedSat, setSelectedSat] = useState(null);
   
@@ -56,7 +56,7 @@ export default function OrbitalGlobeApp() {
 
   const filteredPads = globalLaunchPads.filter(p => padFilter === 'all' || p.type === padFilter);
 
-  // Fetch telemetry from CelesTrak (Supports active, stations, starlink, visual, etc.)
+  // Fetch telemetry from CelesTrak for standard & deep analysis views
   useEffect(() => {
     const fetchRealSatellites = async () => {
       let queryGroup = satFilter;
@@ -71,44 +71,44 @@ export default function OrbitalGlobeApp() {
         const data = await res.json();
 
         if (Array.isArray(data)) {
-          // Allow larger capacity for deep cloud view
-          const targetData = data.length > 2000 ? data.slice(0, 2000) : data;
+          // Allow high density loading for space shell
+          const targetData = data.length > 2500 ? data.slice(0, 2500) : data;
 
           const formattedSats = targetData.map((sat, index) => {
             const incl = sat.INCLINATION || 45;
             const meanMotion = sat.MEAN_MOTION || 15;
             
-            // Scaled high altitude to position dots visibly out in space (LeoLabs style shell)
-            let alt = 0.25; 
-            if (meanMotion < 2.0) alt = 0.55; // GEO / High Earth Orbit
-            else if (meanMotion < 4.0) alt = 0.40; // MEO
+            // LeoLabs Style Deep Space Gap: Altitudes shifted well outward into orbit
+            let alt = 0.45 + ((index % 5) * 0.1); 
+            if (meanMotion < 2.0) alt = 0.90; // High shell / GEO
+            else if (meanMotion < 4.0) alt = 0.70; // MEO shell
 
             const nameStr = sat.OBJECT_NAME?.trim() || `SAT-${index}`;
             let org = 'Commercial / International';
-            let typeColor = '#38bdf8'; // Payload default (Cyan)
+            let typeColor = '#22c55e'; // Payload Green (matching LeoLabs palette)
 
-            if (nameStr.includes('ISS') || nameStr.includes('ZARYA')) {
-              org = 'NASA / Roscosmos';
-              typeColor = '#22c55e'; // Green
+            if (nameStr.includes('DEB') || nameStr.includes('DEBRIS') || nameStr.includes('R/B') || nameStr.includes('rocket')) {
+              org = 'Debris / Rocket Body';
+              typeColor = '#ef4444'; // Debris Red
             } else if (nameStr.includes('STARLINK')) {
               org = 'SpaceX Constellation';
-              typeColor = '#38bdf8';
-            } else if (nameStr.includes('DEB') || nameStr.includes('R/B')) {
-              org = 'Debris / Rocket Body';
-              typeColor = '#ef4444'; // Red (LeoLabs style debris coding)
+              typeColor = '#38bdf8'; // Payload Cyan
+            } else if (nameStr.includes('ISS') || nameStr.includes('ZARYA')) {
+              org = 'Space Station';
+              typeColor = '#eab308'; // Yellow
             }
 
             return {
               id: sat.NORAD_CAT_ID || index,
               name: nameStr,
-              baseLng: (index * 18) % 360 - 180,
+              baseLng: (index * 15) % 360 - 180,
               lat: incl > 90 ? 180 - incl : incl,
-              lng: (index * 18) % 360 - 180,
+              lng: (index * 15) % 360 - 180,
               inclination: incl,
               altitude: alt,
-              speed: (0.08 + (index % 7) * 0.03),
+              speed: (0.05 + (index % 6) * 0.02),
               color: typeColor,
-              velocity: `${(7.2 + (index % 4) * 0.2).toFixed(2)} km/s`,
+              velocity: `${(7.3 + (index % 4) * 0.2).toFixed(2)} km/s`,
               organization: org
             };
           });
@@ -126,14 +126,14 @@ export default function OrbitalGlobeApp() {
     fetchRealSatellites();
   }, [satFilter]);
 
-  // Real-time orbital revolution animation loop for space dots
+  // Real-time animation loop for revolving space dots
   useEffect(() => {
     let animationFrameId;
     const updateOrbits = () => {
       setSatellites(prevSats => 
         prevSats.map(sat => ({
           ...sat,
-          lng: (sat.baseLng + (Date.now() * 0.0015 * sat.speed)) % 360 - 180
+          lng: (sat.baseLng + (Date.now() * 0.0012 * sat.speed)) % 360 - 180
         }))
       );
       animationFrameId = requestAnimationFrame(updateOrbits);
@@ -143,7 +143,7 @@ export default function OrbitalGlobeApp() {
   }, []);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', width: '100%', maxWidth: '1450px', margin: '0 auto', fontFamily: 'monospace' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', width: '100%', maxWidth: '1480px', margin: '0 auto', fontFamily: 'monospace' }}>
       
       {/* Background Starfield Motion CSS */}
       <style>{`
@@ -164,7 +164,7 @@ export default function OrbitalGlobeApp() {
         }
       `}</style>
 
-      {/* Top Navigation & App Mode Switcher */}
+      {/* Top Command Bar & Mode Switcher */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(3, 7, 18, 0.95)', padding: '1rem', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: '800', letterSpacing: '2px' }}>
@@ -197,13 +197,13 @@ export default function OrbitalGlobeApp() {
                 fontWeight: 'bold'
               }}
             >
-              LeoLabs Deep Analysis Console
+              LeoLabs Deep Analysis Console (Full Page)
             </button>
           </div>
         </div>
 
         <div style={{ fontSize: '0.65rem', color: '#2dd4bf' }}>
-          TRACKING NODES: {satellites.length} ACTIVE IN SPACE
+          TRACKING NODES: {satellites.length} ACTIVE IN SPACE SHELL
         </div>
       </div>
 
@@ -262,10 +262,10 @@ export default function OrbitalGlobeApp() {
             {viewMode === 'satellites' && (
               <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                 {[
+                  { key: 'active', label: 'All Active' },
                   { key: 'stations', label: 'Stations' },
                   { key: 'starlink', label: 'Starlink' },
-                  { key: 'visual', label: 'Bright / Visual' },
-                  { key: 'active', label: 'All Active' }
+                  { key: 'visual', label: 'Bright / Visual' }
                 ].map((f) => (
                   <button
                     key={f.key}
@@ -287,8 +287,7 @@ export default function OrbitalGlobeApp() {
             )}
           </div>
 
-          {/* Globe View Container */}
-          <div className="moving-space-bg" style={{ position: 'relative', width: '100%', height: '500px', borderRadius: '2px', overflow: 'hidden', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+          <div className="moving-space-bg" style={{ position: 'relative', width: '100%', height: '520px', borderRadius: '2px', overflow: 'hidden', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
             <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
               <ReactGlobe
                 ref={globeRef}
@@ -300,11 +299,11 @@ export default function OrbitalGlobeApp() {
                 pointLng="lng"
                 pointAltitude={viewMode === 'pads' ? 0.01 : 'altitude'}
                 pointColor={d => viewMode === 'pads' ? '#38bdf8' : d.color}
-                pointRadius={viewMode === 'pads' ? 1.2 : 0.6}
+                pointRadius={viewMode === 'pads' ? 1.2 : 0.55}
                 onPointClick={d => {
                   if (viewMode === 'pads') setSelectedPad(d);
                   else setSelectedSat(d);
-                  if (globeRef.current) globeRef.current.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.5 }, 1000);
+                  if (globeRef.current) globeRef.current.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.8 }, 1000);
                 }}
                 pointLabel={d => `
                   <div style="background: rgba(3, 7, 18, 0.95); padding: 8px 12px; border: 1px solid #38bdf8; font-size: 11px; color: #fff;">
@@ -314,11 +313,6 @@ export default function OrbitalGlobeApp() {
                 `}
               />
             </div>
-            {loadingSats && (
-              <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(0,0,0,0.85)', padding: '5px 10px', border: '1px solid #38bdf8' }}>
-                <span style={{ fontSize: '0.6rem', color: '#38bdf8' }}>STREAMING SATELLITE CLOUD...</span>
-              </div>
-            )}
           </div>
 
           {/* Launch Facilities Cards Panel */}
@@ -364,13 +358,13 @@ export default function OrbitalGlobeApp() {
         </>
       )}
 
-      {/* VIEW MODE 2: LEOLABS DEEP ANALYSIS CONSOLE PAGE */}
+      {/* VIEW MODE 2: LEOLABS DEEP ANALYSIS FULL-PAGE CONSOLE */}
       {appMode === 'deep-analysis' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '1rem', background: '#020617', padding: '1rem', border: '1px solid #38bdf8' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '1rem', background: '#020617', padding: '1rem', border: '1px solid #38bdf8', minHeight: '680px' }}>
           
-          <div style={{ position: 'relative', height: '560px', border: '1px solid rgba(56, 189, 248, 0.4)' }} className="moving-space-bg">
-            <div style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 10, background: 'rgba(0,0,0,0.85)', padding: '6px 12px', border: '1px solid #2dd4bf' }}>
-              <span style={{ fontSize: '0.65rem', color: '#2dd4bf', fontWeight: 'bold' }}>LEOLABS DEEP SPACE CLOUD (HIGH-ALTITUDE ORBITAL SHELL)</span>
+          <div style={{ position: 'relative', height: '660px', border: '1px solid rgba(56, 189, 248, 0.4)' }} className="moving-space-bg">
+            <div style={{ position: 'absolute', top: '12px', left: '12px', zIndex: 10, background: 'rgba(0,0,0,0.85)', padding: '8px 12px', border: '1px solid #2dd4bf' }}>
+              <span style={{ fontSize: '0.65rem', color: '#2dd4bf', fontWeight: 'bold' }}>LEOLABS DEEP SPACE SHELL (HIGH-ALTITUDE ORBITAL GAP ACTIVE)</span>
             </div>
             <ReactGlobe
               ref={analysisGlobeRef}
@@ -381,7 +375,7 @@ export default function OrbitalGlobeApp() {
               pointLng="lng"
               pointAltitude="altitude"
               pointColor={d => d.color}
-              pointRadius={0.7}
+              pointRadius={0.65}
               pointLabel={d => `
                 <div style="background: rgba(3, 7, 18, 0.95); padding: 8px 12px; border: 1px solid #38bdf8; font-size: 11px; color: #fff;">
                   <b style="color: #38bdf8;">${d.name}</b><br/>
@@ -391,37 +385,64 @@ export default function OrbitalGlobeApp() {
             />
           </div>
 
-          <div style={{ background: 'rgba(10, 15, 25, 0.9)', padding: '1rem', border: '1px solid rgba(56, 189, 248, 0.3)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 'bold' }}>// OBJECT TYPE KEY</span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5srem', fontSize: '0.7rem' }}>
+          <div style={{ background: 'rgba(10, 15, 25, 0.95)', padding: '1.2rem', border: '1px solid rgba(56, 189, 248, 0.3)', display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+            <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 'bold' }}>// OBJECT TYPE KEY (LEOLABS STYLE)</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.7rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: '10px', height: '10px', background: '#38bdf8' }}></div>
+                <div style={{ width: '10px', height: '10px', background: '#22c55e' }}></div>
                 <span style={{ color: '#fff' }}>Payload / Active Satellites</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-                <div style={{ width: '10px', height: '10px', background: '#22c55e' }}></div>
-                <span style={{ color: '#fff' }}>Space Stations (ISS)</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '10px', height: '10px', background: '#38bdf8' }}></div>
+                <span style={{ color: '#fff' }}>Starlink Constellation</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ width: '10px', height: '10px', background: '#ef4444' }}></div>
-                <span style={{ color: '#fff' }}>Debris / Rocket Bodies</span>
+                <span style={{ color: '#fff' }}>Debris & Rocket Bodies</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '10px', height: '10px', background: '#eab308' }}></div>
+                <span style={{ color: '#fff' }}>Space Stations (ISS)</span>
               </div>
             </div>
 
-            <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem' }}>
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem' }}>
+              <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 'bold' }}>// SELECT CATALOG STREAM</span>
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.6rem' }}>
+                {[
+                  { key: 'active', label: 'All Active' },
+                  { key: 'stations', label: 'Stations' },
+                  { key: 'starlink', label: 'Starlink' },
+                  { key: 'visual', label: 'Bright' }
+                ].map((f) => (
+                  <button
+                    key={f.key}
+                    onClick={() => setSatFilter(f.key)}
+                    style={{
+                      padding: '0.35rem 0.6rem',
+                      background: satFilter === f.key ? 'rgba(56, 189, 248, 0.3)' : 'transparent',
+                      border: '1px solid rgba(56, 189, 248, 0.4)',
+                      color: '#ffffff',
+                      fontSize: '0.6rem',
+                      textTransform: 'uppercase',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem' }}>
               <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 'bold' }}>// CONSOLE METRICS</span>
               <div style={{ fontSize: '0.7rem', color: '#a1a1aa', display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
-                <p style={{ margin: 0 }}>Active Tracking: <span style={{ color: '#2dd4bf' }}>ONLINE</span></p>
-                <p style={{ margin: 0 }}>Total Displayed Nodes: <span style={{ color: '#38bdf8' }}>{satellites.length}</span></p>
+                <p style={{ margin: 0 }}>Radar Tracking: <span style={{ color: '#2dd4bf' }}>ONLINE</span></p>
+                <p style={{ margin: 0 }}>Total Displayed Shell Nodes: <span style={{ color: '#38bdf8' }}>{satellites.length}</span></p>
                 <p style={{ margin: 0 }}>Motion State: <span style={{ color: '#fff' }}>Revolving Space Shell</span></p>
               </div>
             </div>
 
-            <div style={{ marginTop: 'auto', padding: '0.8rem', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid #38bdf8' }}>
-              <span style={{ fontSize: '0.6rem', color: '#38bdf8' }}>
-                Interactive mode: Click and drag to inspect orbital depth layers floating above Earth.
-              </span>
-            </div>
           </div>
 
         </div>
