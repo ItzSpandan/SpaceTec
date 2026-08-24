@@ -6,6 +6,8 @@ async function runSync() {
   const data = await res.json();
   if (!Array.isArray(data)) throw new Error('Invalid data format');
 
+  console.log(`Fetched ${data.length} total satellites from CelesTrak. Formatting...`);
+
   const formattedSats = data.map((sat, index) => {
     const incl = sat.INCLINATION || 0;
     const meanMotion = sat.MEAN_MOTION || 15;
@@ -38,7 +40,7 @@ async function runSync() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  console.log(`Syncing ${formattedSats.length} satellites to Supabase via REST API...`);
+  console.log(`Syncing ${formattedSats.length} satellites to Supabase in batches...`);
   
   const chunkSize = 500;
   for (let i = 0; i < formattedSats.length; i += chunkSize) {
@@ -57,10 +59,12 @@ async function runSync() {
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error(`Supabase chunk error (${response.status}):`, errText);
+      console.error(`Supabase chunk error at index ${i} (${response.status}):`, errText);
+    } else {
+      console.log(`Successfully synced chunk ${i} to ${i + chunk.length}`);
     }
   }
-  console.log('Sync complete!');
+  console.log('All satellite batches synced successfully!');
 }
 
 runSync().catch(err => {
