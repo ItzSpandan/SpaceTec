@@ -18,18 +18,31 @@ const globalLaunchPads = [
   { id: 3, name: 'Vandenberg Space Force Base (SLC-4E)', agency: 'SpaceX / USSF', lat: 34.7420, lng: -120.5724, type: 'major', country: 'USA' },
   { id: 4, name: 'Wallops Flight Facility', agency: 'NASA / Northrop Grumman', lat: 37.9332, lng: -75.4836, type: 'minor', country: 'USA' },
   { id: 5, name: 'Boca Chica Launch Site (Starbase)', agency: 'SpaceX', lat: 25.9973, lng: -97.1560, type: 'major', country: 'USA' },
-  { id: 6, name: 'Guiana Space Centre', agency: 'ESA / Arianespace', lat: 5.2372, lng: -52.7683, type: 'major', country: 'French Guiana' },
-  { id: 7, name: 'Baikonur Cosmodrome', agency: 'Roscosmos', lat: 45.9646, lng: 63.3052, type: 'major', country: 'Kazakhstan' },
-  { id: 8, name: 'Plesetsk Cosmodrome', agency: 'Roscosmos', lat: 62.9298, lng: 40.5735, type: 'major', country: 'Russia' },
-  { id: 9, name: 'Satish Dhawan Space Centre (SDSC)', agency: 'ISRO', lat: 13.7199, lng: 80.2304, type: 'major', country: 'India' },
-  { id: 10, name: 'Jiuquan Satellite Launch Center', agency: 'CNSA', lat: 40.9575, lng: 100.2917, type: 'major', country: 'China' },
-  { id: 11, name: 'Wenchang Space Launch Site', agency: 'CNSA', lat: 19.6145, lng: 110.9510, type: 'major', country: 'China' },
-  { id: 12, name: 'Tanegashima Space Center', agency: 'JAXA', lat: 30.4000, lng: 130.9700, type: 'major', country: 'Japan' },
-  { id: 13, name: 'Mahia Launch Complex 1', agency: 'Rocket Lab', lat: -39.2608, lng: 177.8656, type: 'minor', country: 'New Zealand' }
+  { id: 6, name: 'Pacific Spaceport Complex (Alaska)', agency: 'Astra / USSF', lat: 57.4358, lng: -152.3477, type: 'minor', country: 'USA' },
+  { id: 7, name: 'Guiana Space Centre (Ariane ELA-4)', agency: 'ESA / Arianespace', lat: 5.2372, lng: -52.7683, type: 'major', country: 'French Guiana' },
+  { id: 8, name: 'Esrange Space Center', agency: 'SSC', lat: 67.8894, lng: 21.1050, type: 'minor', country: 'Sweden' },
+  { id: 9, name: 'Andøya Spaceport', agency: 'Andøya Space', lat: 69.2933, lng: 16.0167, type: 'minor', country: 'Norway' },
+  { id: 10, name: 'Baikonur Cosmodrome', agency: 'Roscosmos', lat: 45.9646, lng: 63.3052, type: 'major', country: 'Kazakhstan' },
+  { id: 11, name: 'Plesetsk Cosmodrome', agency: 'Roscosmos', lat: 62.9298, lng: 40.5735, type: 'major', country: 'Russia' },
+  { id: 12, name: 'Vostochny Cosmodrome', agency: 'Roscosmos', lat: 51.8841, lng: 128.3339, type: 'major', country: 'Russia' },
+  { id: 13, name: 'Satish Dhawan Space Centre (SDSC)', agency: 'ISRO', lat: 13.7199, lng: 80.2304, type: 'major', country: 'India' },
+  { id: 14, name: 'Jiuquan Satellite Launch Center', agency: 'CNSA', lat: 40.9575, lng: 100.2917, type: 'major', country: 'China' },
+  { id: 15, name: 'Wenchang Space Launch Site', agency: 'CNSA', lat: 19.6145, lng: 110.9510, type: 'major', country: 'China' },
+  { id: 16, name: 'Xichang Satellite Launch Center', agency: 'CNSA', lat: 28.2465, lng: 102.0264, type: 'minor', country: 'China' },
+  { id: 17, name: 'Taiyuan Satellite Launch Center', agency: 'CNSA', lat: 38.8490, lng: 111.6080, type: 'minor', country: 'China' },
+  { id: 18, name: 'Tanegashima Space Center', agency: 'JAXA', lat: 30.4000, lng: 130.9700, type: 'major', country: 'Japan' },
+  { id: 19, name: 'Uchinoura Space Center', agency: 'JAXA', lat: 31.2515, lng: 131.0825, type: 'minor', country: 'Japan' },
+  { id: 20, name: 'Naro Space Center', agency: 'KARI', lat: 34.4315, lng: 127.5350, type: 'minor', country: 'South Korea' },
+  { id: 21, name: 'Mahia Launch Complex 1', agency: 'Rocket Lab', lat: -39.2608, lng: 177.8656, type: 'minor', country: 'New Zealand' },
+  { id: 22, name: 'Arnhem Space Centre', agency: 'Equatorial Launch Australia', lat: -12.3780, lng: 136.8150, type: 'minor', country: 'Australia' },
+  { id: 23, name: 'Imam Khomeini Spaceport', agency: 'ISA', lat: 35.2344, lng: 53.9211, type: 'minor', country: 'Iran' },
+  { id: 24, name: 'Al-Dahik Launch Site', agency: 'NARSS', lat: 28.4890, lng: 30.4120, type: 'minor', country: 'Egypt' }
 ];
 
 export default function OrbitalGlobeApp() {
   const globeRef = useRef(null);
+  const analysisGlobeRef = useRef(null);
+  
   const [appMode, setAppMode] = useState('standard'); // 'standard' or 'deep-analysis'
   const [viewMode, setViewMode] = useState('pads'); 
   const [padFilter, setPadFilter] = useState('all'); 
@@ -43,7 +56,7 @@ export default function OrbitalGlobeApp() {
 
   const filteredPads = globalLaunchPads.filter(p => padFilter === 'all' || p.type === padFilter);
 
-  // Fetch telemetry data from CelesTrak & add revolving orbital animation mechanics
+  // Fetch telemetry from CelesTrak (Supports active, stations, starlink, visual, etc.)
   useEffect(() => {
     const fetchRealSatellites = async () => {
       let queryGroup = satFilter;
@@ -58,33 +71,44 @@ export default function OrbitalGlobeApp() {
         const data = await res.json();
 
         if (Array.isArray(data)) {
-          const targetData = data.length > 800 ? data.slice(0, 800) : data;
+          // Allow larger capacity for deep cloud view
+          const targetData = data.length > 2000 ? data.slice(0, 2000) : data;
 
           const formattedSats = targetData.map((sat, index) => {
             const incl = sat.INCLINATION || 45;
             const meanMotion = sat.MEAN_MOTION || 15;
             
-            let alt = 0.15; // Space altitude above globe surface
-            if (meanMotion < 2.0) alt = 0.35; 
-            else if (meanMotion < 4.0) alt = 0.25;
+            // Scaled high altitude to position dots visibly out in space (LeoLabs style shell)
+            let alt = 0.25; 
+            if (meanMotion < 2.0) alt = 0.55; // GEO / High Earth Orbit
+            else if (meanMotion < 4.0) alt = 0.40; // MEO
 
             const nameStr = sat.OBJECT_NAME?.trim() || `SAT-${index}`;
-            let org = 'International / Commercial';
-            if (nameStr.includes('ISS') || nameStr.includes('ZARYA')) org = 'NASA / Roscosmos';
-            else if (nameStr.includes('STARLINK')) org = 'SpaceX Constellation';
-            else if (nameStr.includes('COSMOS')) org = 'Roscosmos Federation';
+            let org = 'Commercial / International';
+            let typeColor = '#38bdf8'; // Payload default (Cyan)
+
+            if (nameStr.includes('ISS') || nameStr.includes('ZARYA')) {
+              org = 'NASA / Roscosmos';
+              typeColor = '#22c55e'; // Green
+            } else if (nameStr.includes('STARLINK')) {
+              org = 'SpaceX Constellation';
+              typeColor = '#38bdf8';
+            } else if (nameStr.includes('DEB') || nameStr.includes('R/B')) {
+              org = 'Debris / Rocket Body';
+              typeColor = '#ef4444'; // Red (LeoLabs style debris coding)
+            }
 
             return {
               id: sat.NORAD_CAT_ID || index,
               name: nameStr,
-              baseLng: (index * 22) % 360 - 180,
+              baseLng: (index * 18) % 360 - 180,
               lat: incl > 90 ? 180 - incl : incl,
-              lng: (index * 22) % 360 - 180,
+              lng: (index * 18) % 360 - 180,
               inclination: incl,
               altitude: alt,
-              speed: (0.1 + (index % 5) * 0.05), // Revolution speed modifier
-              color: nameStr.includes('ISS') ? '#22c55e' : nameStr.includes('STARLINK') ? '#38bdf8' : '#60a5fa',
-              velocity: `${(7.5 + (index % 3) * 0.2).toFixed(2)} km/s`,
+              speed: (0.08 + (index % 7) * 0.03),
+              color: typeColor,
+              velocity: `${(7.2 + (index % 4) * 0.2).toFixed(2)} km/s`,
               organization: org
             };
           });
@@ -102,14 +126,14 @@ export default function OrbitalGlobeApp() {
     fetchRealSatellites();
   }, [satFilter]);
 
-  // Real-time animation loop making satellites revolve around the globe in space
+  // Real-time orbital revolution animation loop for space dots
   useEffect(() => {
     let animationFrameId;
     const updateOrbits = () => {
       setSatellites(prevSats => 
         prevSats.map(sat => ({
           ...sat,
-          lng: (sat.baseLng + (Date.now() * 0.002 * sat.speed)) % 360 - 180
+          lng: (sat.baseLng + (Date.now() * 0.0015 * sat.speed)) % 360 - 180
         }))
       );
       animationFrameId = requestAnimationFrame(updateOrbits);
@@ -140,7 +164,7 @@ export default function OrbitalGlobeApp() {
         }
       `}</style>
 
-      {/* Top Command Bar & Analysis Mode Toggle */}
+      {/* Top Navigation & App Mode Switcher */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(3, 7, 18, 0.95)', padding: '1rem', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: '800', letterSpacing: '2px' }}>
@@ -179,11 +203,11 @@ export default function OrbitalGlobeApp() {
         </div>
 
         <div style={{ fontSize: '0.65rem', color: '#2dd4bf' }}>
-          SYSTEM STATUS: ONLINE // TRACKING {satellites.length} ACTIVE NODES
+          TRACKING NODES: {satellites.length} ACTIVE IN SPACE
         </div>
       </div>
 
-      {/* VIEW MODE 1: STANDARD GLOBAL VIEW */}
+      {/* STANDARD MODE */}
       {appMode === 'standard' && (
         <>
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -193,7 +217,7 @@ export default function OrbitalGlobeApp() {
               </span>
               {[
                 { key: 'pads', label: 'Launch Facilities' },
-                { key: 'satellites', label: 'Revolving Space Satellites' }
+                { key: 'satellites', label: 'Space Satellite Cloud' }
               ].map((btn) => (
                 <button
                   key={btn.key}
@@ -213,16 +237,16 @@ export default function OrbitalGlobeApp() {
               ))}
             </div>
 
-            {viewMode === 'satellites' && (
-              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                {['stations', 'starlink', 'visual', 'active'].map((f) => (
+            {viewMode === 'pads' && (
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                {['all', 'major', 'minor'].map((f) => (
                   <button
                     key={f}
-                    onClick={() => setSatFilter(f)}
+                    onClick={() => setPadFilter(f)}
                     style={{
-                      padding: '0.4rem 0.7rem',
-                      background: satFilter === f ? 'rgba(56, 189, 248, 0.3)' : 'transparent',
-                      border: '1px solid rgba(56, 189, 248, 0.4)',
+                      padding: '0.4rem 0.8rem',
+                      background: padFilter === f ? 'rgba(59, 130, 246, 0.4)' : 'transparent',
+                      border: '1px solid rgba(59, 130, 246, 0.4)',
                       color: '#ffffff',
                       fontSize: '0.6rem',
                       textTransform: 'uppercase',
@@ -234,9 +258,37 @@ export default function OrbitalGlobeApp() {
                 ))}
               </div>
             )}
+
+            {viewMode === 'satellites' && (
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                {[
+                  { key: 'stations', label: 'Stations' },
+                  { key: 'starlink', label: 'Starlink' },
+                  { key: 'visual', label: 'Bright / Visual' },
+                  { key: 'active', label: 'All Active' }
+                ].map((f) => (
+                  <button
+                    key={f.key}
+                    onClick={() => setSatFilter(f.key)}
+                    style={{
+                      padding: '0.4rem 0.7rem',
+                      background: satFilter === f.key ? 'rgba(56, 189, 248, 0.3)' : 'transparent',
+                      border: '1px solid rgba(56, 189, 248, 0.4)',
+                      color: '#ffffff',
+                      fontSize: '0.6rem',
+                      textTransform: 'uppercase',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          <div className="moving-space-bg" style={{ position: 'relative', width: '100%', height: '520px', borderRadius: '2px', overflow: 'hidden', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+          {/* Globe View Container */}
+          <div className="moving-space-bg" style={{ position: 'relative', width: '100%', height: '500px', borderRadius: '2px', overflow: 'hidden', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
             <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
               <ReactGlobe
                 ref={globeRef}
@@ -248,7 +300,7 @@ export default function OrbitalGlobeApp() {
                 pointLng="lng"
                 pointAltitude={viewMode === 'pads' ? 0.01 : 'altitude'}
                 pointColor={d => viewMode === 'pads' ? '#38bdf8' : d.color}
-                pointRadius={viewMode === 'pads' ? 1.2 : 0.5}
+                pointRadius={viewMode === 'pads' ? 1.2 : 0.6}
                 onPointClick={d => {
                   if (viewMode === 'pads') setSelectedPad(d);
                   else setSelectedSat(d);
@@ -257,46 +309,117 @@ export default function OrbitalGlobeApp() {
                 pointLabel={d => `
                   <div style="background: rgba(3, 7, 18, 0.95); padding: 8px 12px; border: 1px solid #38bdf8; font-size: 11px; color: #fff;">
                     <b style="color: #38bdf8;">${d.name}</b><br/>
-                    ${viewMode === 'pads' ? `Agency: ${d.agency}` : `Velocity: ${d.velocity}`}
+                    ${viewMode === 'pads' ? `Agency: ${d.agency}` : `Velocity: ${d.velocity} | Org: ${d.organization}`}
                   </div>
                 `}
               />
             </div>
+            {loadingSats && (
+              <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(0,0,0,0.85)', padding: '5px 10px', border: '1px solid #38bdf8' }}>
+                <span style={{ fontSize: '0.6rem', color: '#38bdf8' }}>STREAMING SATELLITE CLOUD...</span>
+              </div>
+            )}
           </div>
+
+          {/* Launch Facilities Cards Panel */}
+          {viewMode === 'pads' && (
+            <div style={{ padding: '1.2rem', borderRadius: '2px', border: '1px solid rgba(59, 130, 246, 0.3)', background: 'rgba(10, 15, 25, 0.9)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
+                <span style={{ fontSize: '0.65rem', color: '#3b82f6', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>
+                  // LAUNCH FACILITIES ({padFilter.toUpperCase()} FILTER: {filteredPads.length} SITES)
+                </span>
+                <span style={{ fontSize: '0.6rem', color: '#71717a' }}>Click any card to lock target on globe</span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '0.8rem', maxHeight: '180px', overflowY: 'auto' }}>
+                {filteredPads.map((pad) => {
+                  const isSelected = selectedPad?.id === pad.id;
+                  return (
+                    <div
+                      key={pad.id}
+                      onClick={() => {
+                        setSelectedPad(pad);
+                        if (globeRef.current) globeRef.current.pointOfView({ lat: pad.lat, lng: pad.lng, altitude: 1.5 }, 1000);
+                      }}
+                      style={{
+                        padding: '0.8rem',
+                        background: isSelected ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.02)',
+                        border: `1px solid ${isSelected ? '#3b82f6' : 'rgba(255, 255, 255, 0.08)'}`,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <h4 style={{ margin: 0, fontSize: '0.8rem', color: '#ffffff', fontWeight: '700' }}>{pad.name}</h4>
+                        <span style={{ fontSize: '0.55rem', padding: '2px 6px', background: pad.type === 'major' ? '#3b82f6' : '#2dd4bf', color: '#030712', fontWeight: '800' }}>
+                          {pad.type.toUpperCase()}
+                        </span>
+                      </div>
+                      <p style={{ margin: '0.3rem 0 0 0', fontSize: '0.7rem', color: '#2dd4bf' }}>{pad.agency}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </>
       )}
 
-      {/* VIEW MODE 2: LEOLABS DEEP ANALYSIS CONSOLE (SEPARATE PAGE VIEW) */}
+      {/* VIEW MODE 2: LEOLABS DEEP ANALYSIS CONSOLE PAGE */}
       {appMode === 'deep-analysis' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '1rem', background: '#020617', padding: '1rem', border: '1px solid #38bdf8' }}>
           
-          <div style={{ position: 'relative', height: '550px', border: '1px solid rgba(56, 189, 248, 0.4)' }} className="moving-space-bg">
-            <div style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 10, background: 'rgba(0,0,0,0.8)', padding: '6px 10px', border: '1px solid #2dd4bf' }}>
-              <span style={{ fontSize: '0.65rem', color: '#2dd4bf', fontWeight: 'bold' }}>LEOLABS RADAR SHELL MAPPING // HIGH-DENSITY LEO CLOUD</span>
+          <div style={{ position: 'relative', height: '560px', border: '1px solid rgba(56, 189, 248, 0.4)' }} className="moving-space-bg">
+            <div style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 10, background: 'rgba(0,0,0,0.85)', padding: '6px 12px', border: '1px solid #2dd4bf' }}>
+              <span style={{ fontSize: '0.65rem', color: '#2dd4bf', fontWeight: 'bold' }}>LEOLABS DEEP SPACE CLOUD (HIGH-ALTITUDE ORBITAL SHELL)</span>
             </div>
             <ReactGlobe
+              ref={analysisGlobeRef}
               globeImageUrl="//unpkg.com/three-globe/example/img/earth-dark.jpg"
               backgroundColor="rgba(0,0,0,0)"
               pointsData={satellites}
               pointLat="lat"
               pointLng="lng"
               pointAltitude="altitude"
-              pointColor={() => '#38bdf8'}
-              pointRadius={0.6}
+              pointColor={d => d.color}
+              pointRadius={0.7}
+              pointLabel={d => `
+                <div style="background: rgba(3, 7, 18, 0.95); padding: 8px 12px; border: 1px solid #38bdf8; font-size: 11px; color: #fff;">
+                  <b style="color: #38bdf8;">${d.name}</b><br/>
+                  Org: ${d.organization} | Vel: ${d.velocity}
+                </div>
+              `}
             />
           </div>
 
           <div style={{ background: 'rgba(10, 15, 25, 0.9)', padding: '1rem', border: '1px solid rgba(56, 189, 248, 0.3)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 'bold' }}>// RADAR SECTOR ANALYTICS</span>
-            <div style={{ fontSize: '0.7rem', color: '#a1a1aa', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <p style={{ margin: 0 }}>Active Collision Monitors: <span style={{ color: '#2dd4bf' }}>ENGAGED</span></p>
-              <p style={{ margin: 0 }}>Orbital Shell: <span style={{ color: '#fff' }}>Low Earth Orbit (LEO)</span></p>
-              <p style={{ margin: 0 }}>Tracked Objects: <span style={{ color: '#38bdf8' }}>{satellites.length} Nodes</span></p>
-              <p style={{ margin: 0 }}>Update Cycle: <span style={{ color: '#fff' }}>Real-time Ephemeris Feed</span></p>
+            <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 'bold' }}>// OBJECT TYPE KEY</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5srem', fontSize: '0.7rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '10px', height: '10px', background: '#38bdf8' }}></div>
+                <span style={{ color: '#fff' }}>Payload / Active Satellites</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                <div style={{ width: '10px', height: '10px', background: '#22c55e' }}></div>
+                <span style={{ color: '#fff' }}>Space Stations (ISS)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                <div style={{ width: '10px', height: '10px', background: '#ef4444' }}></div>
+                <span style={{ color: '#fff' }}>Debris / Rocket Bodies</span>
+              </div>
             </div>
+
+            <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem' }}>
+              <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 'bold' }}>// CONSOLE METRICS</span>
+              <div style={{ fontSize: '0.7rem', color: '#a1a1aa', display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
+                <p style={{ margin: 0 }}>Active Tracking: <span style={{ color: '#2dd4bf' }}>ONLINE</span></p>
+                <p style={{ margin: 0 }}>Total Displayed Nodes: <span style={{ color: '#38bdf8' }}>{satellites.length}</span></p>
+                <p style={{ margin: 0 }}>Motion State: <span style={{ color: '#fff' }}>Revolving Space Shell</span></p>
+              </div>
+            </div>
+
             <div style={{ marginTop: 'auto', padding: '0.8rem', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid #38bdf8' }}>
               <span style={{ fontSize: '0.6rem', color: '#38bdf8' }}>
-                Note: All nodes update continuously with live velocity vectors across space trajectories.
+                Interactive mode: Click and drag to inspect orbital depth layers floating above Earth.
               </span>
             </div>
           </div>
