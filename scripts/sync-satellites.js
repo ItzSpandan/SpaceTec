@@ -1,5 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
-
 async function runSync() {
   console.log('Fetching satellites from CelesTrak...');
   const res = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=json');
@@ -37,18 +35,30 @@ async function runSync() {
     };
   });
 
-  const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
-    { auth: { persistSession: false }, realtime: { autoConnect: false } }
-  );
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  console.log(`Syncing ${formattedSats.length} satellites to Supabase...`);
-  const chunkSize = 1000;
+  console.log(`Syncing ${formattedSats.length} satellites to Supabase via REST API...`);
+  
+  const chunkSize = 500;
   for (let i = 0; i < formattedSats.length; i += chunkSize) {
     const chunk = formattedSats.slice(i, i + chunkSize);
-    const { error } = await supabaseAdmin.from('satellites').upsert(chunk);
-    if (error) console.error('Supabase chunk error:', error);
+    
+    const response = await fetch(`${supabaseUrl}/rest/v1/satellites`, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify(chunk)
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`Supabase chunk error (${response.status}):`, errText);
+    }
   }
   console.log('Sync complete!');
 }
