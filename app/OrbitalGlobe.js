@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { createClient } from '@supabase/supabase-js';
 
@@ -47,20 +47,25 @@ const globalLaunchPads = [
 
 export default function OrbitalGlobe() {
   const globeRef = useRef(null);
-  const [viewMode, setViewMode] = useState('pads'); 
-  const [padFilter, setPadFilter] = useState('all'); 
-  const [satFilter, setSatFilter] = useState('stations'); 
+  const [viewMode, setViewMode] = useState('pads'); // 'pads' | 'satellites' | 'wiki'
+  const [padFilter, setPadFilter] = useState('all');
+  const [satFilter, setSatFilter] = useState('stations');
   const [selectedPad, setSelectedPad] = useState(globalLaunchPads[0]);
   const [selectedSat, setSelectedSat] = useState(null);
-  
+  const [hoveredSat, setHoveredSat] = useState(null);
+
   const [satellites, setSatellites] = useState([]);
+  const [wikiData, setWikiData] = useState([]);
+  const [wikiSearch, setWikiSearch] = useState('');
   const [loadingSats, setLoadingSats] = useState(false);
   const satCacheRef = useRef({});
 
   const filteredPads = globalLaunchPads.filter(p => padFilter === 'all' || p.type === padFilter);
 
-  // Fetch telemetry data from Supabase Database instead of live external API calls
+  // Fetch core performance-capped telemetry from Supabase for the 3D globe
   useEffect(() => {
+    if (viewMode === 'wiki') return; // Don't fetch globe sats if viewing wiki
+
     const fetchSupabaseSatellites = async () => {
       if (satCacheRef.current[satFilter]) {
         setSatellites(satCacheRef.current[satFilter]);
@@ -71,27 +76,29 @@ export default function OrbitalGlobe() {
       try {
         let query = supabase.from('satellites').select('*');
 
-        // Apply filters directly based on user's category choices
         if (satFilter === 'stations') {
           query = query.ilike('name', '%ISS%');
         } else if (satFilter === 'starlink') {
-          query = query.ilike('name', '%STARLINK%');
+          query = query.ilike('name', '%STARLINK%').limit(1500);
         } else if (satFilter === 'weather') {
           query = query.or('name.ilike.%NOAA%,name.ilike.%GOES%');
         } else if (satFilter === 'active') {
-          // Cap heavy payload view for browser optimization
-          query = query.limit(3000);
+          query = query.limit(2500);
         }
 
         const { data, error } = await query;
-
         if (error) throw error;
 
         if (data) {
-          const formattedSats = data.map((sat) => {
+          const formattedSats = data.map((sat, index) => {
             const nameStr = sat.name || 'UNKNOWN';
+            // Give them starting orbital parameters based on index if missing
             return {
               ...sat,
+              lat: sat.lat || ((index * 37) % 140) - 70,
+              lng: sat.lng || ((index * 53) % 360) - 180,
+              altitude: sat.altitude || 0.1,
+              speed: 0.05 + ((index % 5) * 0.02),
               color: nameStr.includes('ISS') ? '#22c55e' : nameStr.includes('STARLINK') ? '#38bdf8' : '#3b82f6',
             };
           });
@@ -108,9 +115,60 @@ export default function OrbitalGlobe() {
     };
 
     fetchSupabaseSatellites();
-  }, [satFilter]);
+  }, [satFilter, viewMode]);
 
-  // Orbital paths generator
+  // Lazy load Wiki master catalog (all records / searchable)
+  useEffect(() => {
+    if (viewMode !== 'wiki') return;
+    const fetchWikiCatalog = async () => {
+      setLoadingSats(true);
+      try {
+        const { data, error } = await supabase
+          .from('satellites')
+          .select('*')
+          .ilike('name', `%${wikiSearch}%`)
+          .limit(100); // Pagination buffer for fast render
+
+        if (error) throw error;
+        setWikiData(data || []);
+      } catch (err) {
+        console.error('Wiki fetch error:', err);
+      } finally {
+        setLoadingSats(false);
+      }
+    };
+    const timer = setTimeout(fetchWikiCatalog, 300);
+    return () => clearTimeout(timer);
+  }, [wikiSearch, viewMode]);
+
+  // Real-time orbital motion animation loop for satellites
+  useEffect(() => {
+    if (viewMode !== 'satellites') return;
+    const interval = setInterval(() => {
+      setSatellites(prev =>
+        prev.map(sat => ({
+          ...sat,
+          lng: (sat.lng + (sat.speed || 0.05)) > 180 ? -180 : sat.lng + (sat.speed || 0.05)
+        }))
+      );
+    }, 50);
+    return () => clearInterval(interval);
+  }, [viewMode]);
+
+  // Processed satellites with focus mode (dimming background items on hover/selection)
+  const renderSatellites = useMemo(() => {
+    return satellites.map(sat => {
+      const isFocused = hoveredSat?.id === sat.id || selectedSat?.id === sat.id;
+      const isDimmed = (hoveredSat || selectedSat) && !isFocused;
+      return {
+        ...sat,
+        color: isDimmed ? 'rgba(59, 130, 246, 0.15)' : sat.color,
+        radius: isFocused ? 0.9 : 0.4
+      };
+    });
+  }, [satellites, hoveredSat, selectedSat]);
+
+  // Orbital paths generator for selected satellite
   const orbitalPaths = selectedSat ? (() => {
     const points = [];
     const inc = selectedSat.inclination || 45;
@@ -118,7 +176,7 @@ export default function OrbitalGlobe() {
       const rad = (i * Math.PI) / 180;
       const lat = Math.sin(rad) * inc;
       const lng = i - 180;
-      points.push({ lat, lng, altitude: selectedSat.altitude + 0.02 });
+      points.push({ lat, lng, altitude: (selectedSat.altitude || 0.1) + 0.02 });
     }
     return [points];
   })() : [];
@@ -137,9 +195,7 @@ export default function OrbitalGlobe() {
             radial-gradient(2px 2px at 20px 30px, #ffffff, rgba(0,0,0,0)),
             radial-gradient(2px 2px at 40px 70px, #38bdf8, rgba(0,0,0,0)),
             radial-gradient(1px 1px at 90px 40px, #ffffff, rgba(0,0,0,0)),
-            radial-gradient(2px 2px at 160px 120px, #93c5fd, rgba(0,0,0,0)),
-            radial-gradient(1.5px 1.5px at 230px 180px, #ffffff, rgba(0,0,0,0)),
-            radial-gradient(2px 2px at 300px 250px, #38bdf8, rgba(0,0,0,0));
+            radial-gradient(2px 2px at 160px 120px, #93c5fd, rgba(0,0,0,0));
           background-repeat: repeat;
           background-size: 350px 350px;
           animation: spaceScroll 25s linear infinite;
@@ -154,7 +210,8 @@ export default function OrbitalGlobe() {
           </span>
           {[
             { key: 'pads', label: 'Launch Pads' },
-            { key: 'satellites', label: `Live Database Satellites (${satellites.length})` }
+            { key: 'satellites', label: `Live Globe Satellites (${satellites.length})` },
+            { key: 'wiki', label: 'Satellite Wiki (16k+ Master)' }
           ].map((btn) => (
             <button
               key={btn.key}
@@ -203,7 +260,6 @@ export default function OrbitalGlobe() {
             {[
               { key: 'stations', label: 'Stations' },
               { key: 'starlink', label: 'Starlink' },
-              { key: 'visual', label: 'Bright / Visual' },
               { key: 'weather', label: 'Weather' },
               { key: 'active', label: 'All Active' }
             ].map((f) => (
@@ -227,107 +283,126 @@ export default function OrbitalGlobe() {
         )}
       </div>
 
-      {/* Globe Component */}
-      <div 
-        className="moving-space-bg" 
-        style={{ position: 'relative', width: '100%', height: '550px', borderRadius: '2px', overflow: 'hidden', border: '1px solid rgba(59, 130, 246, 0.3)' }}
-      >
-        <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
-          <ReactGlobe
-            ref={globeRef}
-            globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
-            bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-            backgroundColor="rgba(0,0,0,0)"
-            pointsData={viewMode === 'pads' ? filteredPads : satellites}
-            pointLat="lat"
-            pointLng="lng"
-            pointAltitude={viewMode === 'pads' ? 0.02 : 'altitude'}
-            pointColor={d => viewMode === 'pads' ? (d.type === 'major' ? '#3b82f6' : '#2dd4bf') : d.color}
-            pointRadius={viewMode === 'pads' ? 1.5 : 0.5}
-            pathsData={orbitalPaths}
-            pathColor={() => '#ffffff'}
-            pathDashLength={0.15}
-            pathDashGap={0.05}
-            pathDashAnimateTime={3000}
-            pathStroke={2}
-            ringsData={selectedSat ? [selectedSat] : (selectedPad ? [selectedPad] : [])}
-            ringColor={() => '#38bdf8'}
-            ringMaxRadius={6}
-            ringPropagationSpeed={3}
-            ringRepeatPeriod={500}
-            onPointClick={d => {
-              if (viewMode === 'pads') {
-                setSelectedPad(d);
-                if (globeRef.current) globeRef.current.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.5 }, 1000);
-              } else {
-                setSelectedSat(d);
-                if (globeRef.current) globeRef.current.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.8 }, 1000);
-              }
-            }}
-            pointLabel={d => `
-              <div style="background: rgba(3, 7, 18, 0.95); padding: 10px 14px; border: 1px solid #38bdf8; font-family: monospace; font-size: 11px; color: #fff; pointer-events: none;">
-                <b style="color: #38bdf8; font-size: 12px;">${d.name}</b><br/>
-                ${viewMode === 'pads' ? `Agency: ${d.agency}` : `Org: ${d.organization} | Vel: ${d.velocity}`}
-              </div>
-            `}
-          />
-        </div>
-
-        {loadingSats && (
-          <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.85)', padding: '0.4rem 0.8rem', border: '1px solid #38bdf8', zIndex: 10 }}>
-            <span style={{ fontSize: '0.65rem', color: '#38bdf8', letterSpacing: '1px' }}>QUERYING SUPABASE DATABASE...</span>
-          </div>
-        )}
-      </div>
-
-      {/* Details Panels */}
-      {viewMode === 'pads' && (
-        <div className="glass-card" style={{ padding: '1.2rem', borderRadius: '2px', border: '1px solid rgba(59, 130, 246, 0.3)', background: 'rgba(10, 15, 25, 0.9)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
-            <span style={{ fontSize: '0.65rem', color: '#3b82f6', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>
-              // LAUNCH FACILITIES ({padFilter.toUpperCase()} FILTER: {filteredPads.length} SITES FOUND)
-            </span>
-            <span style={{ fontSize: '0.6rem', color: '#71717a' }}>Click any card to lock target on globe</span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '0.8rem', maxHeight: '200px', overflowY: 'auto' }}>
-            {filteredPads.map((pad) => {
-              const isSelected = selectedPad?.id === pad.id;
-              return (
-                <div
-                  key={pad.id}
-                  onClick={() => {
-                    setSelectedPad(pad);
-                    if (globeRef.current) globeRef.current.pointOfView({ lat: pad.lat, lng: pad.lng, altitude: 1.5 }, 1000);
-                  }}
-                  style={{
-                    padding: '0.8rem',
-                    background: isSelected ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255, 255, 255, 0.02)',
-                    border: `1px solid ${isSelected ? '#3b82f6' : 'rgba(255, 255, 255, 0.08)'}`,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <h4 style={{ margin: 0, fontSize: '0.8rem', color: '#ffffff', fontWeight: '700' }}>{pad.name}</h4>
-                    <span style={{ fontSize: '0.55rem', padding: '2px 6px', background: pad.type === 'major' ? '#3b82f6' : '#2dd4bf', color: '#030712', fontWeight: '800' }}>
-                      {pad.type.toUpperCase()}
-                    </span>
-                  </div>
-                  <p style={{ margin: '0.3rem 0 0 0', fontSize: '0.7rem', color: '#2dd4bf' }}>{pad.agency}</p>
-                  <p style={{ margin: '0.1rem 0 0 0', fontSize: '0.65rem', color: '#a1a1aa' }}>Region: {pad.country}</p>
+      {/* Conditional Globe vs Wiki View */}
+      {viewMode !== 'wiki' ? (
+        <div 
+          className="moving-space-bg" 
+          style={{ position: 'relative', width: '100%', height: '550px', borderRadius: '2px', overflow: 'hidden', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+        >
+          <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}>
+            <ReactGlobe
+              ref={globeRef}
+              globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
+              bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+              backgroundColor="rgba(0,0,0,0)"
+              pointsData={viewMode === 'pads' ? filteredPads : renderSatellites}
+              pointLat="lat"
+              pointLng="lng"
+              pointAltitude={viewMode === 'pads' ? 0.02 : 'altitude'}
+              pointColor={d => viewMode === 'pads' ? (d.type === 'major' ? '#3b82f6' : '#2dd4bf') : d.color}
+              pointRadius={viewMode === 'pads' ? 1.5 : (d => d.radius || 0.4)}
+              pathsData={orbitalPaths}
+              pathColor={() => '#ffffff'}
+              pathDashLength={0.15}
+              pathDashGap={0.05}
+              pathDashAnimateTime={3000}
+              pathStroke={2}
+              ringsData={selectedSat ? [selectedSat] : (selectedPad ? [selectedPad] : [])}
+              ringColor={() => '#38bdf8'}
+              ringMaxRadius={6}
+              ringPropagationSpeed={3}
+              ringRepeatPeriod={500}
+              onPointClick={d => {
+                if (viewMode === 'pads') {
+                  setSelectedPad(d);
+                  if (globeRef.current) globeRef.current.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.5 }, 1000);
+                } else {
+                  setSelectedSat(d);
+                  if (globeRef.current) globeRef.current.pointOfView({ lat: d.lat, lng: d.lng, altitude: 1.8 }, 1000);
+                }
+              }}
+              onPointHover={d => {
+                if (viewMode === 'satellites') setHoveredSat(d || null);
+              }}
+              pointLabel={d => `
+                <div style="background: rgba(3, 7, 18, 0.95); padding: 10px 14px; border: 1px solid #38bdf8; font-family: monospace; font-size: 11px; color: #fff; pointer-events: none;">
+                  <b style="color: #38bdf8; font-size: 12px;">${d.name}</b><br/>
+                  ${viewMode === 'pads' ? `Agency: ${d.agency}` : `Org: ${d.organization || 'N/A'} | Vel: ${d.velocity || '7.8 km/s'}`}
                 </div>
-              );
-            })}
+              `}
+            />
+          </div>
+
+          {loadingSats && (
+            <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.85)', padding: '0.4rem 0.8rem', border: '1px solid #38bdf8', zIndex: 10 }}>
+              <span style={{ fontSize: '0.65rem', color: '#38bdf8', letterSpacing: '1px' }}>QUERYING SUPABASE DATABASE...</span>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Satellite Wiki Master Catalog View */
+        <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '2px', border: '1px solid rgba(56, 189, 248, 0.3)', background: 'rgba(10, 15, 25, 0.9)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>
+              // SATELLITE WIKI & MASTER DIRECTORY (16K+ RECORDS)
+            </span>
+            <input
+              type="text"
+              placeholder="Search by satellite name or NORAD ID..."
+              value={wikiSearch}
+              onChange={e => setWikiSearch(e.target.value)}
+              style={{
+                background: 'rgba(0,0,0,0.5)',
+                border: '1px solid rgba(56, 189, 248, 0.4)',
+                padding: '0.5rem 1rem',
+                color: '#fff',
+                fontSize: '0.75rem',
+                fontFamily: 'monospace',
+                width: '300px',
+                outline: 'none'
+              }}
+            />
+          </div>
+
+          <div style={{ maxHeight: '450px', overflowY: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', fontFamily: 'monospace', color: '#d1d5db' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid rgba(56, 189, 248, 0.3)', textAlign: 'left', color: '#38bdf8' }}>
+                  <th style={{ padding: '0.6rem' }}>NORAD ID</th>
+                  <th style={{ padding: '0.6rem' }}>OBJECT NAME</th>
+                  <th style={{ padding: '0.6rem' }}>ORGANIZATION</th>
+                  <th style={{ padding: '0.6rem' }}>STATUS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {wikiData.map((item) => (
+                  <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <td style={{ padding: '0.6rem', color: '#2dd4bf' }}>{item.id}</td>
+                    <td style={{ padding: '0.6rem', color: '#fff', fontWeight: 'bold' }}>{item.name}</td>
+                    <td style={{ padding: '0.6rem' }}>{item.organization || 'Unknown'}</td>
+                    <td style={{ padding: '0.6rem', color: '#38bdf8' }}>ACTIVE</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
+      {/* Bottom Selected Satellite Inspector Card */}
       {viewMode === 'satellites' && selectedSat && (
         <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '2px', border: '1px solid rgba(56, 189, 248, 0.3)', background: 'rgba(10, 15, 25, 0.85)' }}>
-          <span style={{ fontSize: '0.65rem', color: '#38bdf8', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>
-            // SATELLITE ORBITAL INSPECTOR
-          </span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.65rem', color: '#38bdf8', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>
+              // SATELLITE ORBITAL INSPECTOR & TELEMETRY
+            </span>
+            <button
+              onClick={() => setSelectedSat(null)}
+              style={{ background: 'transparent', border: 'none', color: '#a1a1aa', cursor: 'pointer', fontSize: '0.7rem' }}
+            >
+              [CLOSE]
+            </button>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '0.8rem' }}>
             <div>
               <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>OBJECT NAME</p>
@@ -335,7 +410,7 @@ export default function OrbitalGlobe() {
             </div>
             <div>
               <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>ORGANIZATION</p>
-              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#38bdf8', fontWeight: '700' }}>{selectedSat.organization}</p>
+              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#38bdf8', fontWeight: '700' }}>{selectedSat.organization || 'N/A'}</p>
             </div>
             <div>
               <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>NORAD ID</p>
@@ -343,7 +418,7 @@ export default function OrbitalGlobe() {
             </div>
             <div>
               <p style={{ margin: 0, fontSize: '0.65rem', color: '#71717a' }}>VELOCITY</p>
-              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#ffffff' }}>{selectedSat.velocity}</p>
+              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#ffffff' }}>{selectedSat.velocity || '7.66 km/s'}</p>
             </div>
           </div>
         </div>
