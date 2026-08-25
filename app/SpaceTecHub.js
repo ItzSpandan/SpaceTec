@@ -14,6 +14,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   const [expandedLaunch, setExpandedLaunch] = useState(null); 
   const [showAllLaunchesPage, setShowAllLaunchesPage] = useState(false);
   const [isTransitioningExplore, setIsTransitioningExplore] = useState(false);
+  const [showAllAgenciesPage, setShowAllAgenciesPage] = useState(false);
+  const [isTransitioningAgencies, setIsTransitioningAgencies] = useState(false);
+  const [globeViewMode, setGlobeViewMode] = useState({ mode: 'pads', requestId: 0 });
   
   // New States for Satellite Wiki Page View
   const [showSatelliteWikiPage, setShowSatelliteWikiPage] = useState(false);
@@ -210,6 +213,14 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     }, 3500); 
   };
 
+
+  const handleOpenAllAgencies = () => {
+    setIsTransitioningAgencies(true);
+    setTimeout(() => {
+      setIsTransitioningAgencies(false);
+      setShowAllAgenciesPage(true);
+    }, 3500);
+  };
   const handleOpenSatelliteWiki = () => {
     setIsTransitioningWiki(true);
     setTimeout(() => {
@@ -452,6 +463,14 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     Rocket Launch Telemetry
                   </button>
                   <button 
+                    onClick={() => {
+                      setGlobeViewMode((current) => ({ mode: 'satellites', requestId: current.requestId + 1 }));
+                      scrollToSection('orbital-map');
+                    }} 
+                    style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    Live Satellite Tracking
+                  </button>                  <button 
                     onClick={() => scrollToSection('orbital-map')} 
                     style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
@@ -630,6 +649,16 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         )}
       </AnimatePresence>
 
+      {/* AGENCIES DIRECTORY TRANSITION SCREEN */}
+      <AnimatePresence>
+        {isTransitioningAgencies && (
+          <motion.div key="agencies-transition" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000', padding: '2rem' }}>
+            {spaceBackgrounds.map((bgUrl, idx) => <div key={`agencies-trans-bg-${idx}`} style={{ position: 'fixed', inset: 0, backgroundImage: `url('${bgUrl}')`, backgroundSize: 'cover', backgroundPosition: 'center', zIndex: 0, opacity: bgIndex === idx ? 1 : 0, transition: 'opacity 1.8s ease-in-out', filter: 'brightness(0.4) contrast(1.25)', pointerEvents: 'none' }} />)}
+            <div style={{ position: 'fixed', inset: 0, background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)', zIndex: 1, pointerEvents: 'none' }} />
+            <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}><motion.h1 layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}>SPACETEC</motion.h1><motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>LOADING GLOBAL AGENCY DIRECTORY...</motion.p></div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* SATELLITE WIKI TRANSITION SCREEN */}
       <AnimatePresence>
         {isTransitioningWiki && (
@@ -904,12 +933,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 
           <button 
             className="explore-btn"
-            onClick={() => {
-              setAgencyBatchIndex((prev) => (prev === 0 ? 1 : 0));
-              scrollToSection('agencies');
-            }}
+            onClick={handleOpenAllAgencies}
           >
-            <span>Switch Agency Batch ({agencyBatchIndex === 0 ? 'Show JAXA, ISRO, CNSA' : 'Show NASA, SpaceX, ESA'})</span>
+            <span>Explore More Space Agencies</span>
             <span>→</span>
           </button>
         </section>
@@ -918,15 +944,15 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         <section id="orbital-map" className="content-container" style={{ paddingBottom: '6rem', scrollMarginTop: '8rem' }}>
           <div style={{ marginBottom: '2.5rem' }}>
             <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
-              // LAUNCH PAD TELEMETRY & GEO-SPATIAL MAPPING
+              // GLOBAL ORBITAL INTELLIGENCE & LIVE TRACKING
             </span>
             <h2 style={{ fontSize: '1.8rem', textTransform: 'uppercase', margin: '0.5rem 0 0 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
-              INTERACTIVE 3D BLACK GLOBE & LAUNCH PADS
+              GLOBAL ORBITAL OPERATIONS CENTER
             </h2>
           </div>
 
           <div style={{ background: '#000000', borderRadius: '2px', border: '1px solid rgba(255,255,255,0.15)', overflow: 'hidden' }}>
-            <OrbitalGlobe />
+            <OrbitalGlobe requestedView={globeViewMode} />
           </div>
         </section>
 
@@ -1012,6 +1038,16 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           <SatelliteWikiPage 
             spaceBackgrounds={spaceBackgrounds}
             onClose={() => setShowSatelliteWikiPage(false)}
+          />
+        )}
+      </AnimatePresence>
+      {/* ALL AGENCIES FULL PAGE VIEW */}
+      <AnimatePresence>
+        {showAllAgenciesPage && (
+          <AllAgenciesPage 
+            agencies={allAgencies}
+            spaceBackgrounds={spaceBackgrounds}
+            onClose={() => setShowAllAgenciesPage(false)}
           />
         )}
       </AnimatePresence>
@@ -1194,6 +1230,46 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
       <AnimatePresence>
         {isReturningMain && <motion.div key="returning-main-wiki" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} style={{ position: 'fixed', inset: 0, zIndex: 999999, display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000' }}><div style={{ textAlign: 'center' }}><motion.h1 layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}>SPACETEC</motion.h1><p style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>CONNECTING TO MAIN...</p></div></motion.div>}
       </AnimatePresence>
+    </motion.div>
+  );
+}
+function AllAgenciesPage({ agencies, spaceBackgrounds, onClose }) {
+  const [bgIdx, setBgIdx] = useState(0);
+  const [isReturningMain, setIsReturningMain] = useState(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => setBgIdx((current) => (current + 1) % spaceBackgrounds.length), 7000);
+    return () => clearInterval(timer);
+  }, [spaceBackgrounds.length]);
+
+  useEffect(() => {
+    const originalBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalBodyOverflow;
+    };
+  }, []);
+
+  const handleBackToMain = () => {
+    setIsReturningMain(true);
+    setTimeout(() => onClose(), 3000);
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} transition={{ duration: 0.4 }} style={{ position: 'fixed', inset: 0, zIndex: 99998, overflowY: 'auto', backgroundColor: '#000000', padding: '4rem 2rem', boxSizing: 'border-box', fontFamily: '"Space Grotesk", -apple-system, sans-serif' }}>
+      {spaceBackgrounds.map((bgUrl, idx) => <div key={`all-agencies-bg-${idx}`} style={{ position: 'fixed', inset: 0, backgroundImage: `url('${bgUrl}')`, backgroundSize: 'cover', backgroundPosition: 'center', zIndex: 0, opacity: bgIdx === idx ? 1 : 0, transition: 'opacity 1.8s ease-in-out', filter: 'brightness(0.4) contrast(1.25)', pointerEvents: 'none' }} />)}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1, pointerEvents: 'none', background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)' }} />
+      <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 3 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}><motion.span layoutId="spacetec-brand" style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase' }}>SPACETEC</motion.span><button onClick={handleBackToMain} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '0.8rem 1.5rem', cursor: 'pointer', fontSize: '0.75rem', letterSpacing: '2px', fontWeight: '700', textTransform: 'uppercase' }}>[← BACK TO MAIN]</button></div>
+        <div style={{ borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: '2rem', marginBottom: '2.5rem' }}><span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>// GLOBAL SPACE AGENCY DIRECTORY</span><h2 style={{ color: '#fff', fontSize: '2rem', margin: 0, textTransform: 'uppercase', fontWeight: '900' }}>EXPLORE SPACE AGENCIES</h2></div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', paddingBottom: '4rem' }}>
+          {agencies.map((agency, index) => <motion.article key={agency.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.08 }} style={{ minHeight: '310px', position: 'relative', overflow: 'hidden', border: `1px solid ${agency.accentColor}66`, backgroundColor: 'rgba(0,0,0,0.72)', padding: '2rem', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+            <div style={{ position: 'absolute', inset: 0, backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.92) 100%), url('${agency.hqImage}')`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.72 }} />
+            <div style={{ position: 'relative', zIndex: 1 }}><span style={{ color: agency.accentColor, fontSize: '0.65rem', letterSpacing: '2px', fontWeight: '800' }}>// {String(index + 1).padStart(2, '0')}</span><h3 style={{ color: '#fff', margin: '0.7rem 0', fontSize: '1.6rem', letterSpacing: '2px' }}>{agency.name}</h3><p style={{ color: agency.accentColor, margin: '0 0 0.8rem', fontSize: '0.72rem', letterSpacing: '1.4px', fontWeight: '700' }}>{agency.tagline}</p><p style={{ color: '#d4d4d8', margin: 0, lineHeight: '1.6', fontSize: '0.83rem' }}>{agency.brief}</p></div>
+          </motion.article>)}
+        </div>
+      </div>
+      <AnimatePresence>{isReturningMain && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} style={{ position: 'fixed', inset: 0, zIndex: 999999, display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000' }}><div style={{ textAlign: 'center' }}><motion.h1 layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}>SPACETEC</motion.h1><p style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>CONNECTING TO MAIN...</p></div></motion.div>}</AnimatePresence>
     </motion.div>
   );
 }
