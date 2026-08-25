@@ -11,7 +11,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   const [activeAgency, setActiveAgency] = useState(null);
   const [agencyBatchIndex, setAgencyBatchIndex] = useState(0);
   const [expandedLaunch, setExpandedLaunch] = useState(null); 
-  const [showAllLaunchesModal, setShowAllLaunchesModal] = useState(false); // Added for Explore More modal
+  const [showAllLaunchesModal, setShowAllLaunchesModal] = useState(false);
   const canvasRef = useRef(null);
 
   const spaceBackgrounds = [
@@ -186,7 +186,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 
   const currentBatchAgencies = allAgencies.filter(a => a.batch === agencyBatchIndex);
   
-  // Slicing to show exactly 9 items (3x3 grid)
+  // Limited to 9 items for the 3x3 grid layout view
   const displayedLaunches = upcomingLaunches?.slice(0, 9) || [];
 
   return (
@@ -363,17 +363,15 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       >
         <div className="content-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', minWidth: '180px' }}>
-            {entered && (
-              <button className="brand-link" onClick={() => scrollToSection('hero')}>
-                <motion.span
-                  layoutId="spacetec-brand"
-                  transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                  style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}
-                >
-                  SPACETEC
-                </motion.span>
-              </button>
-            )}
+            <button className="brand-link" onClick={() => scrollToSection('hero')}>
+              <motion.span
+                layoutId="spacetec-brand"
+                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+                style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}
+              >
+                SPACETEC
+              </motion.span>
+            </button>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.8rem' }}>
@@ -658,7 +656,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           <OrbitalGlobe />
         </section>
 
-        {/* UPCOMING LAUNCHES (3x3 Grid Limit + Explore More Modal) */}
+        {/* UPCOMING LAUNCHES (3x3 Grid Layout + Explore More Trigger) */}
         <section id="launches" className="content-container" style={{ paddingBottom: '8rem', scrollMarginTop: '8rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
             <div>
@@ -671,7 +669,18 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             </div>
           </div>
 
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={staggerContainer} style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
+          <motion.div 
+            initial="hidden" 
+            whileInView="visible" 
+            viewport={{ once: true }} 
+            variants={staggerContainer} 
+            style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
+              gap: '1.5rem',
+              maxWidth: '100%'
+            }}
+          >
             {displayedLaunches.map((launch) => (
               <motion.div 
                 key={launch.id} 
@@ -680,7 +689,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                 whileHover={{ y: -6, borderColor: '#ffffff' }}
                 onClick={() => setExpandedLaunch(launch)}
                 className="glass-card" 
-                style={{ padding: '2rem', borderRadius: '2px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '220px', transition: 'border-color 0.3s ease', cursor: 'pointer' }}
+                style={{ padding: '2rem', borderRadius: '2px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '220px', transition: 'border-color 0.3s ease', cursor: 'pointer', boxSizing: 'border-box', width: '100%' }}
               >
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
@@ -706,7 +715,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             ))}
           </motion.div>
 
-          {/* Explore More Launches Button */}
           {upcomingLaunches?.length > 9 && (
             <button 
               className="explore-btn"
@@ -721,7 +729,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 
       </motion.div>
 
-      {/* EXPANDED SINGLE LAUNCH MODAL */}
+      {/* RESTORED EXPANDED LAUNCH CARD MODAL WITH LIVE COUNTDOWN & TELEMETRY */}
       <AnimatePresence>
         {expandedLaunch && (
           <LaunchCountdownModal 
@@ -749,7 +757,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   );
 }
 
-// Sub-component for individual launch countdown modal
+// Fully Restored Detailed Countdown & Telemetry Card Modal
 function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: false });
   const [modalBgIdx, setModalBgIdx] = useState(0);
@@ -886,44 +894,68 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
         <motion.div
           layoutId={`launch-card-${launch.id}`}
           className="glass-card"
-          style={{ padding: '3.5rem', borderRadius: '2px', maxWidth: '800px', margin: '0 auto' }}
+          style={{ padding: '3.5rem', borderRadius: '2px', maxWidth: '850px', margin: '0 auto' }}
         >
           <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
-            // MISSION LAUNCH TELEMETRY
+            // MISSION LAUNCH TELEMETRY & T-MINUS COUNTDOWN
           </span>
           <h2 style={{ fontSize: '2.2rem', textTransform: 'uppercase', margin: '1rem 0 1.5rem 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
             {launch.name}
           </h2>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1.5rem', margin: '2.5rem 0', textAlign: 'center' }}>
-            <div className="glass-card" style={{ padding: '1.5rem' }}>
-              <div style={{ fontSize: '2rem', fontWeight: '900', color: '#ffffff' }}>{timeLeft.days}</div>
+          {/* T-MINUS COUNTDOWN GRID */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', margin: '2.5rem 0', textAlign: 'center' }}>
+            <div className="glass-card" style={{ padding: '1.5rem 1rem' }}>
+              <div style={{ fontSize: '2.2rem', fontWeight: '900', color: '#ffffff' }}>{timeLeft.days}</div>
               <div style={{ fontSize: '0.65rem', color: '#a1a1aa', letterSpacing: '2px', marginTop: '0.5rem' }}>DAYS</div>
             </div>
-            <div className="glass-card" style={{ padding: '1.5rem' }}>
-              <div style={{ fontSize: '2rem', fontWeight: '900', color: '#ffffff' }}>{timeLeft.hours}</div>
+            <div className="glass-card" style={{ padding: '1.5rem 1rem' }}>
+              <div style={{ fontSize: '2.2rem', fontWeight: '900', color: '#ffffff' }}>{timeLeft.hours}</div>
               <div style={{ fontSize: '0.65rem', color: '#a1a1aa', letterSpacing: '2px', marginTop: '0.5rem' }}>HOURS</div>
             </div>
-            <div className="glass-card" style={{ padding: '1.5rem' }}>
-              <div style={{ fontSize: '2rem', fontWeight: '900', color: '#ffffff' }}>{timeLeft.minutes}</div>
+            <div className="glass-card" style={{ padding: '1.5rem 1rem' }}>
+              <div style={{ fontSize: '2.2rem', fontWeight: '900', color: '#ffffff' }}>{timeLeft.minutes}</div>
               <div style={{ fontSize: '0.65rem', color: '#a1a1aa', letterSpacing: '2px', marginTop: '0.5rem' }}>MINUTES</div>
             </div>
-            <div className="glass-card" style={{ padding: '1.5rem' }}>
-              <div style={{ fontSize: '2rem', fontWeight: '900', color: '#ffffff' }}>{timeLeft.seconds}</div>
+            <div className="glass-card" style={{ padding: '1.5rem 1rem' }}>
+              <div style={{ fontSize: '2.2rem', fontWeight: '900', color: '#ffffff' }}>{timeLeft.seconds}</div>
               <div style={{ fontSize: '0.65rem', color: '#a1a1aa', letterSpacing: '2px', marginTop: '0.5rem' }}>SECONDS</div>
             </div>
           </div>
 
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem', marginTop: '1.5rem' }}>
-            <p style={{ margin: '0 0 0.6rem 0', fontSize: '0.9rem', color: '#d4d4d8' }}>
-              <strong>Provider:</strong> {launch.provider || 'Global Aerospace Network'}
-            </p>
-            <p style={{ margin: '0 0 0.6rem 0', fontSize: '0.9rem', color: '#d4d4d8' }}>
-              <strong>Launch Window (NET):</strong> {new Date(launch.net).toUTCString()}
-            </p>
-            <p style={{ margin: 0, fontSize: '0.9rem', color: '#d4d4d8' }}>
-              <strong>Launch Pad:</strong> {launch.pad_location || 'Vandenberg Space Force Base'}
-            </p>
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '2rem', marginTop: '2rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
+            <div>
+              <p style={{ margin: '0 0 0.6rem 0', fontSize: '0.85rem', color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                <strong>Organization / Provider:</strong>
+              </p>
+              <p style={{ margin: 0, fontSize: '0.95rem', color: '#ffffff', fontWeight: '700' }}>
+                {launch.provider || 'Global Aerospace Agency'}
+              </p>
+            </div>
+            <div>
+              <p style={{ margin: '0 0 0.6rem 0', fontSize: '0.85rem', color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                <strong>Launch Window (NET):</strong>
+              </p>
+              <p style={{ margin: 0, fontSize: '0.95rem', color: '#ffffff', fontWeight: '700' }}>
+                {new Date(launch.net).toUTCString()}
+              </p>
+            </div>
+            <div>
+              <p style={{ margin: '0 0 0.6rem 0', fontSize: '0.85rem', color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                <strong>Launch Pad & Weather Location:</strong>
+              </p>
+              <p style={{ margin: 0, fontSize: '0.95rem', color: '#ffffff', fontWeight: '700' }}>
+                {launch.pad_location || 'Vandenberg Space Force Base, CA'}
+              </p>
+            </div>
+            <div>
+              <p style={{ margin: '0 0 0.6rem 0', fontSize: '0.85rem', color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                <strong>Mission Status:</strong>
+              </p>
+              <p style={{ margin: 0, fontSize: '0.95rem', color: '#2dd4bf', fontWeight: '700', textTransform: 'uppercase' }}>
+                {timeLeft.isPast ? 'Launch Window Active / Liftoff' : 'Countdown Nominal (Go for Launch)'}
+              </p>
+            </div>
           </div>
         </motion.div>
       </div>
@@ -931,7 +963,7 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
   );
 }
 
-// Sub-component for Explore More Launches modal container
+// Modal component for Explore More Launches archive
 function AllLaunchesModal({ launches, onClose, onSelectLaunch }) {
   return (
     <motion.div
@@ -977,7 +1009,7 @@ function AllLaunchesModal({ launches, onClose, onSelectLaunch }) {
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
           {launches.map((launch) => (
             <div
               key={launch.id}
