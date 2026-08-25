@@ -185,8 +185,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   };
 
   const currentBatchAgencies = allAgencies.filter(a => a.batch === agencyBatchIndex);
-  
-  // Sliced to exactly 9 items for the 3x3 layout view
   const displayedLaunches = upcomingLaunches?.slice(0, 9) || [];
 
   return (
@@ -256,6 +254,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           cursor: pointer;
           padding: 0;
           text-align: left;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
         }
 
         .agency-column {
@@ -349,34 +350,35 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       {/* STARFIELD CANVAS */}
       <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, zIndex: 2, pointerEvents: 'none' }} />
 
-      {/* HEADER WITH SPACETEC BRANDING */}
+      {/* HEADER WITH PROMINENT SPACETEC BRANDING */}
       <motion.header 
         initial={{ opacity: 0 }}
         animate={{ opacity: entered ? 1 : 0 }}
         transition={{ duration: 0.8 }}
         style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-          backgroundColor: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          backgroundColor: 'rgba(0, 0, 0, 0.88)', backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
           pointerEvents: entered ? 'auto' : 'none'
         }}
       >
         <div className="content-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', minWidth: '180px' }}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
             <button className="brand-link" onClick={() => scrollToSection('hero')}>
               <motion.span
                 layoutId="spacetec-brand"
                 transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}
+                style={{ fontSize: '1.4rem', fontWeight: '900', letterSpacing: '6px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}
               >
                 SPACETEC
               </motion.span>
+              <span style={{ fontSize: '0.65rem', letterSpacing: '2px', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.4)', padding: '2px 6px', fontWeight: '700' }}>HUB</span>
             </button>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.8rem' }}>
             <button className="nav-link" onClick={() => scrollToSection('telemetry')}>
-              Live Telemetry
+              Telemetry
             </button>
             <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
             <button className="nav-link" onClick={() => scrollToSection('agencies')}>
@@ -385,6 +387,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
             <button className="nav-link" onClick={() => scrollToSection('orbital-map')}>
               Orbital Map
+            </button>
+            <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
+            <button className="nav-link" onClick={() => scrollToSection('launches')}>
+              Launches
             </button>
           </div>
         </div>
@@ -656,7 +662,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           <OrbitalGlobe />
         </section>
 
-        {/* UPCOMING LAUNCHES (3x3 Grid Limited Layout) */}
+        {/* UPCOMING LAUNCHES SECTION */}
         <section id="launches" className="content-container" style={{ paddingBottom: '8rem', scrollMarginTop: '8rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
             <div>
@@ -676,9 +682,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             variants={staggerContainer} 
             style={{ 
               display: 'grid', 
-              gridTemplateColumns: 'repeat(3, 1fr)', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
               gap: '1.5rem',
-              maxWidth: '100%'
+              maxWidth: '100%',
+              boxSizing: 'border-box'
             }}
           >
             {displayedLaunches.map((launch) => (
@@ -729,7 +736,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 
       </motion.div>
 
-      {/* FULL EXPANDED LAUNCH CARD MODAL WITH LIVE COUNTDOWN & WEATHER TELEMETRY */}
+      {/* FULL EXPANDED LAUNCH CARD MODAL WITH T-MINUS TIMER, ORG & WEATHER INFO */}
       <AnimatePresence>
         {expandedLaunch && (
           <LaunchCountdownModal 
@@ -757,7 +764,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   );
 }
 
-// Restored Detailed Countdown & Weather Telemetry Card Modal
+// Complete Expanded Modal with Timer, Org, and Weather Pad Telemetry
 function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: false });
   const [modalBgIdx, setModalBgIdx] = useState(0);
@@ -894,7 +901,7 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
         <motion.div
           layoutId={`launch-card-${launch.id}`}
           className="glass-card"
-          style={{ padding: '3.5rem', borderRadius: '2px', maxWidth: '850px', margin: '0 auto' }}
+          style={{ padding: '3.5rem', borderRadius: '2px', maxWidth: '850px', margin: '0 auto', boxSizing: 'border-box' }}
         >
           <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
             // MISSION LAUNCH TELEMETRY & T-MINUS COUNTDOWN
@@ -942,7 +949,7 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
             </div>
             <div>
               <p style={{ margin: '0 0 0.6rem 0', fontSize: '0.85rem', color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                <strong>Launch Pad & Weather Location:</strong>
+                <strong>Launch Pad & Location:</strong>
               </p>
               <p style={{ margin: 0, fontSize: '0.95rem', color: '#ffffff', fontWeight: '700' }}>
                 {launch.pad_location || 'Vandenberg Space Force Base, CA'}
