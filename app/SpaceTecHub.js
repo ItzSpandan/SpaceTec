@@ -11,6 +11,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   const [activeAgency, setActiveAgency] = useState(null);
   const [agencyBatchIndex, setAgencyBatchIndex] = useState(0);
   const [expandedLaunch, setExpandedLaunch] = useState(null); 
+  const [showAllLaunchesPage, setShowAllLaunchesPage] = useState(false);
   const canvasRef = useRef(null);
 
   const spaceBackgrounds = [
@@ -184,6 +185,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   };
 
   const currentBatchAgencies = allAgencies.filter(a => a.batch === agencyBatchIndex);
+
+  // Separate latest 9 cards for main page, and remaining for the explore more page
+  const latestLaunches = upcomingLaunches?.slice(0, 9) || [];
+  const remainingLaunches = upcomingLaunches?.slice(9) || [];
 
   return (
     <div style={{ backgroundColor: '#000000', color: '#ffffff', minHeight: '100vh', fontFamily: '"Space Grotesk", -apple-system, sans-serif', position: 'relative', overflowX: 'hidden' }}>
@@ -654,7 +659,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           <OrbitalGlobe />
         </section>
 
-        {/* UPCOMING LAUNCHES */}
+        {/* UPCOMING LAUNCHES (LIMITED TO FIRST 9) */}
         <section id="launches" className="content-container" style={{ paddingBottom: '8rem', scrollMarginTop: '8rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
             <div>
@@ -668,7 +673,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </div>
 
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={staggerContainer} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-            {upcomingLaunches?.map((launch) => (
+            {latestLaunches.map((launch) => (
               <motion.div 
                 key={launch.id} 
                 layoutId={`launch-card-${launch.id}`}
@@ -701,9 +706,35 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               </motion.div>
             ))}
           </motion.div>
+
+          {/* EXPLORE MORE LAUNCHES BUTTON */}
+          {remainingLaunches.length > 0 && (
+            <div style={{ marginTop: '3rem', textAlign: 'center' }}>
+              <button 
+                className="explore-btn" 
+                onClick={() => setShowAllLaunchesPage(true)}
+                style={{ maxWidth: '400px', margin: '0 auto' }}
+              >
+                <span>Explore More Launches ({remainingLaunches.length} More)</span>
+                <span>→</span>
+              </button>
+            </div>
+          )}
         </section>
 
       </motion.div>
+
+      {/* EXPLORE MORE LAUNCHES FULL PAGE VIEW */}
+      <AnimatePresence>
+        {showAllLaunchesPage && (
+          <AllLaunchesPage 
+            launches={remainingLaunches} 
+            spaceBackgrounds={spaceBackgrounds}
+            onClose={() => setShowAllLaunchesPage(false)}
+            onSelectLaunch={(launch) => setExpandedLaunch(launch)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* EXPANDED MODAL CONTAINER WITH BACKGROUND SLIDESHOW & STARFIELD CANVAS */}
       <AnimatePresence>
@@ -719,7 +750,175 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   );
 }
 
-// Sub-component featuring shared layout transition animation, independent scrollable content, and matching background/starfield
+// Separate Page Component for Remaining Launches
+function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }) {
+  const [bgIdx, setBgIdx] = useState(0);
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setBgIdx((prev) => (prev + 1) % spaceBackgrounds.length);
+    }, 7000);
+    return () => clearInterval(timer);
+  }, [spaceBackgrounds.length]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let animationFrameId;
+
+    let width = (canvas.width = window.innerWidth);
+    let height = (canvas.height = window.innerHeight);
+
+    const handleResize = () => {
+      if (!canvas) return;
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    };
+    window.addEventListener('resize', handleResize);
+
+    const stars = Array.from({ length: 180 }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      size: Math.random() * 1.2 + 0.3,
+      alpha: Math.random() * 0.7 + 0.3,
+      speed: Math.random() * 0.2 + 0.05
+    }));
+
+    const render = () => {
+      ctx.clearRect(0, 0, width, height);
+      stars.forEach((star) => {
+        star.y -= star.speed;
+        if (star.y < 0) {
+          star.y = height;
+          star.x = Math.random() * width;
+        }
+        ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 20 }}
+      transition={{ duration: 0.4 }}
+      style={{
+        position: 'fixed',
+        top: 0, left: 0, width: '100vw', height: '100vh',
+        backgroundColor: '#000000',
+        zIndex: 99998,
+        overflowY: 'auto',
+        padding: '4rem 2rem',
+        boxSizing: 'border-box'
+      }}
+    >
+      {spaceBackgrounds.map((bgUrl, idx) => (
+        <div
+          key={`all-bg-${idx}`}
+          style={{
+            position: 'fixed',
+            top: 0, left: 0, width: '100vw', height: '100vh',
+            backgroundImage: `url('${bgUrl}')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            zIndex: 0,
+            opacity: bgIdx === idx ? 1 : 0,
+            transition: 'opacity 1.8s ease-in-out',
+            filter: 'brightness(0.4) contrast(1.25)',
+            pointerEvents: 'none'
+          }}
+        />
+      ))}
+      <div 
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)',
+          zIndex: 1,
+          pointerEvents: 'none'
+        }}
+      />
+      <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, zIndex: 2, pointerEvents: 'none' }} />
+
+      <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 3 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '3rem' }}>
+          <div>
+            <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
+              // ARCHIVED ORBITAL MANIFEST
+            </span>
+            <h2 style={{ color: '#fff', fontSize: '2rem', margin: 0, textTransform: 'uppercase', fontWeight: '900' }}>
+              EXPLORE MORE LAUNCHES
+            </h2>
+          </div>
+          <button 
+            onClick={onClose}
+            style={{ 
+              background: 'rgba(255,255,255,0.08)', 
+              border: '1px solid rgba(255,255,255,0.3)', 
+              color: '#fff', 
+              padding: '0.8rem 1.5rem', 
+              cursor: 'pointer', 
+              fontSize: '0.75rem',
+              letterSpacing: '2px',
+              fontWeight: '700',
+              textTransform: 'uppercase'
+            }}
+          >
+            [← BACK TO MAIN]
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', paddingBottom: '4rem' }}>
+          {launches.map((launch) => (
+            <div 
+              key={launch.id}
+              onClick={() => onSelectLaunch(launch)}
+              className="glass-card" 
+              style={{ padding: '2rem', borderRadius: '2px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '220px', transition: 'border-color 0.3s ease', cursor: 'pointer' }}
+            >
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
+                  <span style={{ fontSize: '0.65rem', letterSpacing: '2px', textTransform: 'uppercase', padding: '0.3rem 0.6rem', background: 'rgba(255, 255, 255, 0.08)', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.2)', fontWeight: '700' }}>
+                    {launch.provider || 'AGENCY'}
+                  </span>
+                  <span style={{ fontSize: '0.65rem', color: '#ffffff', letterSpacing: '2px', fontWeight: '700' }}>● SCHEDULED</span>
+                </div>
+                <h3 style={{ fontSize: '1.05rem', margin: '0 0 1.2rem 0', fontWeight: '700', lineHeight: '1.4', letterSpacing: '1px', textTransform: 'uppercase', color: '#ffffff' }}>
+                  {launch.name}
+                </h3>
+              </div>
+
+              <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '1rem' }}>
+                <p style={{ margin: '0 0 0.4rem 0', fontSize: '0.80rem', color: '#a1a1aa', letterSpacing: '1px' }}>
+                  NET: {new Date(launch.net).toUTCString().slice(0, 16)}
+                </p>
+                <p style={{ margin: 0, fontSize: '0.75rem', color: '#71717a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  PAD: {launch.pad_location || 'Vandenberg Space Force Base'}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// Sub-component featuring shared layout transition animation, independent scrollable content, and website header name
 function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: false });
   const [modalBgIdx, setModalBgIdx] = useState(0);
@@ -821,7 +1020,7 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
         top: 0, left: 0, width: '100vw', height: '100vh',
         backgroundColor: '#000000',
         zIndex: 99999,
-        overflowY: 'auto', // Independent scrolling container for modal
+        overflowY: 'auto',
         padding: '4rem 2rem',
         boxSizing: 'border-box'
       }}
@@ -861,9 +1060,13 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
         layoutId={`launch-card-${launch.id}`}
         style={{ maxWidth: '900px', margin: '0 auto', width: '100%', position: 'relative', zIndex: 3 }}
       >
-        {/* Modal Top Nav / Close with separate padding to avoid title clash */}
+        {/* Modal Top Nav / Close */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '2.5rem', gap: '2rem' }}>
           <div style={{ flex: 1 }}>
+            {/* Website Name on top of the header inside expanded view */}
+            <div style={{ fontSize: '0.85rem', fontWeight: '900', letterSpacing: '6px', color: '#ffffff', textTransform: 'uppercase', marginBottom: '0.8rem', opacity: 0.9 }}>
+              SPACETEC // MISSION TELEMETRY
+            </div>
             <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
               // FULL MISSION TELEMETRY & PAD ENVIRONMENT
             </span>
