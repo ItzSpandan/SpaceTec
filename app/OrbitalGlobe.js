@@ -45,9 +45,12 @@ const globalLaunchPads = [
   { id: 24, name: 'Al-Dahik Launch Site', agency: 'NARSS', lat: 28.4890, lng: 30.4120, type: 'minor', country: 'Egypt' }
 ];
 
-export default function OrbitalGlobe() {
+export default function OrbitalGlobe({ requestedView }) {
   const globeRef = useRef(null);
   const [viewMode, setViewMode] = useState('pads'); // 'pads' | 'satellites' | 'wiki'
+  useEffect(() => {
+    if (requestedView?.mode) setViewMode(requestedView.mode);
+  }, [requestedView]);
   const [padFilter, setPadFilter] = useState('all');
   const [satFilter, setSatFilter] = useState('stations');
   const [selectedPad, setSelectedPad] = useState(globalLaunchPads[0]);
