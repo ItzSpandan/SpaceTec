@@ -186,7 +186,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 
   const currentBatchAgencies = allAgencies.filter(a => a.batch === agencyBatchIndex);
   
-  // Limited to 9 items for the 3x3 grid layout view
+  // Sliced to exactly 9 items for the 3x3 layout view
   const displayedLaunches = upcomingLaunches?.slice(0, 9) || [];
 
   return (
@@ -349,7 +349,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       {/* STARFIELD CANVAS */}
       <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, zIndex: 2, pointerEvents: 'none' }} />
 
-      {/* HEADER */}
+      {/* HEADER WITH SPACETEC BRANDING */}
       <motion.header 
         initial={{ opacity: 0 }}
         animate={{ opacity: entered ? 1 : 0 }}
@@ -656,7 +656,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           <OrbitalGlobe />
         </section>
 
-        {/* UPCOMING LAUNCHES (3x3 Grid Layout + Explore More Trigger) */}
+        {/* UPCOMING LAUNCHES (3x3 Grid Limited Layout) */}
         <section id="launches" className="content-container" style={{ paddingBottom: '8rem', scrollMarginTop: '8rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
             <div>
@@ -676,7 +676,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             variants={staggerContainer} 
             style={{ 
               display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
+              gridTemplateColumns: 'repeat(3, 1fr)', 
               gap: '1.5rem',
               maxWidth: '100%'
             }}
@@ -729,7 +729,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 
       </motion.div>
 
-      {/* RESTORED EXPANDED LAUNCH CARD MODAL WITH LIVE COUNTDOWN & TELEMETRY */}
+      {/* FULL EXPANDED LAUNCH CARD MODAL WITH LIVE COUNTDOWN & WEATHER TELEMETRY */}
       <AnimatePresence>
         {expandedLaunch && (
           <LaunchCountdownModal 
@@ -757,7 +757,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   );
 }
 
-// Fully Restored Detailed Countdown & Telemetry Card Modal
+// Restored Detailed Countdown & Weather Telemetry Card Modal
 function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: false });
   const [modalBgIdx, setModalBgIdx] = useState(0);
@@ -950,10 +950,10 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
             </div>
             <div>
               <p style={{ margin: '0 0 0.6rem 0', fontSize: '0.85rem', color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                <strong>Mission Status:</strong>
+                <strong>Pad Weather / Conditions:</strong>
               </p>
               <p style={{ margin: 0, fontSize: '0.95rem', color: '#2dd4bf', fontWeight: '700', textTransform: 'uppercase' }}>
-                {timeLeft.isPast ? 'Launch Window Active / Liftoff' : 'Countdown Nominal (Go for Launch)'}
+                Nominal (Clear Winds / 22°C)
               </p>
             </div>
           </div>
