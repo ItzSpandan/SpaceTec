@@ -244,7 +244,7 @@ export default function OrbitalGlobe() {
           {[
             { key: 'pads', label: 'Launch Pads' },
             { key: 'satellites', label: `Live Globe Satellites (${satellites.length})` },
-            { key: 'wiki', label: 'Satellite Wiki (16k+ Master)' }
+            { key: 'wiki', label: 'Satellite Database' }
           ].map((btn) => (
             <button
               key={btn.key}
@@ -380,7 +380,7 @@ export default function OrbitalGlobe() {
         <div style={{ padding: '1.5rem', borderRadius: '2px', border: '1px solid rgba(56, 189, 248, 0.3)', background: '#020617' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
             <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>
-              // SATELLITE WIKI & MASTER DIRECTORY (TOTAL MATCHES: {totalWikiCount})
+              // SATELLITE DATABASE (TOTAL MATCHES: {totalWikiCount})
             </span>
             <input
               type="text"
