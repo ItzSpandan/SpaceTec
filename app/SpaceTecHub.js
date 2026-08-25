@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import OrbitalGlobe from './OrbitalGlobe';
+import { supabase } from './supabase';
 
 export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   const [entered, setEntered] = useState(false);
@@ -442,7 +443,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     }} 
                     style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
-                    Satellite Tracking Telemetry
+                    Satellite Database
                   </button>
                   <button 
                     onClick={() => scrollToSection('launches')} 
@@ -689,7 +690,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                 transition={{ delay: 0.3 }}
                 style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}
               >
-                LOADING SATELLITE WIKI TELEMETRY...
+                LOADING SATELLITE DATABASE...
               </motion.p>
             </div>
           </motion.div>
@@ -1032,7 +1033,14 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
   const [bgIdx, setBgIdx] = useState(0);
   const [isReturningMain, setIsReturningMain] = useState(false);
+  const [satellites, setSatellites] = useState([]);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
   const canvasRef = useRef(null);
+  const pageSize = 50;
+  const maxPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -1046,12 +1054,10 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     let animationFrameId;
-
     let width = (canvas.width = window.innerWidth);
     let height = (canvas.height = window.innerHeight);
 
     const handleResize = () => {
-      if (!canvas) return;
       width = canvas.width = window.innerWidth;
       height = canvas.height = window.innerHeight;
     };
@@ -1082,27 +1088,53 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
     };
 
     render();
-
     return () => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationFrameId);
     };
   }, []);
 
+  useEffect(() => {
+    const fetchSatelliteCatalog = async () => {
+      setIsLoading(true);
+      try {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+        let query = supabase
+          .from('satellites')
+          .select('*', { count: 'exact' });
+
+        const trimmedSearch = search.trim();
+        if (trimmedSearch) {
+          query = !isNaN(trimmedSearch)
+            ? query.or(`name.ilike.%${trimmedSearch}%,id.eq.${trimmedSearch}`)
+            : query.ilike('name', `%${trimmedSearch}%`);
+        }
+
+        const { data, count, error } = await query
+          .order('id', { ascending: true })
+          .range(from, to);
+        if (error) throw error;
+
+        setSatellites(data || []);
+        setTotalCount(count || 0);
+      } catch (error) {
+        console.error('Satellite database fetch error:', error);
+        setSatellites([]);
+        setTotalCount(0);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const timer = setTimeout(fetchSatelliteCatalog, 300);
+    return () => clearTimeout(timer);
+  }, [search, page]);
+
   const handleBackToMainWithTransition = () => {
     setIsReturningMain(true);
-    setTimeout(() => {
-      onClose();
-    }, 3000); 
+    setTimeout(() => onClose(), 3000);
   };
-
-  const satelliteData = [
-    { name: 'International Space Station (ISS)', type: 'Habitable Research Station', launch: '1998-11-20', altitude: '~420 km', status: 'Active' },
-    { name: 'Hubble Space Telescope', type: 'Astronomy Observatory', launch: '1990-04-24', altitude: '~540 km', status: 'Active' },
-    { name: 'James Webb Space Telescope', type: 'Infrared Space Observatory', launch: '2021-12-25', altitude: 'L2 Lagrange Point (~1.5M km)', status: 'Active' },
-    { name: 'Starlink Fleet (Gen 2)', type: 'Megaconstellation Internet', launch: 'Ongoing', altitude: '~550 km', status: 'Active' },
-    { name: 'GPS Block III', type: 'Navigation & Geodesy', launch: '2018-12-23', altitude: '~20,200 km', status: 'Active' }
-  ];
 
   return (
     <motion.div
@@ -1110,179 +1142,54 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
       transition={{ duration: 0.4 }}
-      style={{
-        position: 'fixed',
-        top: 0, left: 0, width: '100vw', height: '100vh',
-        backgroundColor: '#000000',
-        zIndex: 99998,
-        overflowY: 'auto',
-        padding: '4rem 2rem',
-        boxSizing: 'border-box',
-        fontFamily: '"Space Grotesk", -apple-system, sans-serif'
-      }}
+      style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: '#000000', zIndex: 99998, overflowY: 'auto', padding: '4rem 2rem', boxSizing: 'border-box', fontFamily: '"Space Grotesk", -apple-system, sans-serif' }}
     >
       {spaceBackgrounds.map((bgUrl, idx) => (
-        <div
-          key={`wiki-page-bg-${idx}`}
-          style={{
-            position: 'fixed',
-            top: 0, left: 0, width: '100vw', height: '100vh',
-            backgroundImage: `url('${bgUrl}')`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            zIndex: 0,
-            opacity: bgIdx === idx ? 1 : 0,
-            transition: 'opacity 1.8s ease-in-out',
-            filter: 'brightness(0.4) contrast(1.25)',
-            pointerEvents: 'none'
-          }}
-        />
+        <div key={`wiki-page-bg-${idx}`} style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundImage: `url('${bgUrl}')`, backgroundSize: 'cover', backgroundPosition: 'center', zIndex: 0, opacity: bgIdx === idx ? 1 : 0, transition: 'opacity 1.8s ease-in-out', filter: 'brightness(0.4) contrast(1.25)', pointerEvents: 'none' }} />
       ))}
-      <div 
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)',
-          zIndex: 1,
-          pointerEvents: 'none'
-        }}
-      />
+      <div style={{ position: 'fixed', inset: 0, background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)', zIndex: 1, pointerEvents: 'none' }} />
       <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, zIndex: 2, pointerEvents: 'none' }} />
 
       <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 3 }}>
-        
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <div>
-            <motion.span 
-              layoutId="spacetec-brand"
-              style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}
-            >
-              SPACETEC
-            </motion.span>
-          </div>
-
-          <button 
-            onClick={handleBackToMainWithTransition}
-            style={{ 
-              background: 'rgba(255,255,255,0.08)', 
-              border: '1px solid rgba(255,255,255,0.3)', 
-              color: '#fff', 
-              padding: '0.8rem 1.5rem', 
-              cursor: 'pointer', 
-              fontSize: '0.75rem',
-              letterSpacing: '2px',
-              fontWeight: '700',
-              textTransform: 'uppercase'
-            }}
-          >
-            [← BACK TO MAIN]
-          </button>
+          <motion.span layoutId="spacetec-brand" style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}>SPACETEC</motion.span>
+          <button onClick={handleBackToMainWithTransition} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '0.8rem 1.5rem', cursor: 'pointer', fontSize: '0.75rem', letterSpacing: '2px', fontWeight: '700', textTransform: 'uppercase' }}>[← BACK TO MAIN]</button>
         </div>
 
-        <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '2.5rem' }}>
-          <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
-            // SATELLITE TRACKING TELEMETRY WIKI
-          </span>
-          <h2 style={{ color: '#fff', fontSize: '2rem', margin: 0, textTransform: 'uppercase', fontWeight: '900' }}>
-            GLOBAL SATELLITE DATABASE
-          </h2>
+        <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '2rem' }}>
+          <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>// SATELLITE DATABASE</span>
+          <h2 style={{ color: '#fff', fontSize: '2rem', margin: 0, textTransform: 'uppercase', fontWeight: '900' }}>GLOBAL SATELLITE DATABASE</h2>
         </div>
 
-        <div className="glass-card" style={{ overflowX: 'auto', marginBottom: '4rem', padding: '1rem', border: '1px solid rgba(255,255,255,0.15)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>TOTAL MATCHES: {totalCount.toLocaleString()}</span>
+          <input type="text" placeholder="Search by name or NORAD ID..." value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} style={{ background: 'rgba(0,0,0,0.8)', border: '1px solid rgba(56, 189, 248, 0.4)', padding: '0.7rem 1rem', color: '#fff', fontSize: '0.75rem', fontFamily: 'monospace', width: 'min(100%, 320px)', outline: 'none' }} />
+        </div>
+
+        <div className="glass-card" style={{ overflowX: 'auto', marginBottom: '1rem', padding: '1rem', border: '1px solid rgba(255,255,255,0.15)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)', color: '#38bdf8', letterSpacing: '2px', fontSize: '0.7rem', textTransform: 'uppercase' }}>
-                <th style={{ padding: '1rem' }}>Satellite Name</th>
-                <th style={{ padding: '1rem' }}>Type / Mission</th>
-                <th style={{ padding: '1rem' }}>Launch Date</th>
-                <th style={{ padding: '1rem' }}>Orbital Altitude</th>
-                <th style={{ padding: '1rem' }}>Status</th>
-              </tr>
-            </thead>
+            <thead><tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)', color: '#38bdf8', letterSpacing: '2px', fontSize: '0.7rem', textTransform: 'uppercase' }}><th style={{ padding: '1rem' }}>NORAD ID</th><th style={{ padding: '1rem' }}>Object Name</th><th style={{ padding: '1rem' }}>Organization</th><th style={{ padding: '1rem' }}>Status</th></tr></thead>
             <tbody>
-              {satelliteData.map((sat, idx) => (
-                <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8' }}>
-                  <td style={{ padding: '1.2rem 1rem', fontWeight: '700', color: '#fff' }}>{sat.name}</td>
-                  <td style={{ padding: '1.2rem 1rem' }}>{sat.type}</td>
-                  <td style={{ padding: '1.2rem 1rem' }}>{sat.launch}</td>
-                  <td style={{ padding: '1.2rem 1rem' }}>{sat.altitude}</td>
-                  <td style={{ padding: '1.2rem 1rem', color: '#22c55e', fontWeight: '700' }}>{sat.status}</td>
-                </tr>
-              ))}
+              {isLoading ? <tr><td colSpan="4" style={{ padding: '2rem 1rem', color: '#38bdf8', textAlign: 'center' }}>QUERYING SATELLITE DATABASE...</td></tr> : satellites.length === 0 ? <tr><td colSpan="4" style={{ padding: '2rem 1rem', color: '#d4d4d8', textAlign: 'center' }}>NO SATELLITES FOUND</td></tr> : satellites.map((satellite) => <tr key={satellite.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8' }}><td style={{ padding: '1.2rem 1rem', color: '#2dd4bf', fontWeight: '700' }}>{satellite.id}</td><td style={{ padding: '1.2rem 1rem', fontWeight: '700', color: '#fff' }}>{satellite.name || 'UNKNOWN'}</td><td style={{ padding: '1.2rem 1rem' }}>{satellite.organization || 'Independent / International'}</td><td style={{ padding: '1.2rem 1rem', color: '#22c55e', fontWeight: '700' }}>ACTIVE</td></tr>)}
             </tbody>
           </table>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '4rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <span style={{ fontSize: '0.7rem', color: '#d4d4d8', letterSpacing: '1px' }}>PAGE {page + 1} OF {maxPages}</span>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button disabled={page === 0} onClick={() => setPage((currentPage) => Math.max(0, currentPage - 1))} style={{ padding: '0.7rem 1rem', background: page === 0 ? 'rgba(255,255,255,0.02)' : 'rgba(56, 189, 248, 0.2)', border: '1px solid rgba(56, 189, 248, 0.4)', color: page === 0 ? '#52525b' : '#ffffff', fontSize: '0.7rem', cursor: page === 0 ? 'not-allowed' : 'pointer' }}>PREV PAGE</button>
+            <button disabled={page + 1 >= maxPages} onClick={() => setPage((currentPage) => currentPage + 1)} style={{ padding: '0.7rem 1rem', background: page + 1 >= maxPages ? 'rgba(255,255,255,0.02)' : 'rgba(56, 189, 248, 0.2)', border: '1px solid rgba(56, 189, 248, 0.4)', color: page + 1 >= maxPages ? '#52525b' : '#ffffff', fontSize: '0.7rem', cursor: page + 1 >= maxPages ? 'not-allowed' : 'pointer' }}>NEXT PAGE</button>
+          </div>
         </div>
       </div>
 
       <AnimatePresence>
-        {isReturningMain && (
-          <motion.div
-            key="returning-main-wiki"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 999999,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              backgroundColor: '#000000',
-              padding: '2rem'
-            }}
-          >
-            {spaceBackgrounds.map((bgUrl, idx) => (
-              <div
-                key={`ret-wiki-bg-${idx}`}
-                style={{
-                  position: 'fixed',
-                  top: 0, left: 0, width: '100vw', height: '100vh',
-                  backgroundImage: `url('${bgUrl}')`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  zIndex: 0,
-                  opacity: bgIdx === idx ? 1 : 0,
-                  transition: 'opacity 1.8s ease-in-out',
-                  filter: 'brightness(0.4) contrast(1.25)',
-                  pointerEvents: 'none'
-                }}
-              />
-            ))}
-            <div 
-              style={{
-                position: 'fixed',
-                inset: 0,
-                background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)',
-                zIndex: 1,
-                pointerEvents: 'none'
-              }}
-            />
-            <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}>
-              <motion.h1
-                layoutId="spacetec-brand"
-                style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}
-              >
-                SPACETEC
-              </motion.h1>
-              <motion.p
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}
-              >
-                CONNECTING TO MAIN...
-              </motion.p>
-            </div>
-          </motion.div>
-        )}
+        {isReturningMain && <motion.div key="returning-main-wiki" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} style={{ position: 'fixed', inset: 0, zIndex: 999999, display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000' }}><div style={{ textAlign: 'center' }}><motion.h1 layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}>SPACETEC</motion.h1><p style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>CONNECTING TO MAIN...</p></div></motion.div>}
       </AnimatePresence>
     </motion.div>
   );
 }
-
 function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }) {
   const [bgIdx, setBgIdx] = useState(0);
   const [sortBy, setSortBy] = useState('latest');
