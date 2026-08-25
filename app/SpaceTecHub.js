@@ -14,6 +14,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   const [showAllLaunchesPage, setShowAllLaunchesPage] = useState(false);
   const [isTransitioningExplore, setIsTransitioningExplore] = useState(false);
   
+  // New States for Satellite Wiki Page View
+  const [showSatelliteWikiPage, setShowSatelliteWikiPage] = useState(false);
+  const [isTransitioningWiki, setIsTransitioningWiki] = useState(false);
+  
   // Dropdown & Menu States
   const [showTelemetryDropdown, setShowTelemetryDropdown] = useState(false);
   const [showHamburgerMenu, setShowHamburgerMenu] = useState(false);
@@ -203,6 +207,14 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       setIsTransitioningExplore(false);
       setShowAllLaunchesPage(true);
     }, 3500); 
+  };
+
+  const handleOpenSatelliteWiki = () => {
+    setIsTransitioningWiki(true);
+    setTimeout(() => {
+      setIsTransitioningWiki(false);
+      setShowSatelliteWikiPage(true);
+    }, 3500);
   };
 
   return (
@@ -424,7 +436,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                   }}
                 >
                   <button 
-                    onClick={() => scrollToSection('orbital-map')} 
+                    onClick={() => {
+                      setShowTelemetryDropdown(false);
+                      handleOpenSatelliteWiki();
+                    }} 
                     style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
                     Satellite Tracking Telemetry
@@ -436,7 +451,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     Rocket Launch Telemetry
                   </button>
                   <button 
-                    onClick={() => scrollToSection('telemetry')} 
+                    onClick={() => scrollToSection('orbital-map')} 
                     style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
                     Launch Pad Telemetry
@@ -452,7 +467,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
             
             {/* ISS Tracker Replaced Button */}
-            <button className="nav-link" onClick={() => scrollToSection('orbital-map')}>
+            <button className="nav-link" onClick={() => alert('ISS Tracker separate live telemetry view coming soon!')}>
               ISS Tracker
             </button>
 
@@ -608,6 +623,73 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                 style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}
               >
                 LOADING ARCHIVED MANIFEST...
+              </motion.p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* SATELLITE WIKI TRANSITION SCREEN */}
+      <AnimatePresence>
+        {isTransitioningWiki && (
+          <motion.div
+            key="wiki-transition"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 99999,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: '#000000',
+              padding: '2rem'
+            }}
+          >
+            {spaceBackgrounds.map((bgUrl, idx) => (
+              <div
+                key={`wiki-trans-bg-${idx}`}
+                style={{
+                  position: 'fixed',
+                  top: 0, left: 0, width: '100vw', height: '100vh',
+                  backgroundImage: `url('${bgUrl}')`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  zIndex: 0,
+                  opacity: bgIndex === idx ? 1 : 0,
+                  transition: 'opacity 1.8s ease-in-out',
+                  filter: 'brightness(0.4) contrast(1.25)',
+                  pointerEvents: 'none'
+                }}
+              />
+            ))}
+            <div 
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)',
+                zIndex: 1,
+                pointerEvents: 'none'
+              }}
+            />
+            <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}>
+              <motion.h1
+                layoutId="spacetec-brand"
+                style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}
+              >
+                SPACETEC
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}
+              >
+                LOADING SATELLITE WIKI TELEMETRY...
               </motion.p>
             </div>
           </motion.div>
@@ -831,18 +913,20 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </button>
         </section>
 
-        {/* ORBITAL MAP SECTION */}
+        {/* ORBITAL MAP / LAUNCH PAD TELEMETRY SECTION */}
         <section id="orbital-map" className="content-container" style={{ paddingBottom: '6rem', scrollMarginTop: '8rem' }}>
           <div style={{ marginBottom: '2.5rem' }}>
             <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
-              // GLOBAL TELEMETRY & GEO-SPATIAL MAPPING
+              // LAUNCH PAD TELEMETRY & GEO-SPATIAL MAPPING
             </span>
             <h2 style={{ fontSize: '1.8rem', textTransform: 'uppercase', margin: '0.5rem 0 0 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
-              INTERACTIVE 3D ORBITAL GLOBE & LAUNCH PADS
+              INTERACTIVE 3D BLACK GLOBE & LAUNCH PADS
             </h2>
           </div>
 
-          <OrbitalGlobe />
+          <div style={{ background: '#000000', borderRadius: '2px', border: '1px solid rgba(255,255,255,0.15)', overflow: 'hidden' }}>
+            <OrbitalGlobe />
+          </div>
         </section>
 
         {/* UPCOMING LAUNCHES */}
@@ -921,6 +1005,16 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         )}
       </AnimatePresence>
 
+      {/* SATELLITE WIKI FULL PAGE VIEW */}
+      <AnimatePresence>
+        {showSatelliteWikiPage && (
+          <SatelliteWikiPage 
+            spaceBackgrounds={spaceBackgrounds}
+            onClose={() => setShowSatelliteWikiPage(false)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* EXPANDED MODAL CONTAINER */}
       <AnimatePresence>
         {expandedLaunch && (
@@ -932,6 +1026,260 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
+  const [bgIdx, setBgIdx] = useState(0);
+  const [isReturningMain, setIsReturningMain] = useState(false);
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setBgIdx((prev) => (prev + 1) % spaceBackgrounds.length);
+    }, 7000);
+    return () => clearInterval(timer);
+  }, [spaceBackgrounds.length]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let animationFrameId;
+
+    let width = (canvas.width = window.innerWidth);
+    let height = (canvas.height = window.innerHeight);
+
+    const handleResize = () => {
+      if (!canvas) return;
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    };
+    window.addEventListener('resize', handleResize);
+
+    const stars = Array.from({ length: 180 }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      size: Math.random() * 1.2 + 0.3,
+      alpha: Math.random() * 0.7 + 0.3,
+      speed: Math.random() * 0.2 + 0.05
+    }));
+
+    const render = () => {
+      ctx.clearRect(0, 0, width, height);
+      stars.forEach((star) => {
+        star.y -= star.speed;
+        if (star.y < 0) {
+          star.y = height;
+          star.x = Math.random() * width;
+        }
+        ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  const handleBackToMainWithTransition = () => {
+    setIsReturningMain(true);
+    setTimeout(() => {
+      onClose();
+    }, 3000); 
+  };
+
+  const satelliteData = [
+    { name: 'International Space Station (ISS)', type: 'Habitable Research Station', launch: '1998-11-20', altitude: '~420 km', status: 'Active' },
+    { name: 'Hubble Space Telescope', type: 'Astronomy Observatory', launch: '1990-04-24', altitude: '~540 km', status: 'Active' },
+    { name: 'James Webb Space Telescope', type: 'Infrared Space Observatory', launch: '2021-12-25', altitude: 'L2 Lagrange Point (~1.5M km)', status: 'Active' },
+    { name: 'Starlink Fleet (Gen 2)', type: 'Megaconstellation Internet', launch: 'Ongoing', altitude: '~550 km', status: 'Active' },
+    { name: 'GPS Block III', type: 'Navigation & Geodesy', launch: '2018-12-23', altitude: '~20,200 km', status: 'Active' }
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 20 }}
+      transition={{ duration: 0.4 }}
+      style={{
+        position: 'fixed',
+        top: 0, left: 0, width: '100vw', height: '100vh',
+        backgroundColor: '#000000',
+        zIndex: 99998,
+        overflowY: 'auto',
+        padding: '4rem 2rem',
+        boxSizing: 'border-box',
+        fontFamily: '"Space Grotesk", -apple-system, sans-serif'
+      }}
+    >
+      {spaceBackgrounds.map((bgUrl, idx) => (
+        <div
+          key={`wiki-page-bg-${idx}`}
+          style={{
+            position: 'fixed',
+            top: 0, left: 0, width: '100vw', height: '100vh',
+            backgroundImage: `url('${bgUrl}')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            zIndex: 0,
+            opacity: bgIdx === idx ? 1 : 0,
+            transition: 'opacity 1.8s ease-in-out',
+            filter: 'brightness(0.4) contrast(1.25)',
+            pointerEvents: 'none'
+          }}
+        />
+      ))}
+      <div 
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)',
+          zIndex: 1,
+          pointerEvents: 'none'
+        }}
+      />
+      <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, zIndex: 2, pointerEvents: 'none' }} />
+
+      <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 3 }}>
+        
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+          <div>
+            <motion.span 
+              layoutId="spacetec-brand"
+              style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}
+            >
+              SPACETEC
+            </motion.span>
+          </div>
+
+          <button 
+            onClick={handleBackToMainWithTransition}
+            style={{ 
+              background: 'rgba(255,255,255,0.08)', 
+              border: '1px solid rgba(255,255,255,0.3)', 
+              color: '#fff', 
+              padding: '0.8rem 1.5rem', 
+              cursor: 'pointer', 
+              fontSize: '0.75rem',
+              letterSpacing: '2px',
+              fontWeight: '700',
+              textTransform: 'uppercase'
+            }}
+          >
+            [← BACK TO MAIN]
+          </button>
+        </div>
+
+        <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '2.5rem' }}>
+          <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
+            // SATELLITE TRACKING TELEMETRY WIKI
+          </span>
+          <h2 style={{ color: '#fff', fontSize: '2rem', margin: 0, textTransform: 'uppercase', fontWeight: '900' }}>
+            GLOBAL SATELLITE DATABASE
+          </h2>
+        </div>
+
+        <div className="glass-card" style={{ overflowX: 'auto', marginBottom: '4rem', padding: '1rem', border: '1px solid rgba(255,255,255,0.15)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)', color: '#38bdf8', letterSpacing: '2px', fontSize: '0.7rem', textTransform: 'uppercase' }}>
+                <th style={{ padding: '1rem' }}>Satellite Name</th>
+                <th style={{ padding: '1rem' }}>Type / Mission</th>
+                <th style={{ padding: '1rem' }}>Launch Date</th>
+                <th style={{ padding: '1rem' }}>Orbital Altitude</th>
+                <th style={{ padding: '1rem' }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {satelliteData.map((sat, idx) => (
+                <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8' }}>
+                  <td style={{ padding: '1.2rem 1rem', fontWeight: '700', color: '#fff' }}>{sat.name}</td>
+                  <td style={{ padding: '1.2rem 1rem' }}>{sat.type}</td>
+                  <td style={{ padding: '1.2rem 1rem' }}>{sat.launch}</td>
+                  <td style={{ padding: '1.2rem 1rem' }}>{sat.altitude}</td>
+                  <td style={{ padding: '1.2rem 1rem', color: '#22c55e', fontWeight: '700' }}>{sat.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {isReturningMain && (
+          <motion.div
+            key="returning-main-wiki"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 999999,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: '#000000',
+              padding: '2rem'
+            }}
+          >
+            {spaceBackgrounds.map((bgUrl, idx) => (
+              <div
+                key={`ret-wiki-bg-${idx}`}
+                style={{
+                  position: 'fixed',
+                  top: 0, left: 0, width: '100vw', height: '100vh',
+                  backgroundImage: `url('${bgUrl}')`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  zIndex: 0,
+                  opacity: bgIdx === idx ? 1 : 0,
+                  transition: 'opacity 1.8s ease-in-out',
+                  filter: 'brightness(0.4) contrast(1.25)',
+                  pointerEvents: 'none'
+                }}
+              />
+            ))}
+            <div 
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)',
+                zIndex: 1,
+                pointerEvents: 'none'
+              }}
+            />
+            <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}>
+              <motion.h1
+                layoutId="spacetec-brand"
+                style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}
+              >
+                SPACETEC
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}
+              >
+                CONNECTING TO MAIN...
+              </motion.p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
