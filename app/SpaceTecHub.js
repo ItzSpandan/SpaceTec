@@ -123,7 +123,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   useEffect(() => {
     const autoEnterTimer = setTimeout(() => {
       setEntered(true);
-    }, 2500);
+    }, 3500); // 3.5 seconds for initial website load intro
     return () => clearTimeout(autoEnterTimer);
   }, []);
 
@@ -195,7 +195,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     setTimeout(() => {
       setIsTransitioningExplore(false);
       setShowAllLaunchesPage(true);
-    }, 1800); // 1.8 second centered transition screen
+    }, 3500); // 3.5 seconds centered transition screen for explore more
   };
 
   return (
@@ -401,7 +401,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         </div>
       </motion.header>
 
-      {/* INTRO SCREEN */}
+      {/* INTRO SCREEN (3.5 SECONDS) */}
       <AnimatePresence>
         {!entered && (
           <motion.div
@@ -427,7 +427,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.4 }}
-                style={{ fontSize: 'calc(0.7rem + 0.3vw)', letterSpacing: '12px', color: '#a1a1aa', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '500' }}
+                style={{ fontSize: 'calc(0.7rem + 0.3vw)', letterSpacing: '12px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '500' }}
               >
                 UNIFIED COSMIC INTELLIGENCE
               </motion.p>
@@ -436,7 +436,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         )}
       </AnimatePresence>
 
-      {/* EXPLORE MORE TRANSITION SCREEN */}
+      {/* EXPLORE MORE TRANSITION SCREEN (3.5 SECONDS WITH WHITE SUB-TEXT) */}
       <AnimatePresence>
         {isTransitioningExplore && (
           <motion.div
@@ -494,7 +494,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#38bdf8', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}
+                style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}
               >
                 LOADING ARCHIVED MANIFEST...
               </motion.p>
@@ -811,7 +811,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         )}
       </AnimatePresence>
 
-      {/* EXPANDED MODAL CONTAINER WITH ENLARGED 'SPACETEC' BRANDING */}
+      {/* EXPANDED MODAL CONTAINER WITH SHARED LAYOUT ANIMATION */}
       <AnimatePresence>
         {expandedLaunch && (
           <LaunchCountdownModal 
@@ -825,11 +825,12 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   );
 }
 
-// Separate Page Component for Remaining Launches with Dropdown Filters Menu
+// Separate Page Component for Remaining Launches with Dropdown Filters Menu & "Connecting to Main" 3-sec Exit Transition
 function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }) {
   const [bgIdx, setBgIdx] = useState(0);
   const [sortBy, setSortBy] = useState('latest');
   const [selectedProvider, setSelectedProvider] = useState('all');
+  const [isReturningMain, setIsReturningMain] = useState(false);
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -886,6 +887,13 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
       cancelAnimationFrame(animationFrameId);
     };
   }, []);
+
+  const handleBackToMainWithTransition = () => {
+    setIsReturningMain(true);
+    setTimeout(() => {
+      onClose();
+    }, 3000); // 3 seconds transition with message
+  };
 
   // Extract unique providers for agency filter dropdown
   const providers = ['all', ...new Set(launches.map(l => l.provider).filter(Boolean))];
@@ -948,11 +956,33 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
 
       <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 3 }}>
         
-        {/* TOP BRAND FORMAT MATCHING HOMEPAGE */}
-        <div style={{ marginBottom: '1rem' }}>
-          <span style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}>
-            SPACETEC
-          </span>
+        {/* TOP BAR WITH BRANDING ON LEFT AND BACK TO MAIN ON TOP RIGHT */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+          <div>
+            <motion.span 
+              layoutId="spacetec-brand"
+              style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}
+            >
+              SPACETEC
+            </motion.span>
+          </div>
+
+          <button 
+            onClick={handleBackToMainWithTransition}
+            style={{ 
+              background: 'rgba(255,255,255,0.08)', 
+              border: '1px solid rgba(255,255,255,0.3)', 
+              color: '#fff', 
+              padding: '0.8rem 1.5rem', 
+              cursor: 'pointer', 
+              fontSize: '0.75rem',
+              letterSpacing: '2px',
+              fontWeight: '700',
+              textTransform: 'uppercase'
+            }}
+          >
+            [← BACK TO MAIN]
+          </button>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '2.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
@@ -991,31 +1021,14 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
                 ))}
               </select>
             </div>
-
-            <button 
-              onClick={onClose}
-              style={{ 
-                background: 'rgba(255,255,255,0.08)', 
-                border: '1px solid rgba(255,255,255,0.3)', 
-                color: '#fff', 
-                padding: '0.8rem 1.5rem', 
-                cursor: 'pointer', 
-                fontSize: '0.75rem',
-                letterSpacing: '2px',
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                alignSelf: 'flex-end'
-              }}
-            >
-              [← BACK TO MAIN]
-            </button>
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', paddingBottom: '4rem' }}>
           {filteredLaunches.map((launch) => (
-            <div 
+            <motion.div 
               key={launch.id}
+              layoutId={`launch-card-${launch.id}`}
               onClick={() => onSelectLaunch(launch)}
               className="glass-card" 
               style={{ padding: '2rem', borderRadius: '2px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '220px', transition: 'border-color 0.3s ease', cursor: 'pointer' }}
@@ -1040,7 +1053,7 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
                   PAD: {launch.pad_location || 'Vandenberg Space Force Base'}
                 </p>
               </div>
-            </div>
+            </motion.div>
           ))}
           {filteredLaunches.length === 0 && (
             <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '4rem', color: '#a1a1aa' }}>
@@ -1049,6 +1062,73 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
           )}
         </div>
       </div>
+
+      {/* 3-SECOND CONNECTING TO MAIN TRANSITION OVERLAY */}
+      <AnimatePresence>
+        {isReturningMain && (
+          <motion.div
+            key="returning-main"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 999999,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: '#000000',
+              padding: '2rem'
+            }}
+          >
+            {spaceBackgrounds.map((bgUrl, idx) => (
+              <div
+                key={`ret-bg-${idx}`}
+                style={{
+                  position: 'fixed',
+                  top: 0, left: 0, width: '100vw', height: '100vh',
+                  backgroundImage: `url('${bgUrl}')`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  zIndex: 0,
+                  opacity: bgIdx === idx ? 1 : 0,
+                  transition: 'opacity 1.8s ease-in-out',
+                  filter: 'brightness(0.4) contrast(1.25)',
+                  pointerEvents: 'none'
+                }}
+              />
+            ))}
+            <div 
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)',
+                zIndex: 1,
+                pointerEvents: 'none'
+              }}
+            />
+            <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}>
+              <motion.h1
+                layoutId="spacetec-brand"
+                style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}
+              >
+                SPACETEC
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}
+              >
+                CONNECTING TO MAIN...
+              </motion.p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
