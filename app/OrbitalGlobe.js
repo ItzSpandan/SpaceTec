@@ -377,7 +377,7 @@ export default function OrbitalGlobe() {
         </div>
       ) : (
         /* Satellite Wiki Master Catalog View with Transparent/Black Command Styling */
-        <div style={{ padding: '1.5rem', borderRadius: '2px', border: '1px solid rgba(56, 189, 248, 0.3)', background: '#020617' }}>
+        <div style={{ padding: '1.5rem', borderRadius: '2px', border: '1px solid rgba(56, 189, 248, 0.3)', background: '#000000' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
             <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>
               // SATELLITE DATABASE (TOTAL MATCHES: {totalWikiCount})
