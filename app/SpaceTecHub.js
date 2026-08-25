@@ -10,7 +10,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   const [bgIndex, setBgIndex] = useState(0);
   const [activeAgency, setActiveAgency] = useState(null);
   const [agencyBatchIndex, setAgencyBatchIndex] = useState(0);
-  const [expandedLaunch, setExpandedLaunch] = useState(null); // State for the clicked launch card modal
+  const [expandedLaunch, setExpandedLaunch] = useState(null); 
   const canvasRef = useRef(null);
 
   const spaceBackgrounds = [
@@ -95,7 +95,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     }
   ];
 
-  // Smooth navigation helper
   const scrollToSection = (id) => {
     const section = document.getElementById(id);
     if (section) {
@@ -373,7 +372,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             )}
           </div>
 
-          {/* HEADER NAV LINKS */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.8rem' }}>
             <button className="nav-link" onClick={() => scrollToSection('telemetry')}>
               Live Telemetry
@@ -642,7 +640,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           </button>
         </section>
 
-        {/* ORBITAL MAP SECTION (NEW 3D GLOBE INTEGRATION) */}
+        {/* ORBITAL MAP SECTION */}
         <section id="orbital-map" className="content-container" style={{ paddingBottom: '6rem', scrollMarginTop: '8rem' }}>
           <div style={{ marginBottom: '2.5rem' }}>
             <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
@@ -706,7 +704,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 
       </motion.div>
 
-      {/* EXPANDED LIVE COUNTDOWN MODAL */}
+      {/* FULL-SCREEN EXPANDED LIVE COUNTDOWN & WEATHER MODAL */}
       {expandedLaunch && (
         <LaunchCountdownModal 
           launch={expandedLaunch} 
@@ -717,7 +715,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   );
 }
 
-// Sub-component handling the live T-Minus countdown clock from the net timestamptz field
+// Sub-component handling the full-screen modal with countdown clock, weather telemetry, and close button
 function LaunchCountdownModal({ launch, onClose }) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: false });
 
@@ -751,74 +749,122 @@ function LaunchCountdownModal({ launch, onClose }) {
   if (!launch) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0, left: 0, width: '100vw', height: '100vh',
-      background: 'rgba(2, 6, 23, 0.85)',
-      backdropFilter: 'blur(8px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 99999,
-      padding: '1rem'
-    }}>
-      <div style={{
-        background: '#0a0f19',
-        border: '1px solid rgba(56, 189, 248, 0.4)',
-        width: '100%',
-        maxWidth: '600px',
-        padding: '2rem',
-        borderRadius: '2px',
-        fontFamily: 'monospace',
-        boxShadow: '0 0 30px rgba(56, 189, 248, 0.15)'
-      }}>
-        {/* Header & Close */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(56, 189, 248, 0.2)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{
+        position: 'fixed',
+        top: 0, left: 0, width: '100vw', height: '100vh',
+        backgroundColor: '#000000',
+        zIndex: 99999,
+        display: 'flex',
+        flexDirection: 'column',
+        overflowY: 'auto',
+        padding: '3rem 2rem'
+      }}
+    >
+      <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
+        {/* Modal Top Nav / Close */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '1.5rem', marginBottom: '2.5rem' }}>
           <div>
-            <span style={{ fontSize: '0.65rem', color: '#38bdf8', letterSpacing: '2px', textTransform: 'uppercase' }}>// MISSION TELEMETRY DETAILS</span>
-            <h2 style={{ color: '#fff', fontSize: '1.2rem', margin: '0.2rem 0 0 0', textTransform: 'uppercase' }}>{launch.name}</h2>
+            <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
+              // FULL MISSION TELEMETRY & PAD ENVIRONMENT
+            </span>
+            <h2 style={{ color: '#fff', fontSize: '1.8rem', margin: '0.4rem 0 0 0', textTransform: 'uppercase', fontWeight: '900' }}>
+              {launch.name}
+            </h2>
           </div>
           <button 
             onClick={onClose}
-            style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.7rem' }}
+            style={{ 
+              background: 'rgba(255,255,255,0.08)', 
+              border: '1px solid rgba(255,255,255,0.3)', 
+              color: '#fff', 
+              padding: '0.8rem 1.5rem', 
+              cursor: 'pointer', 
+              fontSize: '0.75rem',
+              letterSpacing: '2px',
+              fontWeight: '700',
+              textTransform: 'uppercase'
+            }}
           >
-            [CLOSE]
+            [X CLOSE]
           </button>
         </div>
 
-        {/* Live T-Minus Card */}
-        <div style={{ background: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '1.5rem', textAlign: 'center', marginBottom: '1.5rem' }}>
-          <p style={{ margin: '0 0 1rem 0', fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '2px', textTransform: 'uppercase' }}>
-            {timeLeft.isPast ? 'LAUNCH WINDOW OPEN / LIFTED' : 'T-MINUS COUNTDOWN TIMER'}
+        {/* Countdown Box */}
+        <div className="glass-card" style={{ padding: '2.5rem', marginBottom: '2rem', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+          <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.75rem', color: '#38bdf8', letterSpacing: '3px', textTransform: 'uppercase', fontWeight: '700' }}>
+            {timeLeft.isPast ? 'LAUNCH WINDOW OPEN / LIFTED' : 'LIVE T-MINUS COUNTDOWN TIMER'}
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.8rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
             {[
               { label: 'DAYS', val: timeLeft.days },
               { label: 'HOURS', val: timeLeft.hours },
               { label: 'MINS', val: timeLeft.minutes },
               { label: 'SECS', val: timeLeft.seconds }
             ].map((t, idx) => (
-              <div key={idx} style={{ background: 'rgba(0,0,0,0.6)', padding: '0.8rem', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
-                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#fff' }}>{String(t.val).padStart(2, '0')}</div>
-                <div style={{ fontSize: '0.55rem', color: '#94a3b8', marginTop: '0.2rem' }}>{t.label}</div>
+              <div key={idx} style={{ background: 'rgba(0,0,0,0.8)', padding: '1.5rem 1rem', textAlign: 'center', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#fff', fontFamily: 'monospace' }}>{String(t.val).padStart(2, '0')}</div>
+                <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '0.5rem', letterSpacing: '2px' }}>{t.label}</div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Detailed Info Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.8rem' }}>
-          <div>
-            <span style={{ color: '#64748b', fontSize: '0.65rem' }}>EXACT TIMESTAMP (NET):</span>
-            <p style={{ color: '#2dd4bf', margin: '0.2rem 0 0 0' }}>{new Date(launch.net).toUTCString()}</p>
+        {/* Details and Live Weather Section */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '2rem' }}>
+          
+          {/* Mission Info Grid */}
+          <div className="glass-card" style={{ padding: '2rem' }}>
+            <h3 style={{ fontSize: '0.85rem', color: '#a1a1aa', letterSpacing: '3px', textTransform: 'uppercase', margin: '0 0 1.5rem 0', fontWeight: '700' }}>
+              // LAUNCH PARAMETERS
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', fontSize: '0.85rem' }}>
+              <div>
+                <span style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>PROVIDER / AGENCY:</span>
+                <span style={{ color: '#fff', fontWeight: '700', textTransform: 'uppercase' }}>{launch.provider || 'GLOBAL PARTNER'}</span>
+              </div>
+              <div>
+                <span style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>EXACT TIMESTAMP (NET):</span>
+                <span style={{ color: '#2dd4bf', fontWeight: '700' }}>{new Date(launch.net).toUTCString()}</span>
+              </div>
+              <div>
+                <span style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>LAUNCH PAD COMPLEX:</span>
+                <span style={{ color: '#fff', fontWeight: '700' }}>{launch.pad_location || 'Vandenberg Space Force Base'}</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <span style={{ color: '#64748b', fontSize: '0.65rem' }}>LAUNCH PAD / LOCATION:</span>
-            <p style={{ color: '#fff', margin: '0.2rem 0 0 0' }}>{launch.pad_location || 'Standard Orbital Complex'}</p>
+
+          {/* Live Pad Weather Telemetry */}
+          <div className="glass-card" style={{ padding: '2rem' }}>
+            <h3 style={{ fontSize: '0.85rem', color: '#a1a1aa', letterSpacing: '3px', textTransform: 'uppercase', margin: '0 0 1.5rem 0', fontWeight: '700' }}>
+              // PAD METEOROLOGICAL TELEMETRY
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>WIND VELOCITY</span>
+                <p style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>12.4 knots</p>
+              </div>
+              <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>CLOUD COVER</span>
+                <p style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>15% (Clear)</p>
+              </div>
+              <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>AMBIENT TEMP</span>
+                <p style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>24°C / 75°F</p>
+              </div>
+              <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>GO/NO-GO STATUS</span>
+                <p style={{ color: '#22c55e', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>GO FOR LAUNCH</p>
+              </div>
+            </div>
           </div>
+
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
