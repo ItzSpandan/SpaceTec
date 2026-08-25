@@ -14,7 +14,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   const [showAllLaunchesPage, setShowAllLaunchesPage] = useState(false);
   const [isTransitioningExplore, setIsTransitioningExplore] = useState(false);
   
-  // Satellite Wiki / Master Directory Telemetry States
+  // New States for Satellite Wiki Page View
   const [showSatelliteWikiPage, setShowSatelliteWikiPage] = useState(false);
   const [isTransitioningWiki, setIsTransitioningWiki] = useState(false);
   
@@ -218,7 +218,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   };
 
   return (
-    <div style={{ backgroundColor: '#050b14', color: '#ffffff', minHeight: '100vh', fontFamily: '"Space Grotesk", -apple-system, sans-serif', position: 'relative', overflowX: 'hidden' }}>
+    <div style={{ backgroundColor: '#000000', color: '#ffffff', minHeight: '100vh', fontFamily: '"Space Grotesk", -apple-system, sans-serif', position: 'relative', overflowX: 'hidden' }}>
       
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700;900&display=swap');
@@ -240,17 +240,17 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         .dark-overlay {
           position: fixed;
           inset: 0;
-          background: radial-gradient(circle at center, rgba(5,11,20,0.2) 0%, rgba(5,11,20,0.95) 100%),
-                      linear-gradient(180deg, rgba(5,11,20,0.5) 0%, #050b14 100%);
+          background: radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%),
+                      linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%);
           z-index: 1;
           pointer-events: none;
         }
 
         .glass-card {
-          background: rgba(15, 23, 42, 0.75);
+          background: rgba(15, 15, 15, 0.75);
           backdrop-filter: blur(20px);
           -webkit-backdrop-filter: blur(20px);
-          border: 1px solid rgba(0, 243, 255, 0.15);
+          border: 1px solid rgba(255, 255, 255, 0.12);
         }
 
         .content-container {
@@ -275,7 +275,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         }
 
         .nav-link:hover {
-          color: #00f3ff;
+          color: #ffffff;
         }
 
         .brand-link {
@@ -289,7 +289,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         .agency-column {
           position: relative;
           height: 480px;
-          border-right: 1px solid rgba(0, 243, 255, 0.15);
+          border-right: 1px solid rgba(255, 255, 255, 0.12);
           overflow: hidden;
           cursor: pointer;
           transition: flex 0.5s cubic-bezier(0.16, 1, 0.3, 1), padding 0.5s ease;
@@ -298,7 +298,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           justify-content: space-between;
           padding: 2.5rem 2rem;
           box-sizing: border-box;
-          background: #03070d;
+          background: #0b0b0b;
         }
 
         .agency-column:last-child {
@@ -328,7 +328,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         .agency-text-shield {
           position: absolute;
           inset: 0;
-          background: rgba(3, 7, 13, 0.55);
+          background: rgba(0, 0, 0, 0.45);
           z-index: 2;
           pointer-events: none;
         }
@@ -341,9 +341,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           margin-top: 2rem;
           width: 100%;
           padding: 1.2rem;
-          background: rgba(0, 243, 255, 0.05);
-          border: 1px solid rgba(0, 243, 255, 0.25);
-          color: #00f3ff;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          color: #ffffff;
           font-family: inherit;
           font-size: 0.8rem;
           font-weight: 700;
@@ -355,9 +355,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         }
 
         .explore-btn:hover {
-          background: rgba(0, 243, 255, 0.15);
-          border-color: #00f3ff;
-          box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+          background: rgba(255, 255, 255, 0.15);
+          border-color: #ffffff;
+          box-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
         }
       `}</style>
 
@@ -384,8 +384,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         transition={{ duration: 0.8 }}
         style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-          backgroundColor: 'rgba(3, 7, 13, 0.85)', backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(0, 243, 255, 0.15)',
+          backgroundColor: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
           pointerEvents: entered ? 'auto' : 'none'
         }}
       >
@@ -396,7 +396,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                 <motion.span
                   layoutId="spacetec-brand"
                   transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                  style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#00f3ff', textTransform: 'uppercase', display: 'inline-block' }}
+                  style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}
                 >
                   SPACETEC
                 </motion.span>
@@ -406,7 +406,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.8rem', position: 'relative' }}>
             
-            {/* Live Telemetry Dropdown Menu Updated */}
+            {/* Live Telemetry Dropdown Menu */}
             <div style={{ position: 'relative' }}>
               <button 
                 className="nav-link" 
@@ -414,9 +414,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                   setShowTelemetryDropdown(!showTelemetryDropdown);
                   setShowHamburgerMenu(false);
                 }}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#00f3ff' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
               >
-                Telemetry & Mapping <span>▾</span>
+                Live Telemetry <span>▾</span>
               </button>
 
               {showTelemetryDropdown && (
@@ -432,7 +432,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     flexDirection: 'column',
                     gap: '0.5rem',
                     zIndex: 200,
-                    border: '1px solid rgba(0, 243, 255, 0.3)'
+                    border: '1px solid rgba(255,255,255,0.2)'
                   }}
                 >
                   <button 
@@ -442,32 +442,36 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     }} 
                     style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
-                    Sattelite telemetry
+                    Satellite Tracking Telemetry
                   </button>
                   <button 
-                    onClick={() => {
-                      setShowTelemetryDropdown(false);
-                      scrollToSection('orbital-map');
-                    }} 
+                    onClick={() => scrollToSection('launches')} 
                     style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
-                    Orbital sattelite mapping
+                    Rocket Launch Telemetry
+                  </button>
+                  <button 
+                    onClick={() => scrollToSection('orbital-map')} 
+                    style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    Launch Pad Telemetry
                   </button>
                 </div>
               )}
             </div>
 
-            <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(0, 243, 255, 0.2)' }} />
+            <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
             <button className="nav-link" onClick={() => scrollToSection('agencies')}>
               Agencies
             </button>
-            <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(0, 243, 255, 0.2)' }} />
+            <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
             
+            {/* ISS Tracker Replaced Button */}
             <button className="nav-link" onClick={() => alert('ISS Tracker separate live telemetry view coming soon!')}>
               ISS Tracker
             </button>
 
-            <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(0, 243, 255, 0.2)' }} />
+            <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
 
             {/* 3-Bar Menu Shortcut */}
             <div style={{ position: 'relative' }}>
@@ -495,11 +499,11 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     flexDirection: 'column',
                     gap: '0.5rem',
                     zIndex: 200,
-                    border: '1px solid rgba(0, 243, 255, 0.3)'
+                    border: '1px solid rgba(255,255,255,0.2)'
                   }}
                 >
                   <div 
-                    style={{ color: '#fff', padding: '0.6rem 1rem', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', fontWeight: '700', cursor: 'default', borderBottom: '1px solid rgba(0, 243, 255, 0.1)' }}
+                    style={{ color: '#fff', padding: '0.6rem 1rem', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', fontWeight: '700', cursor: 'default', borderBottom: '1px solid rgba(255,255,255,0.1)' }}
                   >
                     Shortcuts & Features
                   </div>
@@ -523,7 +527,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         </div>
       </motion.header>
 
-      {/* INTRO SCREEN */}
+      {/* INTRO SCREEN (3.5 SECONDS) */}
       <AnimatePresence>
         {!entered && (
           <motion.div
@@ -540,7 +544,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                 initial={{ opacity: 0, scale: 0.9, letterSpacing: '0.12em' }}
                 animate={{ opacity: 1, scale: 1, letterSpacing: '0.22em' }}
               >
-                <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#00f3ff' }}>
+                <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff' }}>
                   SPACETEC
                 </h1>
               </motion.div>
@@ -575,7 +579,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               flexDirection: 'column',
               justifyContent: 'center',
               alignItems: 'center',
-              backgroundColor: '#050b14',
+              backgroundColor: '#000000',
               padding: '2rem'
             }}
           >
@@ -600,7 +604,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               style={{
                 position: 'fixed',
                 inset: 0,
-                background: 'radial-gradient(circle at center, rgba(5,11,20,0.2) 0%, rgba(5,11,20,0.95) 100%), linear-gradient(180deg, rgba(5,11,20,0.5) 0%, #050b14 100%)',
+                background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)',
                 zIndex: 1,
                 pointerEvents: 'none'
               }}
@@ -608,7 +612,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}>
               <motion.h1
                 layoutId="spacetec-brand"
-                style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#00f3ff', letterSpacing: '0.22em' }}
+                style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}
               >
                 SPACETEC
               </motion.h1>
@@ -642,7 +646,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               flexDirection: 'column',
               justifyContent: 'center',
               alignItems: 'center',
-              backgroundColor: '#050b14',
+              backgroundColor: '#000000',
               padding: '2rem'
             }}
           >
@@ -667,7 +671,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               style={{
                 position: 'fixed',
                 inset: 0,
-                background: 'radial-gradient(circle at center, rgba(5,11,20,0.2) 0%, rgba(5,11,20,0.95) 100%), linear-gradient(180deg, rgba(5,11,20,0.5) 0%, #050b14 100%)',
+                background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)',
                 zIndex: 1,
                 pointerEvents: 'none'
               }}
@@ -675,7 +679,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}>
               <motion.h1
                 layoutId="spacetec-brand"
-                style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#00f3ff', letterSpacing: '0.22em' }}
+                style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}
               >
                 SPACETEC
               </motion.h1>
@@ -685,7 +689,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                 transition={{ delay: 0.3 }}
                 style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}
               >
-                LOADING SATELLITE TELEMETRY DIRECTORY...
+                LOADING SATELLITE WIKI TELEMETRY...
               </motion.p>
             </div>
           </motion.div>
@@ -702,7 +706,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         {/* HERO SECTION */}
         <section id="hero" className="content-container" style={{ paddingBottom: '4rem', scrollMarginTop: '8rem' }}>
           <motion.div initial="hidden" animate={entered ? "visible" : "hidden"} variants={staggerContainer} style={{ maxWidth: '850px' }}>
-            <motion.p variants={fadeInUp} style={{ fontSize: '0.75rem', letterSpacing: '6px', textTransform: 'uppercase', color: '#00f3ff', marginBottom: '1.5rem', fontWeight: '600' }}>
+            <motion.p variants={fadeInUp} style={{ fontSize: '0.75rem', letterSpacing: '6px', textTransform: 'uppercase', color: '#a1a1aa', marginBottom: '1.5rem', fontWeight: '600' }}>
               // MULTI-AGENCY DEEP SPACE NETWORK
             </motion.p>
             
@@ -733,7 +737,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               { label: 'SYSTEM STATUS', val: 'ONLINE / OPTICAL' }
             ].map((stat, idx) => (
               <div key={idx} style={{ overflow: 'hidden' }}>
-                <span style={{ fontSize: '0.65rem', color: '#00f3ff', letterSpacing: '2px', display: 'block', marginBottom: '0.5rem', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ fontSize: '0.65rem', color: '#71717a', letterSpacing: '2px', display: 'block', marginBottom: '0.5rem', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {stat.label}
                 </span>
                 <span style={{ fontSize: '0.95rem', fontWeight: '700', letterSpacing: '1px', color: '#ffffff', textTransform: 'uppercase', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -755,7 +759,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               className="glass-card" 
               style={{ padding: '3rem', borderRadius: '2px' }}
             >
-              <span style={{ fontSize: '0.7rem', color: '#00f3ff', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
+              <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
                 // TODAY'S FEATURED DEEP SPACE OBSERVATION
               </span>
               <h2 style={{ fontSize: '2rem', textTransform: 'uppercase', margin: '1rem 0 1.2rem 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
@@ -772,7 +776,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         <section id="agencies" className="content-container" style={{ paddingBottom: '6rem', scrollMarginTop: '8rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.0rem' }}>
             <div>
-              <span style={{ fontSize: '0.7rem', color: '#00f3ff', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
+              <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
                 // GLOBAL AEROSPACE ARCHITECTURE
               </span>
               <h2 style={{ fontSize: '2rem', textTransform: 'uppercase', margin: '0.5rem 0 0 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
@@ -780,7 +784,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               </h2>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.65rem', letterSpacing: '2px', color: '#00f3ff', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: '0.65rem', letterSpacing: '2px', color: '#a1a1aa', textTransform: 'uppercase' }}>
                 {activeAgency ? 'ROTATION PAUSED' : `BATCH ${agencyBatchIndex + 1} / 2`}
               </span>
             </div>
@@ -794,7 +798,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.5 }}
               className="glass-card" 
-              style={{ display: 'flex', borderRadius: '2px', overflow: 'hidden', border: '1px solid rgba(0, 243, 255, 0.2)' }}
+              style={{ display: 'flex', borderRadius: '2px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)' }}
             >
               {currentBatchAgencies.map((agency, index) => {
                 const isHovered = activeAgency === agency.id;
@@ -850,14 +854,14 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                     <div className="agency-text-shield" />
 
                     <div className="agency-content-layer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.65rem', letterSpacing: '3px', textTransform: 'uppercase', color: isHovered ? agency.accentColor : '#00f3ff', fontWeight: '800', transition: 'color 0.3s ease' }}>
+                      <span style={{ fontSize: '0.65rem', letterSpacing: '3px', textTransform: 'uppercase', color: isHovered ? agency.accentColor : '#a1a1aa', fontWeight: '800', transition: 'color 0.3s ease' }}>
                         // 0{agencyBatchIndex * 3 + index + 1}
                       </span>
                       {isHovered && (
                         <motion.span 
                           initial={{ opacity: 0, x: 10 }}
                           animate={{ opacity: 1, x: 0 }}
-                          style={{ fontSize: '0.65rem', letterSpacing: '2px', color: '#ffffff', background: 'rgba(3,7,13,0.8)', padding: '0.3rem 0.8rem', border: `1px solid ${agency.accentColor}`, fontWeight: '700' }}
+                          style={{ fontSize: '0.65rem', letterSpacing: '2px', color: '#ffffff', background: 'rgba(0,0,0,0.6)', padding: '0.3rem 0.8rem', border: `1px solid ${agency.accentColor}`, fontWeight: '700' }}
                         >
                           {agency.logoText}
                         </motion.span>
@@ -912,15 +916,15 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         {/* ORBITAL MAP / LAUNCH PAD TELEMETRY SECTION */}
         <section id="orbital-map" className="content-container" style={{ paddingBottom: '6rem', scrollMarginTop: '8rem' }}>
           <div style={{ marginBottom: '2.5rem' }}>
-            <span style={{ fontSize: '0.7rem', color: '#00f3ff', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
+            <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
               // LAUNCH PAD TELEMETRY & GEO-SPATIAL MAPPING
             </span>
             <h2 style={{ fontSize: '1.8rem', textTransform: 'uppercase', margin: '0.5rem 0 0 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
-              ORBITAL SATTELITE MAPPING & LAUNCH PADS
+              INTERACTIVE 3D BLACK GLOBE & LAUNCH PADS
             </h2>
           </div>
 
-          <div style={{ background: '#03070d', borderRadius: '2px', border: '1px solid rgba(0, 243, 255, 0.25)', overflow: 'hidden' }}>
+          <div style={{ background: '#000000', borderRadius: '2px', border: '1px solid rgba(255,255,255,0.15)', overflow: 'hidden' }}>
             <OrbitalGlobe />
           </div>
         </section>
@@ -929,7 +933,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         <section id="launches" className="content-container" style={{ paddingBottom: '8rem', scrollMarginTop: '8rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
             <div>
-              <span style={{ fontSize: '0.7rem', color: '#00f3ff', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
+              <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
                 // ORBITAL MANIFEST
               </span>
               <h2 style={{ fontSize: '1.8rem', textTransform: 'uppercase', margin: '0.5rem 0 0 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
@@ -944,25 +948,25 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                 key={launch.id} 
                 layoutId={`launch-card-${launch.id}`}
                 variants={fadeInUp}
-                whileHover={{ y: -6, borderColor: '#00f3ff' }}
+                whileHover={{ y: -6, borderColor: '#ffffff' }}
                 onClick={() => setExpandedLaunch(launch)}
                 className="glass-card" 
                 style={{ padding: '2rem', borderRadius: '2px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '220px', transition: 'border-color 0.3s ease', cursor: 'pointer' }}
               >
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
-                    <span style={{ fontSize: '0.65rem', letterSpacing: '2px', textTransform: 'uppercase', padding: '0.3rem 0.6rem', background: 'rgba(0, 243, 255, 0.08)', color: '#00f3ff', border: '1px solid rgba(0, 243, 255, 0.25)', fontWeight: '700' }}>
+                    <span style={{ fontSize: '0.65rem', letterSpacing: '2px', textTransform: 'uppercase', padding: '0.3rem 0.6rem', background: 'rgba(255, 255, 255, 0.08)', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.2)', fontWeight: '700' }}>
                       {launch.provider || 'AGENCY'}
                     </span>
-                    <span style={{ fontSize: '0.65rem', color: '#22c55e', letterSpacing: '2px', fontWeight: '700' }}>● SCHEDULED</span>
+                    <span style={{ fontSize: '0.65rem', color: '#ffffff', letterSpacing: '2px', fontWeight: '700' }}>● SCHEDULED</span>
                   </div>
                   <h3 style={{ fontSize: '1.05rem', margin: '0 0 1.2rem 0', fontWeight: '700', lineHeight: '1.4', letterSpacing: '1px', textTransform: 'uppercase', color: '#ffffff' }}>
                     {launch.name}
                   </h3>
                 </div>
 
-                <div style={{ borderTop: '1px solid rgba(0, 243, 255, 0.15)', paddingTop: '1rem' }}>
-                  <p style={{ margin: '0 0 0.4rem 0', fontSize: '0.80rem', color: '#00f3ff', letterSpacing: '1px' }}>
+                <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '1rem' }}>
+                  <p style={{ margin: '0 0 0.4rem 0', fontSize: '0.80rem', color: '#a1a1aa', letterSpacing: '1px' }}>
                     NET: {new Date(launch.net).toUTCString().slice(0, 16)}
                   </p>
                   <p style={{ margin: 0, fontSize: '0.75rem', color: '#71717a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -1001,7 +1005,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         )}
       </AnimatePresence>
 
-      {/* SATELLITE WIKI & MASTER TELEMETRY DIRECTORY FULL PAGE VIEW */}
+      {/* SATELLITE WIKI FULL PAGE VIEW */}
       <AnimatePresence>
         {showSatelliteWikiPage && (
           <SatelliteWikiPage 
@@ -1028,14 +1032,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
   const [bgIdx, setBgIdx] = useState(0);
   const [isReturningMain, setIsReturningMain] = useState(false);
-  
-  // Supabase Table & Pagination States for 16K+ Master
-  const [satellites, setSatellites] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const pageSize = 50;
-
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -1044,31 +1040,6 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
     }, 7000);
     return () => clearInterval(timer);
   }, [spaceBackgrounds.length]);
-
-  // Fetch data from Supabase for the 16k+ master table simulation
-  useEffect(() => {
-    async function fetchSatelliteData() {
-      setLoading(true);
-      try {
-        // Matching data representation from your database preview
-        setSatellites([
-          { norad_id: 900, object_name: 'CALSPHERE 1', organization: 'Independent / International', status: 'ACTIVE' },
-          { norad_id: 902, object_name: 'CALSPHERE 2', organization: 'Independent / International', status: 'ACTIVE' },
-          { norad_id: 1361, object_name: 'LCS 1', organization: 'Independent / International', status: 'ACTIVE' },
-          { norad_id: 1512, object_name: 'TEMPSAT 1', organization: 'Independent / International', status: 'ACTIVE' },
-          { norad_id: 1520, object_name: 'CALSPHERE 4A', organization: 'Independent / International', status: 'ACTIVE' },
-          { norad_id: 2826, object_name: 'OPS 5712 (P/L 160)', organization: 'Independent / International', status: 'ACTIVE' },
-          { norad_id: 2866, object_name: 'LES-5', organization: 'Independent / International', status: 'ACTIVE' },
-          { norad_id: 2872, object_name: 'SURCAL 159', organization: 'Independent / International', status: 'ACTIVE' },
-        ]);
-      } catch (err) {
-        console.error("Error loading master catalog:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchSatelliteData();
-  }, [searchQuery, page]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1125,11 +1096,13 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
     }, 3000); 
   };
 
-  const filteredSatellites = satellites.filter(sat => {
-    if (!searchQuery) return true;
-    return sat.object_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-           String(sat.norad_id).includes(searchQuery);
-  });
+  const satelliteData = [
+    { name: 'International Space Station (ISS)', type: 'Habitable Research Station', launch: '1998-11-20', altitude: '~420 km', status: 'Active' },
+    { name: 'Hubble Space Telescope', type: 'Astronomy Observatory', launch: '1990-04-24', altitude: '~540 km', status: 'Active' },
+    { name: 'James Webb Space Telescope', type: 'Infrared Space Observatory', launch: '2021-12-25', altitude: 'L2 Lagrange Point (~1.5M km)', status: 'Active' },
+    { name: 'Starlink Fleet (Gen 2)', type: 'Megaconstellation Internet', launch: 'Ongoing', altitude: '~550 km', status: 'Active' },
+    { name: 'GPS Block III', type: 'Navigation & Geodesy', launch: '2018-12-23', altitude: '~20,200 km', status: 'Active' }
+  ];
 
   return (
     <motion.div
@@ -1140,7 +1113,7 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
       style={{
         position: 'fixed',
         top: 0, left: 0, width: '100vw', height: '100vh',
-        backgroundColor: '#050b14',
+        backgroundColor: '#000000',
         zIndex: 99998,
         overflowY: 'auto',
         padding: '4rem 2rem',
@@ -1169,7 +1142,7 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
         style={{
           position: 'fixed',
           inset: 0,
-          background: 'radial-gradient(circle at center, rgba(5,11,20,0.2) 0%, rgba(5,11,20,0.95) 100%), linear-gradient(180deg, rgba(5,11,20,0.5) 0%, #050b14 100%)',
+          background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)',
           zIndex: 1,
           pointerEvents: 'none'
         }}
@@ -1182,7 +1155,7 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
           <div>
             <motion.span 
               layoutId="spacetec-brand"
-              style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#00f3ff', textTransform: 'uppercase', display: 'inline-block' }}
+              style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}
             >
               SPACETEC
             </motion.span>
@@ -1191,8 +1164,8 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
           <button 
             onClick={handleBackToMainWithTransition}
             style={{ 
-              background: 'rgba(0, 243, 255, 0.08)', 
-              border: '1px solid rgba(0, 243, 255, 0.3)', 
+              background: 'rgba(255,255,255,0.08)', 
+              border: '1px solid rgba(255,255,255,0.3)', 
               color: '#fff', 
               padding: '0.8rem 1.5rem', 
               cursor: 'pointer', 
@@ -1206,90 +1179,39 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
           </button>
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0, 243, 255, 0.2)', paddingBottom: '2rem', marginBottom: '2.5rem', gap: '1rem' }}>
-          <div>
-            <span style={{ fontSize: '0.7rem', color: '#00f3ff', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
-              // SUPABASE DATABASE REPOSITORY
-            </span>
-            <h2 style={{ color: '#fff', fontSize: '2rem', margin: 0, textTransform: 'uppercase', fontWeight: '900' }}>
-              Sattelite Telemetry & Master Directory
-            </h2>
-          </div>
-
-          {/* Search Bar */}
-          <div style={{ width: '100%', maxWidth: '320px' }}>
-            <input 
-              type="text" 
-              placeholder="Search by name or NORAD ID..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ width: '100%', background: '#03060c', border: '1px solid rgba(0, 243, 255, 0.4)', borderRadius: '4px', padding: '0.7rem 1rem', fontSize: '0.75rem', color: '#00f3ff', outline: 'none', fontFamily: 'inherit' }}
-            />
-          </div>
+        <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '2.5rem' }}>
+          <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
+            // SATELLITE TRACKING TELEMETRY WIKI
+          </span>
+          <h2 style={{ color: '#fff', fontSize: '2rem', margin: 0, textTransform: 'uppercase', fontWeight: '900' }}>
+            GLOBAL SATELLITE DATABASE
+          </h2>
         </div>
 
-        {/* Database Table View */}
-        <div className="glass-card" style={{ border: '1px solid rgba(0, 243, 255, 0.25)', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)', marginBottom: '4rem' }}>
-          <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid rgba(0, 243, 255, 0.2)', fontSize: '0.7rem', letterSpacing: '2px', color: '#00f3ff', fontFamily: 'monospace' }}>
-            // SATELLITE WIKI & MASTER DIRECTORY (TOTAL MATCHES: 16393)
-          </div>
-
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid rgba(0, 243, 255, 0.2)', fontSize: '0.7rem', color: '#00f3ff', fontFamily: 'monospace', textTransform: 'uppercase' }}>
-                  <th style={{ padding: '1rem 1.5rem' }}>NORAD ID</th>
-                  <th style={{ padding: '1rem 1.5rem' }}>Object Name</th>
-                  <th style={{ padding: '1rem 1.5rem' }}>Organization</th>
-                  <th style={{ padding: '1rem 1.5rem' }}>Status</th>
+        <div className="glass-card" style={{ overflowX: 'auto', marginBottom: '4rem', padding: '1rem', border: '1px solid rgba(255,255,255,0.15)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)', color: '#38bdf8', letterSpacing: '2px', fontSize: '0.7rem', textTransform: 'uppercase' }}>
+                <th style={{ padding: '1rem' }}>Satellite Name</th>
+                <th style={{ padding: '1rem' }}>Type / Mission</th>
+                <th style={{ padding: '1rem' }}>Launch Date</th>
+                <th style={{ padding: '1rem' }}>Orbital Altitude</th>
+                <th style={{ padding: '1rem' }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {satelliteData.map((sat, idx) => (
+                <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8' }}>
+                  <td style={{ padding: '1.2rem 1rem', fontWeight: '700', color: '#fff' }}>{sat.name}</td>
+                  <td style={{ padding: '1.2rem 1rem' }}>{sat.type}</td>
+                  <td style={{ padding: '1.2rem 1rem' }}>{sat.launch}</td>
+                  <td style={{ padding: '1.2rem 1rem' }}>{sat.altitude}</td>
+                  <td style={{ padding: '1.2rem 1rem', color: '#22c55e', fontWeight: '700' }}>{sat.status}</td>
                 </tr>
-              </thead>
-              <tbody style={{ fontSize: '0.85rem', fontFamily: 'monospace' }}>
-                {loading ? (
-                  <tr>
-                    <td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: '#00f3ff' }}>
-                      LOADING SUPABASE 16K+ RECORDS...
-                    </td>
-                  </tr>
-                ) : filteredSatellites.length > 0 ? (
-                  filteredSatellites.map((sat, index) => (
-                    <tr key={index} style={{ borderBottom: '1px solid rgba(0, 243, 255, 0.08)' }}>
-                      <td style={{ padding: '1rem 1.5rem', color: '#00f3ff' }}>{sat.norad_id}</td>
-                      <td style={{ padding: '1rem 1.5rem', color: '#ffffff', fontWeight: '600' }}>{sat.object_name}</td>
-                      <td style={{ padding: '1rem 1.5rem', color: 'rgba(212, 212, 216, 0.8)' }}>{sat.organization}</td>
-                      <td style={{ padding: '1rem 1.5rem', color: '#00f3ff' }}>{sat.status}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: '#71717a' }}>
-                      No records found matching criteria.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination Controls */}
-          <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid rgba(0, 243, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#00f3ff' }}>
-            <button 
-              onClick={() => setPage(p => Math.max(p - 1, 1))}
-              disabled={page === 1}
-              style={{ padding: '0.5rem 1rem', background: 'transparent', border: '1px solid rgba(0, 243, 255, 0.3)', borderRadius: '4px', color: '#00f3ff', cursor: 'pointer' }}
-            >
-              Previous Page
-            </button>
-            <span>Page {page} of 328</span>
-            <button 
-              onClick={() => setPage(p => p + 1)}
-              style={{ padding: '0.5rem 1rem', background: 'transparent', border: '1px solid rgba(0, 243, 255, 0.3)', borderRadius: '4px', color: '#00f3ff', cursor: 'pointer' }}
-            >
-              Next Page
-            </button>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
-
       </div>
 
       <AnimatePresence>
@@ -1308,7 +1230,7 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
               flexDirection: 'column',
               justifyContent: 'center',
               alignItems: 'center',
-              backgroundColor: '#050b14',
+              backgroundColor: '#000000',
               padding: '2rem'
             }}
           >
@@ -1333,7 +1255,7 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
               style={{
                 position: 'fixed',
                 inset: 0,
-                background: 'radial-gradient(circle at center, rgba(5,11,20,0.2) 0%, rgba(5,11,20,0.95) 100%), linear-gradient(180deg, rgba(5,11,20,0.5) 0%, #050b14 100%)',
+                background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)',
                 zIndex: 1,
                 pointerEvents: 'none'
               }}
@@ -1341,7 +1263,7 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
             <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}>
               <motion.h1
                 layoutId="spacetec-brand"
-                style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#00f3ff', letterSpacing: '0.22em' }}
+                style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}
               >
                 SPACETEC
               </motion.h1>
@@ -1452,7 +1374,7 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
       style={{
         position: 'fixed',
         top: 0, left: 0, width: '100vw', height: '100vh',
-        backgroundColor: '#050b14',
+        backgroundColor: '#000000',
         zIndex: 99998,
         overflowY: 'auto',
         padding: '4rem 2rem',
@@ -1480,7 +1402,7 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
         style={{
           position: 'fixed',
           inset: 0,
-          background: 'radial-gradient(circle at center, rgba(5,11,20,0.2) 0%, rgba(5,11,20,0.95) 100%), linear-gradient(180deg, rgba(5,11,20,0.5) 0%, #050b14 100%)',
+          background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)',
           zIndex: 1,
           pointerEvents: 'none'
         }}
@@ -1493,7 +1415,7 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
           <div>
             <motion.span 
               layoutId="spacetec-brand"
-              style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#00f3ff', textTransform: 'uppercase', display: 'inline-block' }}
+              style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}
             >
               SPACETEC
             </motion.span>
@@ -1502,8 +1424,8 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
           <button 
             onClick={handleBackToMainWithTransition}
             style={{ 
-              background: 'rgba(0, 243, 255, 0.08)', 
-              border: '1px solid rgba(0, 243, 255, 0.3)', 
+              background: 'rgba(255,255,255,0.08)', 
+              border: '1px solid rgba(255,255,255,0.3)', 
               color: '#fff', 
               padding: '0.8rem 1.5rem', 
               cursor: 'pointer', 
@@ -1517,9 +1439,9 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
           </button>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(0, 243, 255, 0.2)', paddingBottom: '2rem', marginBottom: '2.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '2.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
           <div>
-            <span style={{ fontSize: '0.7rem', color: '#00f3ff', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
+            <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
               // ARCHIVED ORBITAL MANIFEST
             </span>
             <h2 style={{ color: '#fff', fontSize: '2rem', margin: 0, textTransform: 'uppercase', fontWeight: '900' }}>
@@ -1533,7 +1455,7 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
               <select 
                 value={sortBy} 
                 onChange={(e) => setSortBy(e.target.value)}
-                style={{ background: '#03070d', color: '#fff', border: '1px solid rgba(0, 243, 255, 0.3)', padding: '0.6rem 1rem', fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}
+                style={{ background: '#121212', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', padding: '0.6rem 1rem', fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}
               >
                 <option value="latest">Chronological (Upcoming First)</option>
                 <option value="oldest">Distant Future First</option>
@@ -1545,7 +1467,7 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
               <select 
                 value={selectedProvider} 
                 onChange={(e) => setSelectedProvider(e.target.value)}
-                style={{ background: '#03070d', color: '#fff', border: '1px solid rgba(0, 243, 255, 0.3)', padding: '0.6rem 1rem', fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none', cursor: 'pointer', textTransform: 'uppercase' }}
+                style={{ background: '#121212', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', padding: '0.6rem 1rem', fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none', cursor: 'pointer', textTransform: 'uppercase' }}
               >
                 {providers.map(p => (
                   <option key={p} value={p}>{p === 'all' ? 'All Agencies' : p}</option>
@@ -1566,18 +1488,18 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
             >
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
-                  <span style={{ fontSize: '0.65rem', letterSpacing: '2px', textTransform: 'uppercase', padding: '0.3rem 0.6rem', background: 'rgba(0, 243, 255, 0.08)', color: '#00f3ff', border: '1px solid rgba(0, 243, 255, 0.25)', fontWeight: '700' }}>
+                  <span style={{ fontSize: '0.65rem', letterSpacing: '2px', textTransform: 'uppercase', padding: '0.3rem 0.6rem', background: 'rgba(255, 255, 255, 0.08)', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.2)', fontWeight: '700' }}>
                     {launch.provider || 'AGENCY'}
                   </span>
-                  <span style={{ fontSize: '0.65rem', color: '#22c55e', letterSpacing: '2px', fontWeight: '700' }}>● SCHEDULED</span>
+                  <span style={{ fontSize: '0.65rem', color: '#ffffff', letterSpacing: '2px', fontWeight: '700' }}>● SCHEDULED</span>
                 </div>
                 <h3 style={{ fontSize: '1.05rem', margin: '0 0 1.2rem 0', fontWeight: '700', lineHeight: '1.4', letterSpacing: '1px', textTransform: 'uppercase', color: '#ffffff' }}>
                   {launch.name}
                 </h3>
               </div>
 
-              <div style={{ borderTop: '1px solid rgba(0, 243, 255, 0.15)', paddingTop: '1rem' }}>
-                <p style={{ margin: '0 0 0.4rem 0', fontSize: '0.80rem', color: '#00f3ff', letterSpacing: '1px' }}>
+              <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '1rem' }}>
+                <p style={{ margin: '0 0 0.4rem 0', fontSize: '0.80rem', color: '#a1a1aa', letterSpacing: '1px' }}>
                   NET: {new Date(launch.net).toUTCString().slice(0, 16)}
                 </p>
                 <p style={{ margin: 0, fontSize: '0.75rem', color: '#71717a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -1610,7 +1532,7 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
               flexDirection: 'column',
               justifyContent: 'center',
               alignItems: 'center',
-              backgroundColor: '#050b14',
+              backgroundColor: '#000000',
               padding: '2rem'
             }}
           >
@@ -1635,7 +1557,7 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
               style={{
                 position: 'fixed',
                 inset: 0,
-                background: 'radial-gradient(circle at center, rgba(5,11,20,0.2) 0%, rgba(5,11,20,0.95) 100%), linear-gradient(180deg, rgba(5,11,20,0.5) 0%, #050b14 100%)',
+                background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)',
                 zIndex: 1,
                 pointerEvents: 'none'
               }}
@@ -1643,7 +1565,7 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
             <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}>
               <motion.h1
                 layoutId="spacetec-brand"
-                style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#00f3ff', letterSpacing: '0.22em' }}
+                style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}
               >
                 SPACETEC
               </motion.h1>
@@ -1760,7 +1682,7 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
       style={{
         position: 'fixed',
         top: 0, left: 0, width: '100vw', height: '100vh',
-        backgroundColor: '#050b14',
+        backgroundColor: '#000000',
         zIndex: 99999,
         overflowY: 'auto',
         padding: '4rem 2rem',
@@ -1788,7 +1710,7 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
         style={{
           position: 'fixed',
           inset: 0,
-          background: 'radial-gradient(circle at center, rgba(5,11,20,0.2) 0%, rgba(5,11,20,0.95) 100%), linear-gradient(180deg, rgba(5,11,20,0.5) 0%, #050b14 100%)',
+          background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)',
           zIndex: 1,
           pointerEvents: 'none'
         }}
@@ -1800,14 +1722,14 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
         layoutId={`launch-card-${launch.id}`}
         style={{ maxWidth: '900px', margin: '0 auto', width: '100%', position: 'relative', zIndex: 3 }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(0, 243, 255, 0.2)', paddingBottom: '2rem', marginBottom: '2.5rem', gap: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '2.5rem', gap: '2rem' }}>
           <div style={{ flex: 1 }}>
             <div style={{ marginBottom: '1rem' }}>
-              <span style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#00f3ff', textTransform: 'uppercase', display: 'inline-block' }}>
+              <span style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}>
                 SPACETEC
               </span>
             </div>
-            <span style={{ fontSize: '0.7rem', color: '#00f3ff', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
+            <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
               // FULL MISSION TELEMETRY & PAD ENVIRONMENT
             </span>
             <h2 style={{ color: '#fff', fontSize: '1.8rem', margin: 0, textTransform: 'uppercase', fontWeight: '900', lineHeight: '1.3' }}>
@@ -1817,8 +1739,8 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
           <button 
             onClick={onClose}
             style={{ 
-              background: 'rgba(0, 243, 255, 0.08)', 
-              border: '1px solid rgba(0, 243, 255, 0.3)', 
+              background: 'rgba(255,255,255,0.08)', 
+              border: '1px solid rgba(255,255,255,0.3)', 
               color: '#fff', 
               padding: '0.8rem 1.5rem', 
               cursor: 'pointer', 
@@ -1833,8 +1755,8 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
           </button>
         </div>
 
-        <div className="glass-card" style={{ padding: '2.5rem', marginBottom: '2rem', border: '1px solid rgba(0, 243, 255, 0.3)' }}>
-          <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.75rem', color: '#00f3ff', letterSpacing: '3px', textTransform: 'uppercase', fontWeight: '700' }}>
+        <div className="glass-card" style={{ padding: '2.5rem', marginBottom: '2rem', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+          <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.75rem', color: '#38bdf8', letterSpacing: '3px', textTransform: 'uppercase', fontWeight: '700' }}>
             {timeLeft.isPast ? 'LAUNCH WINDOW OPEN / LIFTED' : 'LIVE T-MINUS COUNTDOWN TIMER'}
           </p>
 
@@ -1845,7 +1767,7 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
               { label: 'MINS', val: timeLeft.minutes },
               { label: 'SECS', val: timeLeft.seconds }
             ].map((t, idx) => (
-              <div key={idx} style={{ background: 'rgba(3, 7, 13, 0.8)', padding: '1.5rem 1rem', textAlign: 'center', border: '1px solid rgba(0, 243, 255, 0.2)' }}>
+              <div key={idx} style={{ background: 'rgba(0,0,0,0.8)', padding: '1.5rem 1rem', textAlign: 'center', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
                 <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#fff', fontFamily: 'monospace' }}>{String(t.val).padStart(2, '0')}</div>
                 <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '0.5rem', letterSpacing: '2px' }}>{t.label}</div>
               </div>
@@ -1856,7 +1778,7 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '2rem', paddingBottom: '3rem' }}>
           
           <div className="glass-card" style={{ padding: '2rem' }}>
-            <h3 style={{ fontSize: '0.85rem', color: '#00f3ff', letterSpacing: '3px', textTransform: 'uppercase', margin: '0 0 1.5rem 0', fontWeight: '700' }}>
+            <h3 style={{ fontSize: '0.85rem', color: '#a1a1aa', letterSpacing: '3px', textTransform: 'uppercase', margin: '0 0 1.5rem 0', fontWeight: '700' }}>
               // LAUNCH PARAMETERS
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', fontSize: '0.85rem' }}>
@@ -1866,7 +1788,7 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
               </div>
               <div>
                 <span style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>EXACT TIMESTAMP (NET):</span>
-                <span style={{ color: '#00f3ff', fontWeight: '700' }}>{new Date(launch.net).toUTCString()}</span>
+                <span style={{ color: '#2dd4bf', fontWeight: '700' }}>{new Date(launch.net).toUTCString()}</span>
               </div>
               <div>
                 <span style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>LAUNCH PAD COMPLEX:</span>
@@ -1876,23 +1798,23 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
           </div>
 
           <div className="glass-card" style={{ padding: '2rem' }}>
-            <h3 style={{ fontSize: '0.85rem', color: '#00f3ff', letterSpacing: '3px', textTransform: 'uppercase', margin: '0 0 1.5rem 0', fontWeight: '700' }}>
+            <h3 style={{ fontSize: '0.85rem', color: '#a1a1aa', letterSpacing: '3px', textTransform: 'uppercase', margin: '0 0 1.5rem 0', fontWeight: '700' }}>
               // PAD METEOROLOGICAL TELEMETRY
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div style={{ background: 'rgba(3, 7, 13, 0.5)', padding: '1rem', border: '1px solid rgba(0, 243, 255, 0.1)' }}>
+              <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>WIND VELOCITY</span>
                 <p style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>12.4 knots</p>
               </div>
-              <div style={{ background: 'rgba(3, 7, 13, 0.5)', padding: '1rem', border: '1px solid rgba(0, 243, 255, 0.1)' }}>
+              <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>CLOUD COVER</span>
                 <p style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>15% (Clear)</p>
               </div>
-              <div style={{ background: 'rgba(3, 7, 13, 0.5)', padding: '1rem', border: '1px solid rgba(0, 243, 255, 0.1)' }}>
+              <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>AMBIENT TEMP</span>
                 <p style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>24°C / 75°F</p>
               </div>
-              <div style={{ background: 'rgba(3, 7, 13, 0.5)', padding: '1rem', border: '1px solid rgba(0, 243, 255, 0.1)' }}>
+              <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>GO/NO-GO STATUS</span>
                 <p style={{ color: '#22c55e', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>GO FOR LAUNCH</p>
               </div>
