@@ -10,6 +10,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   const [bgIndex, setBgIndex] = useState(0);
   const [activeAgency, setActiveAgency] = useState(null);
   const [agencyBatchIndex, setAgencyBatchIndex] = useState(0);
+  const [expandedLaunch, setExpandedLaunch] = useState(null); // State for the clicked launch card modal
   const canvasRef = useRef(null);
 
   const spaceBackgrounds = [
@@ -674,8 +675,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                 key={launch.id} 
                 variants={fadeInUp}
                 whileHover={{ y: -6, borderColor: '#ffffff' }}
+                onClick={() => setExpandedLaunch(launch)}
                 className="glass-card" 
-                style={{ padding: '2rem', borderRadius: '2px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '220px', transition: 'border-color 0.3s ease' }}
+                style={{ padding: '2rem', borderRadius: '2px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '220px', transition: 'border-color 0.3s ease', cursor: 'pointer' }}
               >
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
@@ -703,6 +705,120 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         </section>
 
       </motion.div>
+
+      {/* EXPANDED LIVE COUNTDOWN MODAL */}
+      {expandedLaunch && (
+        <LaunchCountdownModal 
+          launch={expandedLaunch} 
+          onClose={() => setExpandedLaunch(null)} 
+        />
+      )}
+    </div>
+  );
+}
+
+// Sub-component handling the live T-Minus countdown clock from the net timestamptz field
+function LaunchCountdownModal({ launch, onClose }) {
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: false });
+
+  useEffect(() => {
+    if (!launch?.net) return;
+
+    const targetTime = new Date(launch.net).getTime();
+
+    const updateTimer = () => {
+      const now = new Date().getTime();
+      const difference = targetTime - now;
+
+      if (difference <= 0) {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: true });
+        return;
+      }
+
+      const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+
+      setTimeLeft({ days, hours, minutes, seconds, isPast: false });
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [launch]);
+
+  if (!launch) return null;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0, left: 0, width: '100vw', height: '100vh',
+      background: 'rgba(2, 6, 23, 0.85)',
+      backdropFilter: 'blur(8px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 99999,
+      padding: '1rem'
+    }}>
+      <div style={{
+        background: '#0a0f19',
+        border: '1px solid rgba(56, 189, 248, 0.4)',
+        width: '100%',
+        maxWidth: '600px',
+        padding: '2rem',
+        borderRadius: '2px',
+        fontFamily: 'monospace',
+        boxShadow: '0 0 30px rgba(56, 189, 248, 0.15)'
+      }}>
+        {/* Header & Close */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(56, 189, 248, 0.2)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+          <div>
+            <span style={{ fontSize: '0.65rem', color: '#38bdf8', letterSpacing: '2px', textTransform: 'uppercase' }}>// MISSION TELEMETRY DETAILS</span>
+            <h2 style={{ color: '#fff', fontSize: '1.2rem', margin: '0.2rem 0 0 0', textTransform: 'uppercase' }}>{launch.name}</h2>
+          </div>
+          <button 
+            onClick={onClose}
+            style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.7rem' }}
+          >
+            [CLOSE]
+          </button>
+        </div>
+
+        {/* Live T-Minus Card */}
+        <div style={{ background: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '1.5rem', textAlign: 'center', marginBottom: '1.5rem' }}>
+          <p style={{ margin: '0 0 1rem 0', fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '2px', textTransform: 'uppercase' }}>
+            {timeLeft.isPast ? 'LAUNCH WINDOW OPEN / LIFTED' : 'T-MINUS COUNTDOWN TIMER'}
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.8rem' }}>
+            {[
+              { label: 'DAYS', val: timeLeft.days },
+              { label: 'HOURS', val: timeLeft.hours },
+              { label: 'MINS', val: timeLeft.minutes },
+              { label: 'SECS', val: timeLeft.seconds }
+            ].map((t, idx) => (
+              <div key={idx} style={{ background: 'rgba(0,0,0,0.6)', padding: '0.8rem', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#fff' }}>{String(t.val).padStart(2, '0')}</div>
+                <div style={{ fontSize: '0.55rem', color: '#94a3b8', marginTop: '0.2rem' }}>{t.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Detailed Info Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.8rem' }}>
+          <div>
+            <span style={{ color: '#64748b', fontSize: '0.65rem' }}>EXACT TIMESTAMP (NET):</span>
+            <p style={{ color: '#2dd4bf', margin: '0.2rem 0 0 0' }}>{new Date(launch.net).toUTCString()}</p>
+          </div>
+          <div>
+            <span style={{ color: '#64748b', fontSize: '0.65rem' }}>LAUNCH PAD / LOCATION:</span>
+            <p style={{ color: '#fff', margin: '0.2rem 0 0 0' }}>{launch.pad_location || 'Standard Orbital Complex'}</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
