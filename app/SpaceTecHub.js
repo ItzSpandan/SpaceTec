@@ -672,6 +672,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
               <motion.div 
                 key={launch.id} 
                 variants={fadeInUp}
+                layoutId={`launch-card-${launch.id}`}
                 whileHover={{ y: -6, borderColor: '#ffffff' }}
                 onClick={() => setExpandedLaunch(launch)}
                 className="glass-card" 
@@ -704,18 +705,20 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 
       </motion.div>
 
-      {/* FULL-SCREEN EXPANDED LIVE COUNTDOWN & WEATHER MODAL */}
-      {expandedLaunch && (
-        <LaunchCountdownModal 
-          launch={expandedLaunch} 
-          onClose={() => setExpandedLaunch(null)} 
-        />
-      )}
+      {/* FULL-SCREEN SHARED-ELEMENT EXPANDED MODAL */}
+      <AnimatePresence>
+        {expandedLaunch && (
+          <LaunchCountdownModal 
+            launch={expandedLaunch} 
+            onClose={() => setExpandedLaunch(null)} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-// Sub-component handling the full-screen modal with countdown clock, weather telemetry, and close button
+// Sub-component handling full-screen expanded layout with shared animation, brand corner logo, separated close button, and independent scrolling
 function LaunchCountdownModal({ launch, onClose }) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: false });
 
@@ -753,6 +756,7 @@ function LaunchCountdownModal({ launch, onClose }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
       style={{
         position: 'fixed',
         top: 0, left: 0, width: '100vw', height: '100vh',
@@ -761,20 +765,25 @@ function LaunchCountdownModal({ launch, onClose }) {
         display: 'flex',
         flexDirection: 'column',
         overflowY: 'auto',
-        padding: '3rem 2rem'
+        padding: '3rem 2rem',
+        boxSizing: 'border-box'
       }}
     >
-      <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
-        {/* Modal Top Nav / Close */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '1.5rem', marginBottom: '2.5rem' }}>
+      <motion.div 
+        layoutId={`launch-card-${launch.id}`}
+        style={{ maxWidth: '900px', margin: '0 auto', width: '100%', paddingBottom: '4rem' }}
+      >
+        {/* Brand Logo Corner Text & Separated Close Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
           <div>
-            <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
+            <span style={{ fontSize: '0.9rem', fontWeight: '900', letterSpacing: '6px', color: '#ffffff', textTransform: 'uppercase', display: 'block', marginBottom: '1rem' }}>
+              SPACETEC
+            </span>
+            <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block' }}>
               // FULL MISSION TELEMETRY & PAD ENVIRONMENT
             </span>
-            <h2 style={{ color: '#fff', fontSize: '1.8rem', margin: '0.4rem 0 0 0', textTransform: 'uppercase', fontWeight: '900' }}>
-              {launch.name}
-            </h2>
           </div>
+
           <button 
             onClick={onClose}
             style={{ 
@@ -786,12 +795,18 @@ function LaunchCountdownModal({ launch, onClose }) {
               fontSize: '0.75rem',
               letterSpacing: '2px',
               fontWeight: '700',
-              textTransform: 'uppercase'
+              textTransform: 'uppercase',
+              flexShrink: 0
             }}
           >
             [X CLOSE]
           </button>
         </div>
+
+        {/* Mission Title pushed cleanly down */}
+        <h2 style={{ color: '#fff', fontSize: '2rem', margin: '0 0 2.5rem 0', textTransform: 'uppercase', fontWeight: '900', lineHeight: '1.2' }}>
+          {launch.name}
+        </h2>
 
         {/* Countdown Box */}
         <div className="glass-card" style={{ padding: '2.5rem', marginBottom: '2rem', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
@@ -864,7 +879,7 @@ function LaunchCountdownModal({ launch, onClose }) {
           </div>
 
         </div>
-      </div>
+      </motion.div>
     </motion.div>
   );
 }
