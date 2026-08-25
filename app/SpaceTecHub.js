@@ -705,12 +705,13 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 
       </motion.div>
 
-      {/* EXPANDED MODAL CONTAINER WITH LAYOUT MORPH & INDEPENDENT INTERNAL SCROLLING */}
+      {/* EXPANDED MODAL CONTAINER WITH BACKGROUND SLIDESHOW & STARFIELD CANVAS */}
       <AnimatePresence>
         {expandedLaunch && (
           <LaunchCountdownModal 
             launch={expandedLaunch} 
             onClose={() => setExpandedLaunch(null)} 
+            spaceBackgrounds={spaceBackgrounds}
           />
         )}
       </AnimatePresence>
@@ -718,9 +719,68 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   );
 }
 
-// Sub-component featuring shared layout transition animation, independent scrollable content, and well-spaced close button
-function LaunchCountdownModal({ launch, onClose }) {
+// Sub-component featuring shared layout transition animation, independent scrollable content, and matching background/starfield
+function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: false });
+  const [modalBgIdx, setModalBgIdx] = useState(0);
+  const modalCanvasRef = useRef(null);
+
+  // Background slideshow rotation inside modal
+  useEffect(() => {
+    const modalBgTimer = setInterval(() => {
+      setModalBgIdx((prev) => (prev + 1) % spaceBackgrounds.length);
+    }, 7000);
+    return () => clearInterval(modalBgTimer);
+  }, [spaceBackgrounds.length]);
+
+  // Starfield canvas animation inside modal
+  useEffect(() => {
+    const canvas = modalCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let animationFrameId;
+
+    let width = (canvas.width = window.innerWidth);
+    let height = (canvas.height = window.innerHeight);
+
+    const handleResize = () => {
+      if (!canvas) return;
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    };
+    window.addEventListener('resize', handleResize);
+
+    const stars = Array.from({ length: 180 }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      size: Math.random() * 1.2 + 0.3,
+      alpha: Math.random() * 0.7 + 0.3,
+      speed: Math.random() * 0.2 + 0.05
+    }));
+
+    const render = () => {
+      ctx.clearRect(0, 0, width, height);
+      stars.forEach((star) => {
+        star.y -= star.speed;
+        if (star.y < 0) {
+          star.y = height;
+          star.x = Math.random() * width;
+        }
+        ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
 
   useEffect(() => {
     if (!launch?.net) return;
@@ -766,9 +826,40 @@ function LaunchCountdownModal({ launch, onClose }) {
         boxSizing: 'border-box'
       }}
     >
+      {/* Background Slideshow Layers for Modal */}
+      {spaceBackgrounds.map((bgUrl, idx) => (
+        <div
+          key={`modal-bg-${idx}`}
+          style={{
+            position: 'fixed',
+            top: 0, left: 0, width: '100vw', height: '100vh',
+            backgroundImage: `url('${bgUrl}')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            zIndex: 0,
+            opacity: modalBgIdx === idx ? 1 : 0,
+            transition: 'opacity 1.8s ease-in-out',
+            filter: 'brightness(0.4) contrast(1.25)',
+            pointerEvents: 'none'
+          }}
+        />
+      ))}
+      <div 
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)',
+          zIndex: 1,
+          pointerEvents: 'none'
+        }}
+      />
+
+      {/* Starfield Canvas for Modal */}
+      <canvas ref={modalCanvasRef} style={{ position: 'fixed', inset: 0, zIndex: 2, pointerEvents: 'none' }} />
+
       <motion.div 
         layoutId={`launch-card-${launch.id}`}
-        style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}
+        style={{ maxWidth: '900px', margin: '0 auto', width: '100%', position: 'relative', zIndex: 3 }}
       >
         {/* Modal Top Nav / Close with separate padding to avoid title clash */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '2.5rem', gap: '2rem' }}>
