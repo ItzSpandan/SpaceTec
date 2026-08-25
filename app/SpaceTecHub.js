@@ -1050,6 +1050,13 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
   }, [spaceBackgrounds.length]);
 
   useEffect(() => {
+    const originalBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalBodyOverflow;
+    };
+  }, []);
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
