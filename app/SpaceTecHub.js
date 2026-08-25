@@ -13,6 +13,11 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   const [expandedLaunch, setExpandedLaunch] = useState(null); 
   const [showAllLaunchesPage, setShowAllLaunchesPage] = useState(false);
   const [isTransitioningExplore, setIsTransitioningExplore] = useState(false);
+  
+  // Dropdown & Menu States
+  const [showTelemetryDropdown, setShowTelemetryDropdown] = useState(false);
+  const [showHamburgerMenu, setShowHamburgerMenu] = useState(false);
+
   const canvasRef = useRef(null);
 
   const spaceBackgrounds = [
@@ -102,6 +107,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     if (section) {
       section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+    setShowTelemetryDropdown(false);
+    setShowHamburgerMenu(false);
   };
 
   useEffect(() => {
@@ -123,7 +130,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   useEffect(() => {
     const autoEnterTimer = setTimeout(() => {
       setEntered(true);
-    }, 3500); // 3.5 seconds for initial website load intro
+    }, 3500); 
     return () => clearTimeout(autoEnterTimer);
   }, []);
 
@@ -195,7 +202,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
     setTimeout(() => {
       setIsTransitioningExplore(false);
       setShowAllLaunchesPage(true);
-    }, 3500); // 3.5 seconds centered transition screen for explore more
+    }, 3500); 
   };
 
   return (
@@ -385,18 +392,122 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.8rem' }}>
-            <button className="nav-link" onClick={() => scrollToSection('telemetry')}>
-              Live Telemetry
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.8rem', position: 'relative' }}>
+            
+            {/* Live Telemetry Dropdown Menu */}
+            <div style={{ position: 'relative' }}>
+              <button 
+                className="nav-link" 
+                onClick={() => {
+                  setShowTelemetryDropdown(!showTelemetryDropdown);
+                  setShowHamburgerMenu(false);
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              >
+                Live Telemetry <span>▾</span>
+              </button>
+
+              {showTelemetryDropdown && (
+                <div 
+                  className="glass-card" 
+                  style={{
+                    position: 'absolute',
+                    top: '2.5rem',
+                    left: 0,
+                    width: '240px',
+                    padding: '0.8rem 0',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.5rem',
+                    zIndex: 200,
+                    border: '1px solid rgba(255,255,255,0.2)'
+                  }}
+                >
+                  <button 
+                    onClick={() => scrollToSection('orbital-map')} 
+                    style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    Satellite Tracking Telemetry
+                  </button>
+                  <button 
+                    onClick={() => scrollToSection('launches')} 
+                    style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    Rocket Launch Telemetry
+                  </button>
+                  <button 
+                    onClick={() => scrollToSection('telemetry')} 
+                    style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    Launch Pad Telemetry
+                  </button>
+                </div>
+              )}
+            </div>
+
             <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
             <button className="nav-link" onClick={() => scrollToSection('agencies')}>
               Agencies
             </button>
             <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
+            
+            {/* ISS Tracker Replaced Button */}
             <button className="nav-link" onClick={() => scrollToSection('orbital-map')}>
-              Orbital Map
+              ISS Tracker
             </button>
+
+            <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
+
+            {/* 3-Bar Menu Shortcut */}
+            <div style={{ position: 'relative' }}>
+              <button 
+                className="nav-link" 
+                onClick={() => {
+                  setShowHamburgerMenu(!showHamburgerMenu);
+                  setShowTelemetryDropdown(false);
+                }}
+                style={{ fontSize: '1.1rem', letterSpacing: '1px' }}
+              >
+                ☰
+              </button>
+
+              {showHamburgerMenu && (
+                <div 
+                  className="glass-card" 
+                  style={{
+                    position: 'absolute',
+                    top: '2.5rem',
+                    right: 0,
+                    width: '220px',
+                    padding: '0.8rem 0',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.5rem',
+                    zIndex: 200,
+                    border: '1px solid rgba(255,255,255,0.2)'
+                  }}
+                >
+                  <div 
+                    style={{ color: '#fff', padding: '0.6rem 1rem', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', fontWeight: '700', cursor: 'default', borderBottom: '1px solid rgba(255,255,255,0.1)' }}
+                  >
+                    Shortcuts & Features
+                  </div>
+                  <button 
+                    onClick={() => alert('Astronaut Telemetry feature coming soon!')} 
+                    style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    Astronaut Telemetry
+                  </button>
+                  <button 
+                    onClick={() => alert('Space Encyclopedia feature coming soon!')} 
+                    style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    Space Encyclopedia
+                  </button>
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
       </motion.header>
@@ -436,7 +547,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         )}
       </AnimatePresence>
 
-      {/* EXPLORE MORE TRANSITION SCREEN (3.5 SECONDS WITH WHITE SUB-TEXT) */}
+      {/* EXPLORE MORE TRANSITION SCREEN */}
       <AnimatePresence>
         {isTransitioningExplore && (
           <motion.div
@@ -734,7 +845,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
           <OrbitalGlobe />
         </section>
 
-        {/* UPCOMING LAUNCHES (LIMITED TO FIRST 9) */}
+        {/* UPCOMING LAUNCHES */}
         <section id="launches" className="content-container" style={{ paddingBottom: '8rem', scrollMarginTop: '8rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
             <div>
@@ -782,7 +893,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             ))}
           </motion.div>
 
-          {/* EXPLORE MORE LAUNCHES BUTTON */}
           {remainingLaunches.length > 0 && (
             <div style={{ marginTop: '3rem', textAlign: 'center' }}>
               <button 
@@ -799,7 +909,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 
       </motion.div>
 
-      {/* EXPLORE MORE LAUNCHES FULL PAGE VIEW WITH DROPDOWN FILTERS */}
+      {/* EXPLORE MORE LAUNCHES FULL PAGE VIEW */}
       <AnimatePresence>
         {showAllLaunchesPage && (
           <AllLaunchesPage 
@@ -811,7 +921,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         )}
       </AnimatePresence>
 
-      {/* EXPANDED MODAL CONTAINER WITH SHARED LAYOUT ANIMATION */}
+      {/* EXPANDED MODAL CONTAINER */}
       <AnimatePresence>
         {expandedLaunch && (
           <LaunchCountdownModal 
@@ -825,7 +935,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   );
 }
 
-// Separate Page Component for Remaining Launches with Dropdown Filters Menu & "Connecting to Main" 3-sec Exit Transition
 function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }) {
   const [bgIdx, setBgIdx] = useState(0);
   const [sortBy, setSortBy] = useState('latest');
@@ -892,21 +1001,19 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
     setIsReturningMain(true);
     setTimeout(() => {
       onClose();
-    }, 3000); // 3 seconds transition with message
+    }, 3000); 
   };
 
-  // Extract unique providers for agency filter dropdown
   const providers = ['all', ...new Set(launches.map(l => l.provider).filter(Boolean))];
 
-  // Filter & Sort logic
   const filteredLaunches = launches.filter(l => {
     if (selectedProvider === 'all') return true;
     return l.provider === selectedProvider;
   }).sort((a, b) => {
     const dateA = new Date(a.net).getTime();
     const dateB = new Date(b.net).getTime();
-    if (sortBy === 'latest') return dateA - dateB; // chronological upcoming first
-    if (sortBy === 'oldest') return dateB - dateA; // furthest out first
+    if (sortBy === 'latest') return dateA - dateB; 
+    if (sortBy === 'oldest') return dateB - dateA; 
     return 0;
   });
 
@@ -956,7 +1063,6 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
 
       <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 3 }}>
         
-        {/* TOP BAR WITH BRANDING ON LEFT AND BACK TO MAIN ON TOP RIGHT */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
           <div>
             <motion.span 
@@ -995,7 +1101,6 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
             </h2>
           </div>
 
-          {/* DROPDOWN FILTERS MENU */}
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
               <span style={{ fontSize: '0.6rem', color: '#94a3b8', letterSpacing: '1px', textTransform: 'uppercase' }}>Sort by Date</span>
@@ -1063,7 +1168,6 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
         </div>
       </div>
 
-      {/* 3-SECOND CONNECTING TO MAIN TRANSITION OVERLAY */}
       <AnimatePresence>
         {isReturningMain && (
           <motion.div
@@ -1133,7 +1237,6 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
   );
 }
 
-// Sub-component featuring shared layout transition animation, independent scrollable content, and enlarged SPACETEC branding format
 function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: false });
   const [modalBgIdx, setModalBgIdx] = useState(0);
@@ -1271,7 +1374,6 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
         layoutId={`launch-card-${launch.id}`}
         style={{ maxWidth: '900px', margin: '0 auto', width: '100%', position: 'relative', zIndex: 3 }}
       >
-        {/* Top Header with Enlarged SPACETEC branding format matching homepage */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '2.5rem', gap: '2rem' }}>
           <div style={{ flex: 1 }}>
             <div style={{ marginBottom: '1rem' }}>
@@ -1305,7 +1407,6 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
           </button>
         </div>
 
-        {/* Countdown Box */}
         <div className="glass-card" style={{ padding: '2.5rem', marginBottom: '2rem', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
           <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.75rem', color: '#38bdf8', letterSpacing: '3px', textTransform: 'uppercase', fontWeight: '700' }}>
             {timeLeft.isPast ? 'LAUNCH WINDOW OPEN / LIFTED' : 'LIVE T-MINUS COUNTDOWN TIMER'}
@@ -1326,10 +1427,8 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
           </div>
         </div>
 
-        {/* Details and Live Weather Section */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '2rem', paddingBottom: '3rem' }}>
           
-          {/* Mission Info Grid */}
           <div className="glass-card" style={{ padding: '2rem' }}>
             <h3 style={{ fontSize: '0.85rem', color: '#a1a1aa', letterSpacing: '3px', textTransform: 'uppercase', margin: '0 0 1.5rem 0', fontWeight: '700' }}>
               // LAUNCH PARAMETERS
@@ -1350,7 +1449,6 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
             </div>
           </div>
 
-          {/* Live Pad Weather Telemetry */}
           <div className="glass-card" style={{ padding: '2rem' }}>
             <h3 style={{ fontSize: '0.85rem', color: '#a1a1aa', letterSpacing: '3px', textTransform: 'uppercase', margin: '0 0 1.5rem 0', fontWeight: '700' }}>
               // PAD METEOROLOGICAL TELEMETRY
