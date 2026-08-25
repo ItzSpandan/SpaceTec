@@ -12,6 +12,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   const [agencyBatchIndex, setAgencyBatchIndex] = useState(0);
   const [expandedLaunch, setExpandedLaunch] = useState(null); 
   const [showAllLaunchesPage, setShowAllLaunchesPage] = useState(false);
+  const [isTransitioningExplore, setIsTransitioningExplore] = useState(false);
   const canvasRef = useRef(null);
 
   const spaceBackgrounds = [
@@ -186,9 +187,16 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 
   const currentBatchAgencies = allAgencies.filter(a => a.batch === agencyBatchIndex);
 
-  // Separate latest 9 cards for main page, and remaining for the explore more page
   const latestLaunches = upcomingLaunches?.slice(0, 9) || [];
   const remainingLaunches = upcomingLaunches?.slice(9) || [];
+
+  const handleOpenExploreMore = () => {
+    setIsTransitioningExplore(true);
+    setTimeout(() => {
+      setIsTransitioningExplore(false);
+      setShowAllLaunchesPage(true);
+    }, 1800); // 1.8 second centered transition screen
+  };
 
   return (
     <div style={{ backgroundColor: '#000000', color: '#ffffff', minHeight: '100vh', fontFamily: '"Space Grotesk", -apple-system, sans-serif', position: 'relative', overflowX: 'hidden' }}>
@@ -422,6 +430,73 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
                 style={{ fontSize: 'calc(0.7rem + 0.3vw)', letterSpacing: '12px', color: '#a1a1aa', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '500' }}
               >
                 UNIFIED COSMIC INTELLIGENCE
+              </motion.p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* EXPLORE MORE TRANSITION SCREEN */}
+      <AnimatePresence>
+        {isTransitioningExplore && (
+          <motion.div
+            key="explore-transition"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 99999,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: '#000000',
+              padding: '2rem'
+            }}
+          >
+            {spaceBackgrounds.map((bgUrl, idx) => (
+              <div
+                key={`trans-bg-${idx}`}
+                style={{
+                  position: 'fixed',
+                  top: 0, left: 0, width: '100vw', height: '100vh',
+                  backgroundImage: `url('${bgUrl}')`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  zIndex: 0,
+                  opacity: bgIndex === idx ? 1 : 0,
+                  transition: 'opacity 1.8s ease-in-out',
+                  filter: 'brightness(0.4) contrast(1.25)',
+                  pointerEvents: 'none'
+                }}
+              />
+            ))}
+            <div 
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)',
+                zIndex: 1,
+                pointerEvents: 'none'
+              }}
+            />
+            <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}>
+              <motion.h1
+                layoutId="spacetec-brand"
+                style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}
+              >
+                SPACETEC
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#38bdf8', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}
+              >
+                LOADING ARCHIVED MANIFEST...
               </motion.p>
             </div>
           </motion.div>
@@ -712,7 +787,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
             <div style={{ marginTop: '3rem', textAlign: 'center' }}>
               <button 
                 className="explore-btn" 
-                onClick={() => setShowAllLaunchesPage(true)}
+                onClick={handleOpenExploreMore}
                 style={{ maxWidth: '400px', margin: '0 auto' }}
               >
                 <span>Explore More Launches ({remainingLaunches.length} More)</span>
@@ -724,7 +799,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
 
       </motion.div>
 
-      {/* EXPLORE MORE LAUNCHES FULL PAGE VIEW */}
+      {/* EXPLORE MORE LAUNCHES FULL PAGE VIEW WITH DROPDOWN FILTERS */}
       <AnimatePresence>
         {showAllLaunchesPage && (
           <AllLaunchesPage 
@@ -736,7 +811,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
         )}
       </AnimatePresence>
 
-      {/* EXPANDED MODAL CONTAINER WITH BACKGROUND SLIDESHOW & STARFIELD CANVAS */}
+      {/* EXPANDED MODAL CONTAINER WITH ENLARGED 'SPACETEC' BRANDING */}
       <AnimatePresence>
         {expandedLaunch && (
           <LaunchCountdownModal 
@@ -750,9 +825,11 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
   );
 }
 
-// Separate Page Component for Remaining Launches
+// Separate Page Component for Remaining Launches with Dropdown Filters Menu
 function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }) {
   const [bgIdx, setBgIdx] = useState(0);
+  const [sortBy, setSortBy] = useState('latest');
+  const [selectedProvider, setSelectedProvider] = useState('all');
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -810,6 +887,21 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
     };
   }, []);
 
+  // Extract unique providers for agency filter dropdown
+  const providers = ['all', ...new Set(launches.map(l => l.provider).filter(Boolean))];
+
+  // Filter & Sort logic
+  const filteredLaunches = launches.filter(l => {
+    if (selectedProvider === 'all') return true;
+    return l.provider === selectedProvider;
+  }).sort((a, b) => {
+    const dateA = new Date(a.net).getTime();
+    const dateB = new Date(b.net).getTime();
+    if (sortBy === 'latest') return dateA - dateB; // chronological upcoming first
+    if (sortBy === 'oldest') return dateB - dateA; // furthest out first
+    return 0;
+  });
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -855,7 +947,15 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
       <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, zIndex: 2, pointerEvents: 'none' }} />
 
       <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 3 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '3rem' }}>
+        
+        {/* TOP BRAND FORMAT MATCHING HOMEPAGE */}
+        <div style={{ marginBottom: '1rem' }}>
+          <span style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}>
+            SPACETEC
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '2.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
           <div>
             <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
               // ARCHIVED ORBITAL MANIFEST
@@ -864,26 +964,56 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
               EXPLORE MORE LAUNCHES
             </h2>
           </div>
-          <button 
-            onClick={onClose}
-            style={{ 
-              background: 'rgba(255,255,255,0.08)', 
-              border: '1px solid rgba(255,255,255,0.3)', 
-              color: '#fff', 
-              padding: '0.8rem 1.5rem', 
-              cursor: 'pointer', 
-              fontSize: '0.75rem',
-              letterSpacing: '2px',
-              fontWeight: '700',
-              textTransform: 'uppercase'
-            }}
-          >
-            [← BACK TO MAIN]
-          </button>
+
+          {/* DROPDOWN FILTERS MENU */}
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              <span style={{ fontSize: '0.6rem', color: '#94a3b8', letterSpacing: '1px', textTransform: 'uppercase' }}>Sort by Date</span>
+              <select 
+                value={sortBy} 
+                onChange={(e) => setSortBy(e.target.value)}
+                style={{ background: '#121212', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', padding: '0.6rem 1rem', fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}
+              >
+                <option value="latest">Chronological (Upcoming First)</option>
+                <option value="oldest">Distant Future First</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              <span style={{ fontSize: '0.6rem', color: '#94a3b8', letterSpacing: '1px', textTransform: 'uppercase' }}>Filter Agency</span>
+              <select 
+                value={selectedProvider} 
+                onChange={(e) => setSelectedProvider(e.target.value)}
+                style={{ background: '#121212', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', padding: '0.6rem 1rem', fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none', cursor: 'pointer', textTransform: 'uppercase' }}
+              >
+                {providers.map(p => (
+                  <option key={p} value={p}>{p === 'all' ? 'All Agencies' : p}</option>
+                ))}
+              </select>
+            </div>
+
+            <button 
+              onClick={onClose}
+              style={{ 
+                background: 'rgba(255,255,255,0.08)', 
+                border: '1px solid rgba(255,255,255,0.3)', 
+                color: '#fff', 
+                padding: '0.8rem 1.5rem', 
+                cursor: 'pointer', 
+                fontSize: '0.75rem',
+                letterSpacing: '2px',
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                alignSelf: 'flex-end'
+              }}
+            >
+              [← BACK TO MAIN]
+            </button>
+          </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', paddingBottom: '4rem' }}>
-          {launches.map((launch) => (
+          {filteredLaunches.map((launch) => (
             <div 
               key={launch.id}
               onClick={() => onSelectLaunch(launch)}
@@ -912,19 +1042,23 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
               </div>
             </div>
           ))}
+          {filteredLaunches.length === 0 && (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '4rem', color: '#a1a1aa' }}>
+              No launches found matching the selected filter criteria.
+            </div>
+          )}
         </div>
       </div>
     </motion.div>
   );
 }
 
-// Sub-component featuring shared layout transition animation, independent scrollable content, and website header name
+// Sub-component featuring shared layout transition animation, independent scrollable content, and enlarged SPACETEC branding format
 function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: false });
   const [modalBgIdx, setModalBgIdx] = useState(0);
   const modalCanvasRef = useRef(null);
 
-  // Background slideshow rotation inside modal
   useEffect(() => {
     const modalBgTimer = setInterval(() => {
       setModalBgIdx((prev) => (prev + 1) % spaceBackgrounds.length);
@@ -932,7 +1066,6 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
     return () => clearInterval(modalBgTimer);
   }, [spaceBackgrounds.length]);
 
-  // Starfield canvas animation inside modal
   useEffect(() => {
     const canvas = modalCanvasRef.current;
     if (!canvas) return;
@@ -1025,7 +1158,6 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
         boxSizing: 'border-box'
       }}
     >
-      {/* Background Slideshow Layers for Modal */}
       {spaceBackgrounds.map((bgUrl, idx) => (
         <div
           key={`modal-bg-${idx}`}
@@ -1053,19 +1185,19 @@ function LaunchCountdownModal({ launch, onClose, spaceBackgrounds }) {
         }}
       />
 
-      {/* Starfield Canvas for Modal */}
       <canvas ref={modalCanvasRef} style={{ position: 'fixed', inset: 0, zIndex: 2, pointerEvents: 'none' }} />
 
       <motion.div 
         layoutId={`launch-card-${launch.id}`}
         style={{ maxWidth: '900px', margin: '0 auto', width: '100%', position: 'relative', zIndex: 3 }}
       >
-        {/* Modal Top Nav / Close */}
+        {/* Top Header with Enlarged SPACETEC branding format matching homepage */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '2.5rem', gap: '2rem' }}>
           <div style={{ flex: 1 }}>
-            {/* Website Name on top of the header inside expanded view */}
-            <div style={{ fontSize: '0.85rem', fontWeight: '900', letterSpacing: '6px', color: '#ffffff', textTransform: 'uppercase', marginBottom: '0.8rem', opacity: 0.9 }}>
-              SPACETEC // MISSION TELEMETRY
+            <div style={{ marginBottom: '1rem' }}>
+              <span style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}>
+                SPACETEC
+              </span>
             </div>
             <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
               // FULL MISSION TELEMETRY & PAD ENVIRONMENT
