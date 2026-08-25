@@ -109,6 +109,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches }) {
       logoText: 'CNSA HQ // BEIJING, CHINA'
     }
 
+  ];
+
   const agencyDirectory = [
     ...allAgencies,
     { id: 'roscosmos', name: 'ROSCOSMOS', tagline: 'RUSSIAN SPACE PROGRAMME', accentColor: '#ef4444', category: 'Government agency', headquarters: 'Moscow, Russia', history: 'Established in 1992 as the Russian federal space agency after the Soviet space programme.', majorPrograms: 'Soyuz missions, Progress cargo spacecraft, GLONASS navigation and lunar exploration.', brief: 'Russia’s civil space corporation responsible for national spaceflight programmes.' },
