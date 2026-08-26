@@ -6,6 +6,7 @@ export default async function Home() {
   
   let apodData = null;
   let upcomingLaunches = [];
+  let padWeather = [];
 
   // Fetch NASA APOD data
   try {
@@ -31,5 +32,20 @@ export default async function Home() {
     console.error("Database Fetch Error:", error);
   }
 
-  return <SpaceTecHub apodData={apodData} upcomingLaunches={upcomingLaunches} />;
+  // Fetch live launchpad weather telemetry from Supabase
+  try {
+    const { data, error } = await supabase
+      .from('weather')
+      .select('*');
+
+    if (error) {
+      console.error("Supabase Weather Fetch Error:", error);
+    } else {
+      padWeather = data || [];
+    }
+  } catch (error) {
+    console.error("Weather Database Fetch Error:", error);
+  }
+
+  return <SpaceTecHub apodData={apodData} upcomingLaunches={upcomingLaunches} padWeather={padWeather} />;
 }
