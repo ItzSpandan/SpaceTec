@@ -6,14 +6,51 @@ import Image from 'next/image';
 import OrbitalGlobe from './OrbitalGlobe';
 import { supabase } from './supabase';
 
+// --- LAUNCH STATUS HELPERS (shared by the homepage, the explore pages, and the launch modal) ---
+
+// Any status text from the launch API that means the mission has already flown.
+const COMPLETED_STATUS_KEYWORDS = ['success', 'failure', 'partial', 'landing', 'in flight', 'launched'];
+
+function isLaunchPast(launch) {
+  if (!launch) return false;
+  const statusText = (launch.status || '').toLowerCase();
+  if (COMPLETED_STATUS_KEYWORDS.some((keyword) => statusText.includes(keyword))) return true;
+  if (launch.net && new Date(launch.net).getTime() < Date.now()) return true;
+  return false;
+}
+
+// Colour-codes a launch's real status text (Launch Successful / Launch Failure / Partial Failure / Go for Launch / etc).
+function getLaunchStatusColor(status) {
+  if (!status) return '#a1a1aa';
+  const s = status.toLowerCase();
+  if (s.includes('partial')) return '#eab308';
+  if (s.includes('fail')) return '#ef4444';
+  if (s.includes('success') || s.includes('landing')) return '#22c55e';
+  if (s.includes('flight') || s.includes('progress')) return '#38bdf8';
+  return '#a1a1aa';
+}
+
+// A friendly "X days ago" style label for past-launch cards.
+function formatTimeAgo(dateStr) {
+  if (!dateStr) return 'UNKNOWN';
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const days = Math.floor(diffMs / 86400000);
+  if (days <= 0) return 'T+ TODAY';
+  if (days === 1) return 'T+ 1 DAY AGO';
+  return `T+ ${days} DAYS AGO`;
+}
+
 export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) {
   const [entered, setEntered] = useState(false);
+
   const [bgIndex, setBgIndex] = useState(0);
   const [activeAgency, setActiveAgency] = useState(null);
   const [agencyBatchIndex, setAgencyBatchIndex] = useState(0);
   const [expandedLaunch, setExpandedLaunch] = useState(null); 
   const [showAllLaunchesPage, setShowAllLaunchesPage] = useState(false);
   const [isTransitioningExplore, setIsTransitioningExplore] = useState(false);
+  const [showAllPastLaunchesPage, setShowAllPastLaunchesPage] = useState(false);
+  const [isTransitioningPastLaunches, setIsTransitioningPastLaunches] = useState(false);
   const [showAllAgenciesPage, setShowAllAgenciesPage] = useState(false);
   const [isTransitioningAgencies, setIsTransitioningAgencies] = useState(false);
   const [globeViewMode, setGlobeViewMode] = useState({ mode: 'pads', requestId: 0 });
@@ -146,53 +183,53 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
 
   // GLOBAL LAUNCHPAD DIRECTORY (46 sites, live-synced weather keyed by id)
   const allLaunchpads = [
-    { id: 'ksc', name: 'KENNEDY SPACE CENTER', lat: 28.5729, lon: -80.6490, status: '🟢 Active', batch: 0, isMajor: true, accentColor: '#38bdf8', country: 'United States', tagline: 'ARTEMIS & CREW LAUNCH COMPLEX', history: 'Established by NASA in 1962 on Merritt Island, Florida, Kennedy Space Center launched the Apollo Moon missions, the entire Space Shuttle program, and today hosts Artemis and commercial crew launches from historic Pad 39A and 39B.' },
-    { id: 'cape', name: 'CAPE CANAVERAL SFS', lat: 28.4888, lon: -80.5778, status: '🟢 Active', batch: 0, isMajor: true, accentColor: '#60a5fa', country: 'United States', tagline: 'BUSIEST US LAUNCH RANGE', history: 'Operated by the US Space Force since the 1950s, Cape Canaveral Space Force Station sits beside Kennedy Space Center and hosts the highest launch cadence in the country, including regular SpaceX Falcon 9 and ULA missions.' },
-    { id: 'starbase', name: 'STARBASE BOCA CHICA', lat: 25.9975, lon: -97.1561, status: '🟢 Active', batch: 0, isMajor: true, accentColor: '#ff6600', country: 'United States', tagline: 'STARSHIP DEVELOPMENT & FLIGHT SITE', history: 'Built by SpaceX from 2019 on the Texas Gulf coast near Boca Chica, Starbase is the design, build and launch site for the fully reusable Starship and Super Heavy launch system, incorporated as its own city in 2023.' },
-    { id: 'vandenberg', name: 'VANDENBERG SFB', lat: 34.7420, lon: -120.5724, status: '🟢 Active', batch: 1, isMajor: true, accentColor: '#a78bfa', country: 'United States', tagline: 'WEST COAST POLAR LAUNCH HUB', history: 'A US Space Force base on the California coast active since 1958, Vandenberg specializes in polar and sun-synchronous orbit launches for military, civil and commercial payloads, including frequent SpaceX Falcon 9 missions.' },
-    { id: 'wallops', name: 'WALLOPS FLIGHT FACILITY', lat: 37.9402, lon: -75.4664, status: '🟢 Active', accentColor: '#2dd4bf', country: 'United States', tagline: 'NASA SOUNDING ROCKET & ANTARES SITE', history: 'A NASA facility on Virginia’s Eastern Shore operating since 1945, Wallops supports sounding rockets, small orbital launch vehicles and Northrop Grumman Antares/Cygnus cargo missions to the ISS via the adjoining Mid-Atlantic Regional Spaceport.' },
-    { id: 'mojave', name: 'MOJAVE AIR AND SPACE PORT', lat: 35.0594, lon: -118.1519, status: '🟢 Active', accentColor: '#f97316', country: 'United States', tagline: 'EXPERIMENTAL AEROSPACE FLIGHT TEST CENTER', history: 'A former WWII airfield in the California desert, Mojave became the first FAA-licensed inland spaceport in 2004 and is a hub for experimental aerospace flight testing, including Scaled Composites and Virgin Galactic suborbital vehicles.' },
-    { id: 'kwajalein', name: 'KWAJALEIN ATOLL', lat: 9.0470, lon: 167.7430, status: '🟢 Active', accentColor: '#22c55e', country: 'Marshall Islands', tagline: 'EQUATORIAL PACIFIC RANGE', history: 'Home to the US Army’s Reagan Test Site, Kwajalein Atoll’s remote equatorial location in the Pacific has made it a missile-defense test range and, since 2006, a commercial orbital launch site used by Rocket Lab and formerly SpaceX’s earliest Falcon 1 flights.' },
-    { id: 'kauai', name: 'PACIFIC MISSILE RANGE FACILITY', lat: 22.0586, lon: -159.7850, status: '🟢 Active', accentColor: '#0ea5e9', country: 'United States', tagline: 'HAWAIIAN ROCKET TEST RANGE', history: 'Operated by the US Navy on Kauai, Hawaii since the 1950s, the Pacific Missile Range Facility supports missile testing, sounding rockets and small orbital launch attempts including Astra’s early Rocket 3 flights.' },
-    { id: 'kourou', name: 'GUIANA SPACE CENTRE', lat: 5.2360, lon: -52.7680, status: '🟢 Active', accentColor: '#facc15', country: 'French Guiana', tagline: 'EUROPE\'S SPACEPORT NEAR THE EQUATOR', history: 'Established by France in 1968 and operated with ESA and Arianespace since the 1970s, the Guiana Space Centre’s near-equatorial location gives an efficient boost to geostationary launches of Ariane, Vega and Soyuz vehicles.' },
-    { id: 'andoya', name: 'ANDOYA SPACEPORT', lat: 69.2947, lon: 16.0200, status: '🟢 Active', accentColor: '#38bdf8', country: 'Norway', tagline: 'ARCTIC ORBITAL SPACEPORT', history: 'Built on a long-running Norwegian sounding-rocket range above the Arctic Circle, Andøya Spaceport was inaugurated for orbital small-satellite launches in 2023, targeting polar and sun-synchronous orbits from mainland Europe.' },
-    { id: 'esrange', name: 'ESRANGE SPACE CENTER', lat: 67.8930, lon: 21.1040, status: '🟢 Active', accentColor: '#60a5fa', country: 'Sweden', tagline: 'SWEDISH ARCTIC RESEARCH RANGE', history: 'Operating since 1966 near Kiruna, Sweden, Esrange has long launched sounding rockets and stratospheric balloons for European science, and is being expanded with an orbital launch pad for small satellite rockets.' },
-    { id: 'saxa', name: 'SAXA VORD SPACEPORT', lat: 60.7490, lon: -0.7500, status: '🟡 Developing', accentColor: '#eab308', country: 'United Kingdom', tagline: 'SHETLAND ISLANDS VERTICAL LAUNCH SITE', history: 'Built on a former RAF radar station on Unst in Scotland’s Shetland Islands, SaxaVord is being developed as the UK’s first vertical orbital launch spaceport, targeting polar-orbit small satellite missions.' },
-    { id: 'sutherland', name: 'SUTHERLAND SPACEPORT', lat: 58.5090, lon: -4.4120, status: '🟡 Developing', accentColor: '#eab308', country: 'United Kingdom', tagline: 'SCOTTISH HIGHLANDS SPACEPORT', history: 'Planned on the A\'Mhoine peninsula in the Scottish Highlands, Sutherland Spaceport was granted UK Space Agency backing in the late 2010s to become a vertical launch site for small satellite rockets.' },
-    { id: 'cornwall', name: 'SPACEPORT CORNWALL', lat: 50.4210, lon: -5.0270, status: '🟡 Limited/Inactive', accentColor: '#f59e0b', country: 'United Kingdom', tagline: 'HORIZONTAL AIR-LAUNCH SITE', history: 'Based at Cornwall Airport Newquay, Spaceport Cornwall hosted the UK’s first orbital launch attempt in January 2023 via Virgin Orbit’s air-launched rocket, which failed to reach orbit; the site has seen limited activity since Virgin Orbit’s closure.' },
-    { id: 'baikonur', name: 'BAIKONUR COSMODROME', lat: 45.9646, lon: 63.3052, status: '🟢 Active', batch: 1, isMajor: true, accentColor: '#ef4444', country: 'Kazakhstan', tagline: 'WORLD\'S FIRST & LARGEST SPACEPORT', history: 'Built by the Soviet Union in 1955, Baikonur Cosmodrome launched Sputnik 1 and Yuri Gagarin’s first crewed spaceflight, and remains the primary launch site for Russia’s Soyuz crew and cargo missions to the ISS under lease from Kazakhstan.' },
-    { id: 'plesetsk', name: 'PLESETSK COSMODROME', lat: 62.9275, lon: 40.5750, status: '🟢 Active', accentColor: '#dc2626', country: 'Russia', tagline: 'RUSSIA\'S NORTHERN MILITARY SPACEPORT', history: 'Established in 1957 in northern Russia, Plesetsk began as a military missile base and became a busy launch site for Soviet and Russian military and reconnaissance satellites, using Soyuz and Angara rockets.' },
-    { id: 'vostochny', name: 'VOSTOCHNY COSMODROME', lat: 51.8840, lon: 128.3330, status: '🟢 Active', accentColor: '#f87171', country: 'Russia', tagline: 'RUSSIA\'S NEWEST CIVILIAN SPACEPORT', history: 'Constructed from 2012 in Russia’s Amur Oblast to reduce reliance on leased Baikonur, Vostochny Cosmodrome held its first launch in 2016 and now hosts Soyuz and the newer Angara rocket family.' },
-    { id: 'kapustin', name: 'KAPUSTIN YAR', lat: 48.5720, lon: 45.8040, status: '🔴 Inactive for orbital launches', accentColor: '#71717a', country: 'Russia', tagline: 'EARLY SOVIET MISSILE TEST RANGE', history: 'Founded in 1946 as the Soviet Union’s first rocket test range, Kapustin Yar conducted early ballistic missile tests and some satellite launches, but has not been used for orbital missions in decades.' },
-    { id: 'yasny', name: 'YASNY COSMODROME', lat: 51.2030, lon: 59.8500, status: '🔴 Inactive', accentColor: '#71717a', country: 'Russia', tagline: 'CONVERTED ICBM SILO LAUNCH SITE', history: 'Operated from a converted intercontinental ballistic missile silo at Dombarovsky air base, Yasny hosted commercial Dnepr rocket launches converting decommissioned missiles into satellite launchers until the program ended in the mid-2010s.' },
-    { id: 'jiuquan', name: 'JIUQUAN SATELLITE LAUNCH CENTER', lat: 40.9606, lon: 100.2910, status: '🟢 Active', accentColor: '#f43f5e', country: 'China', tagline: 'CHINA\'S OLDEST CREWED SPACEPORT', history: 'China’s first satellite launch center, established in 1958 in the Gobi Desert, Jiuquan has launched every Chinese crewed Shenzhou mission as well as numerous Long March satellite payloads.' },
-    { id: 'xichang', name: 'XICHANG SATELLITE LAUNCH CENTER', lat: 28.2460, lon: 102.0270, status: '🟢 Active', accentColor: '#fb7185', country: 'China', tagline: 'CHINA\'S LUNAR & GEOSTATIONARY HUB', history: 'Operational since 1984 in Sichuan province, Xichang specializes in geostationary and lunar missions, including China’s Chang’e lunar probes and Beidou navigation satellites.' },
-    { id: 'taiyuan', name: 'TAIYUAN SATELLITE LAUNCH CENTER', lat: 38.8490, lon: 111.6080, status: '🟢 Active', accentColor: '#e11d48', country: 'China', tagline: 'CHINA\'S POLAR ORBIT SPACEPORT', history: 'Active since the 1960s in Shanxi province, Taiyuan primarily launches Chinese meteorological, remote-sensing and polar-orbiting satellites aboard Long March rockets.' },
-    { id: 'wenchang', name: 'WENCHANG SPACE LAUNCH SITE', lat: 19.6140, lon: 110.9510, status: '🟢 Active', accentColor: '#fda4af', country: 'China', tagline: 'CHINA\'S COASTAL HEAVY-LIFT SITE', history: 'Opened in 2016 on Hainan Island, Wenchang is China’s newest and southernmost spaceport, chosen for its coastal location and low latitude to support the heavy-lift Long March 5 and China’s space station and lunar programs.' },
-    { id: 'korla', name: 'KORLA SPACE LAUNCH SITE', lat: 41.6100, lon: 88.9700, status: '🟢 Active', accentColor: '#f472b6', country: 'China', tagline: 'CHINESE COMMERCIAL LAUNCH SITE', history: 'A newer site in China’s Xinjiang region, Korla has emerged in the 2020s as a launch location for Chinese commercial small-satellite rockets, supplementing the country’s four main state spaceports.' },
-    { id: 'tanegashima', name: 'TANEGASHIMA SPACE CENTER', lat: 30.4042, lon: 130.9702, status: '🟢 Active', accentColor: '#2dd4bf', country: 'Japan', tagline: 'JAPAN\'S PRIMARY SPACEPORT', history: 'JAXA’s main launch site since the 1960s on an island south of Kyushu, Tanegashima Space Center is renowned for its scenic coastal location and launches Japan’s H-II and H3 rockets.' },
-    { id: 'uchinoura', name: 'UCHINOURA SPACE CENTER', lat: 31.2510, lon: 131.0820, status: '🟢 Active', accentColor: '#14b8a6', country: 'Japan', tagline: 'JAPAN\'S SOLID-FUEL & SCIENCE LAUNCH SITE', history: 'Japan’s original space launch site dating to 1962, Uchinoura now focuses on solid-fuel Epsilon rockets and scientific and asteroid-sampling missions such as Hayabusa.' },
-    { id: 'sriharikota', name: 'SATISH DHAWAN SPACE CENTRE', lat: 13.7199, lon: 80.2304, status: '🟢 Active', batch: 1, isMajor: true, accentColor: '#ff9933', country: 'India', tagline: 'ISRO\'S PRIMARY SPACEPORT', history: 'ISRO’s main launch center since 1971 on Sriharikota Island, renamed for former ISRO chairman Satish Dhawan in 2002, it has launched every major Indian mission including Chandrayaan and Mangalyaan aboard PSLV and GSLV rockets.' },
-    { id: 'kulasekarapattinam', name: 'KULASEKARAPATTINAM SPACEPORT', lat: 8.3670, lon: 78.0250, status: '🟡 Developing', accentColor: '#fbbf24', country: 'India', tagline: 'ISRO\'S UPCOMING SECOND SPACEPORT', history: 'Under construction in Tamil Nadu since the early 2020s, this new ISRO spaceport is designed to handle small-satellite launch vehicles and relieve pressure on Sriharikota.' },
-    { id: 'thumba', name: 'THUMBA EQUATORIAL ROCKET LAUNCHING STATION', lat: 8.5360, lon: 76.8700, status: '🟢 Active', accentColor: '#fdba74', country: 'India', tagline: 'INDIA\'S FIRST ROCKET LAUNCH SITE', history: 'India’s first rocket range, established in 1963 near Thiruvananthapuram under Vikram Sarabhai, TERLS launched India’s earliest sounding rockets and continues supporting atmospheric research launches today.' },
-    { id: 'chandipur', name: 'INTEGRATED TEST RANGE', lat: 21.3170, lon: 87.2950, status: '🟢 Active', accentColor: '#fb923c', country: 'India', tagline: 'INDIAN DEFENCE MISSILE TEST RANGE', history: 'Operated by India’s DRDO on the Odisha coast since the late 1980s, the Integrated Test Range at Chandipur is primarily used for testing Indian missile systems rather than orbital launches.' },
-    { id: 'mahia', name: 'ROCKET LAB LAUNCH COMPLEX 1', lat: -39.2562, lon: 177.8647, status: '🟢 Active', accentColor: '#22d3ee', country: 'New Zealand', tagline: 'WORLD\'S FIRST PRIVATE ORBITAL SPACEPORT', history: 'Opened by Rocket Lab in 2016 on the Māhia Peninsula, this was the world’s first private orbital launch site and has hosted the majority of Rocket Lab’s Electron small-satellite missions.' },
-    { id: 'woomera', name: 'WOOMERA RANGE COMPLEX', lat: -31.1600, lon: 136.8050, status: '🟢 Active', accentColor: '#fb7185', country: 'Australia', tagline: 'HISTORIC ANGLO-AUSTRALIAN TEST RANGE', history: 'Established in 1947 as a joint UK-Australian weapons and rocket test range, Woomera hosted early British satellite launches and remains one of the world’s largest land-based test ranges, used today for research and small rocket testing.' },
-    { id: 'arnhem', name: 'ARNHEM SPACE CENTRE', lat: -12.3680, lon: 136.8140, status: '🟡 Developing', accentColor: '#fca5a5', country: 'Australia', tagline: 'NORTHERN TERRITORY EQUATORIAL SITE', history: 'A commercial spaceport being developed on the Dhupuma Plateau in Australia’s Northern Territory, Arnhem Space Centre hosted small US-built suborbital rocket test launches in 2022 as it works toward orbital operations.' },
-    { id: 'alcantara', name: 'ALCANTARA SPACE CENTER', lat: -2.3170, lon: -44.3690, status: '🟢 Active', accentColor: '#22c55e', country: 'Brazil', tagline: 'BRAZIL\'S EQUATORIAL SPACEPORT', history: 'Operated by the Brazilian Air Force since 1983 near the equator, Alcântara offers a natural fuel-efficiency advantage for orbital launches and has recently opened to international commercial rocket operators.' },
-    { id: 'barreira', name: 'BARREIRA DO INFERNO LAUNCH CENTER', lat: -5.9100, lon: -35.1630, status: '🟢 Active', accentColor: '#16a34a', country: 'Brazil', tagline: 'BRAZIL\'S FIRST LAUNCH SITE', history: 'Brazil’s original rocket range, opened in 1965 near Natal with French assistance, Barreira do Inferno has long supported sounding rocket launches and continues limited research activity today.' },
-    { id: 'semnan', name: 'SEMNAN SPACE CENTER', lat: 35.2340, lon: 53.9210, status: '🟢 Active', accentColor: '#4ade80', country: 'Iran', tagline: 'IRAN\'S PRIMARY SATELLITE LAUNCH SITE', history: 'Iran’s main space launch facility since the 2000s, the Imam Khomeini Space Center at Semnan has launched the country’s Safir and Simorgh rockets carrying domestically built satellites.' },
-    { id: 'imam', name: 'IMAM KHOMEINI SPACEPORT', lat: 35.2340, lon: 53.9210, status: '🟢 Active', accentColor: '#86efac', country: 'Iran', tagline: 'IRAN\'S NATIONAL SPACE CENTER', history: 'Sharing the Semnan launch complex, the Imam Khomeini Space Center is Iran’s principal orbital launch facility, operational since the late 2000s for national satellite programs.' },
-    { id: 'shahrud', name: 'SHAHRUD MISSILE TEST SITE', lat: 36.4180, lon: 55.0180, status: '🟢 Active', accentColor: '#65a30d', country: 'Iran', tagline: 'IRANIAN MISSILE & ROCKET TEST FACILITY', history: 'A missile development and test site in northeastern Iran, Shahrud has been used since the 2010s for testing rocket technology associated with Iran’s space and missile programs.' },
-    { id: 'tongchangri', name: 'TONGCHANG-RI SOHAE SATELLITE LAUNCHING GROUND', lat: 39.6600, lon: 124.7060, status: '🟢 Active', accentColor: '#facc15', country: 'North Korea', tagline: 'NORTH KOREA\'S MAIN SPACEPORT', history: 'Built in the 2000s on North Korea’s west coast, the Sohae Satellite Launching Station at Tongchang-ri is the country’s primary and most modern site for satellite launch attempts.' },
-    { id: 'musudanri', name: 'MUSUDAN-RI LAUNCH SITE', lat: 40.8560, lon: 129.6660, status: '🔴 Inactive', accentColor: '#71717a', country: 'North Korea', tagline: 'NORTH KOREA\'S FORMER EAST COAST SITE', history: 'North Korea’s original launch site on its east coast, active from the 1990s through the 2000s for early satellite and missile launch attempts, Musudan-ri was largely superseded by the newer Sohae site.' },
-    { id: 'sanmarco', name: 'SAN MARCO EQUATORIAL RANGE', lat: -2.9460, lon: 40.2120, status: '🔴 Inactive', accentColor: '#71717a', country: 'Kenya', tagline: 'ITALIAN OCEAN PLATFORM SPACEPORT', history: 'An Italian-operated floating launch platform off the Kenyan coast active from 1967, the San Marco range launched Italian and NASA satellites and was the first spaceport to reach orbit outside the US or USSR, before being retired in the 1980s.' },
-    { id: 'palmachim', name: 'PALMACHIM AIRBASE', lat: 31.8960, lon: 34.6900, status: '🟢 Active', accentColor: '#38bdf8', country: 'Israel', tagline: 'ISRAEL\'S RETROGRADE-ORBIT SPACEPORT', history: 'An Israeli Air Force base on the Mediterranean coast, Palmachim has launched Israel’s Shavit rockets and Ofeq satellites westward against Earth’s rotation since 1988, a necessity dictated by the region’s geography.' },
-    { id: 'white', name: 'WHITE SANDS MISSILE RANGE', lat: 32.9900, lon: -106.9750, status: '🟢 Active', accentColor: '#e5e7eb', country: 'United States', tagline: 'HISTORIC US ROCKET TEST RANGE', history: 'The US Army’s primary rocket test range since 1945 in New Mexico, White Sands hosted the first V-2 and early American rocket tests and a Space Shuttle landing, and remains active for missile and rocket testing.' },
-    { id: 'poker', name: 'POKER FLAT RESEARCH RANGE', lat: 65.1270, lon: -147.4350, status: '🟢 Active', accentColor: '#93c5fd', country: 'United States', tagline: 'WORLD\'S LARGEST LAND-BASED ROCKET RANGE', history: 'Operated by the University of Alaska Fairbanks since 1969, Poker Flat is the world’s largest land-based rocket range and studies the aurora and upper atmosphere using sounding rockets.' },
-    { id: 'midland', name: 'MIDLAND INTERNATIONAL AIR AND SPACE PORT', lat: 31.9425, lon: -102.2019, status: '🟢 Active', accentColor: '#fdba74', country: 'United States', tagline: 'TEXAS HORIZONTAL SPACEPORT', history: 'A commercial airport in West Texas licensed by the FAA as a spaceport in 2014, Midland supports horizontal-launch and reusable suborbital vehicle testing including early XCOR Aerospace operations.' },
-    { id: 'kiruna', name: 'KIRUNA ROCKET RANGE', lat: 67.8558, lon: 20.2253, status: '🟢 Active', accentColor: '#7dd3fc', country: 'Sweden', tagline: 'ARCTIC SWEDISH LAUNCH RANGE', history: 'Part of the Esrange complex near Kiruna in Swedish Lapland, this Arctic range has supported European sounding rocket and balloon research since the 1960s.' },
-    { id: 'nyalesund', name: 'NY-ALESUND ROCKET RANGE', lat: 78.9230, lon: 11.9230, status: '🟢 Active', accentColor: '#bae6fd', country: 'Norway', tagline: 'WORLD\'S NORTHERNMOST LAUNCH RANGE', history: 'Located in the Svalbard archipelago far above the Arctic Circle, Ny-Ålesund is one of the northernmost rocket ranges on Earth, used for scientific sounding rocket launches studying the polar atmosphere and aurora.' }
+    { id: 'ksc', name: 'KENNEDY SPACE CENTER', lat: 28.5729, lon: -80.6490, status: '🟢 Active', batch: 0, isMajor: true, accentColor: '#38bdf8', country: 'United States', tagline: 'ARTEMIS & CREW LAUNCH COMPLEX', established: '1962', operator: 'NASA', history: 'Established by NASA in 1962 on Merritt Island, Florida, Kennedy Space Center launched the Apollo Moon missions, the entire Space Shuttle program, and today hosts Artemis and commercial crew launches from historic Pad 39A and 39B.' },
+    { id: 'cape', name: 'CAPE CANAVERAL SFS', lat: 28.4888, lon: -80.5778, status: '🟢 Active', batch: 0, isMajor: true, accentColor: '#60a5fa', country: 'United States', tagline: 'BUSIEST US LAUNCH RANGE', established: '1949', operator: 'US Space Force', history: 'Operated by the US Space Force since the 1950s, Cape Canaveral Space Force Station sits beside Kennedy Space Center and hosts the highest launch cadence in the country, including regular SpaceX Falcon 9 and ULA missions.' },
+    { id: 'starbase', name: 'STARBASE BOCA CHICA', lat: 25.9975, lon: -97.1561, status: '🟢 Active', batch: 0, isMajor: true, accentColor: '#ff6600', country: 'United States', tagline: 'STARSHIP DEVELOPMENT & FLIGHT SITE', established: '2019', operator: 'SpaceX', history: 'Built by SpaceX from 2019 on the Texas Gulf coast near Boca Chica, Starbase is the design, build and launch site for the fully reusable Starship and Super Heavy launch system, incorporated as its own city in 2023.' },
+    { id: 'vandenberg', name: 'VANDENBERG SFB', lat: 34.7420, lon: -120.5724, status: '🟢 Active', batch: 1, isMajor: true, accentColor: '#a78bfa', country: 'United States', tagline: 'WEST COAST POLAR LAUNCH HUB', established: '1958', operator: 'US Space Force', history: 'A US Space Force base on the California coast active since 1958, Vandenberg specializes in polar and sun-synchronous orbit launches for military, civil and commercial payloads, including frequent SpaceX Falcon 9 missions.' },
+    { id: 'wallops', name: 'WALLOPS FLIGHT FACILITY', lat: 37.9402, lon: -75.4664, status: '🟢 Active', accentColor: '#2dd4bf', country: 'United States', tagline: 'NASA SOUNDING ROCKET & ANTARES SITE', established: '1945', operator: 'NASA', history: 'A NASA facility on Virginia’s Eastern Shore operating since 1945, Wallops supports sounding rockets, small orbital launch vehicles and Northrop Grumman Antares/Cygnus cargo missions to the ISS via the adjoining Mid-Atlantic Regional Spaceport.' },
+    { id: 'mojave', name: 'MOJAVE AIR AND SPACE PORT', lat: 35.0594, lon: -118.1519, status: '🟢 Active', accentColor: '#f97316', country: 'United States', tagline: 'EXPERIMENTAL AEROSPACE FLIGHT TEST CENTER', established: '1935', operator: 'Mojave Air and Space Port', history: 'A former WWII airfield in the California desert, Mojave became the first FAA-licensed inland spaceport in 2004 and is a hub for experimental aerospace flight testing, including Scaled Composites and Virgin Galactic suborbital vehicles.' },
+    { id: 'kwajalein', name: 'KWAJALEIN ATOLL', lat: 9.0470, lon: 167.7430, status: '🟢 Active', accentColor: '#22c55e', country: 'Marshall Islands', tagline: 'EQUATORIAL PACIFIC RANGE', established: '1960', operator: 'US Army / Rocket Lab', history: 'Home to the US Army’s Reagan Test Site, Kwajalein Atoll’s remote equatorial location in the Pacific has made it a missile-defense test range and, since 2006, a commercial orbital launch site used by Rocket Lab and formerly SpaceX’s earliest Falcon 1 flights.' },
+    { id: 'kauai', name: 'PACIFIC MISSILE RANGE FACILITY', lat: 22.0586, lon: -159.7850, status: '🟢 Active', accentColor: '#0ea5e9', country: 'United States', tagline: 'HAWAIIAN ROCKET TEST RANGE', established: '1955', operator: 'US Navy', history: 'Operated by the US Navy on Kauai, Hawaii since the 1950s, the Pacific Missile Range Facility supports missile testing, sounding rockets and small orbital launch attempts including Astra’s early Rocket 3 flights.' },
+    { id: 'kourou', name: 'GUIANA SPACE CENTRE', lat: 5.2360, lon: -52.7680, status: '🟢 Active', accentColor: '#facc15', country: 'French Guiana', tagline: 'EUROPE\'S SPACEPORT NEAR THE EQUATOR', established: '1968', operator: 'CNES / Arianespace / ESA', history: 'Established by France in 1968 and operated with ESA and Arianespace since the 1970s, the Guiana Space Centre’s near-equatorial location gives an efficient boost to geostationary launches of Ariane, Vega and Soyuz vehicles.' },
+    { id: 'andoya', name: 'ANDOYA SPACEPORT', lat: 69.2947, lon: 16.0200, status: '🟢 Active', accentColor: '#38bdf8', country: 'Norway', tagline: 'ARCTIC ORBITAL SPACEPORT', established: '2023', operator: 'Andøya Space', history: 'Built on a long-running Norwegian sounding-rocket range above the Arctic Circle, Andøya Spaceport was inaugurated for orbital small-satellite launches in 2023, targeting polar and sun-synchronous orbits from mainland Europe.' },
+    { id: 'esrange', name: 'ESRANGE SPACE CENTER', lat: 67.8930, lon: 21.1040, status: '🟢 Active', accentColor: '#60a5fa', country: 'Sweden', tagline: 'SWEDISH ARCTIC RESEARCH RANGE', established: '1966', operator: 'Swedish Space Corporation', history: 'Operating since 1966 near Kiruna, Sweden, Esrange has long launched sounding rockets and stratospheric balloons for European science, and is being expanded with an orbital launch pad for small satellite rockets.' },
+    { id: 'saxa', name: 'SAXA VORD SPACEPORT', lat: 60.7490, lon: -0.7500, status: '🟡 Developing', accentColor: '#eab308', country: 'United Kingdom', tagline: 'SHETLAND ISLANDS VERTICAL LAUNCH SITE', established: '2018', operator: 'SaxaVord Spaceport Ltd', history: 'Built on a former RAF radar station on Unst in Scotland’s Shetland Islands, SaxaVord is being developed as the UK’s first vertical orbital launch spaceport, targeting polar-orbit small satellite missions.' },
+    { id: 'sutherland', name: 'SUTHERLAND SPACEPORT', lat: 58.5090, lon: -4.4120, status: '🟡 Developing', accentColor: '#eab308', country: 'United Kingdom', tagline: 'SCOTTISH HIGHLANDS SPACEPORT', established: '2018', operator: 'Orbex / UK Space Agency', history: 'Planned on the A\'Mhoine peninsula in the Scottish Highlands, Sutherland Spaceport was granted UK Space Agency backing in the late 2010s to become a vertical launch site for small satellite rockets.' },
+    { id: 'cornwall', name: 'SPACEPORT CORNWALL', lat: 50.4210, lon: -5.0270, status: '🟡 Limited/Inactive', accentColor: '#f59e0b', country: 'United Kingdom', tagline: 'HORIZONTAL AIR-LAUNCH SITE', established: '2022', operator: 'Spaceport Cornwall / Virgin Orbit', history: 'Based at Cornwall Airport Newquay, Spaceport Cornwall hosted the UK’s first orbital launch attempt in January 2023 via Virgin Orbit’s air-launched rocket, which failed to reach orbit; the site has seen limited activity since Virgin Orbit’s closure.' },
+    { id: 'baikonur', name: 'BAIKONUR COSMODROME', lat: 45.9646, lon: 63.3052, status: '🟢 Active', batch: 1, isMajor: true, accentColor: '#ef4444', country: 'Kazakhstan', tagline: 'WORLD\'S FIRST & LARGEST SPACEPORT', established: '1955', operator: 'Roscosmos (leased from Kazakhstan)', history: 'Built by the Soviet Union in 1955, Baikonur Cosmodrome launched Sputnik 1 and Yuri Gagarin’s first crewed spaceflight, and remains the primary launch site for Russia’s Soyuz crew and cargo missions to the ISS under lease from Kazakhstan.' },
+    { id: 'plesetsk', name: 'PLESETSK COSMODROME', lat: 62.9275, lon: 40.5750, status: '🟢 Active', accentColor: '#dc2626', country: 'Russia', tagline: 'RUSSIA\'S NORTHERN MILITARY SPACEPORT', established: '1957', operator: 'Russian Aerospace Forces', history: 'Established in 1957 in northern Russia, Plesetsk began as a military missile base and became a busy launch site for Soviet and Russian military and reconnaissance satellites, using Soyuz and Angara rockets.' },
+    { id: 'vostochny', name: 'VOSTOCHNY COSMODROME', lat: 51.8840, lon: 128.3330, status: '🟢 Active', accentColor: '#f87171', country: 'Russia', tagline: 'RUSSIA\'S NEWEST CIVILIAN SPACEPORT', established: '2012', operator: 'Roscosmos', history: 'Constructed from 2012 in Russia’s Amur Oblast to reduce reliance on leased Baikonur, Vostochny Cosmodrome held its first launch in 2016 and now hosts Soyuz and the newer Angara rocket family.' },
+    { id: 'kapustin', name: 'KAPUSTIN YAR', lat: 48.5720, lon: 45.8040, status: '🔴 Inactive for orbital launches', accentColor: '#71717a', country: 'Russia', tagline: 'EARLY SOVIET MISSILE TEST RANGE', established: '1946', operator: 'Russian Ministry of Defence', history: 'Founded in 1946 as the Soviet Union’s first rocket test range, Kapustin Yar conducted early ballistic missile tests and some satellite launches, but has not been used for orbital missions in decades.' },
+    { id: 'yasny', name: 'YASNY COSMODROME', lat: 51.2030, lon: 59.8500, status: '🔴 Inactive', accentColor: '#71717a', country: 'Russia', tagline: 'CONVERTED ICBM SILO LAUNCH SITE', established: '2006', operator: 'ISC Kosmotras', history: 'Operated from a converted intercontinental ballistic missile silo at Dombarovsky air base, Yasny hosted commercial Dnepr rocket launches converting decommissioned missiles into satellite launchers until the program ended in the mid-2010s.' },
+    { id: 'jiuquan', name: 'JIUQUAN SATELLITE LAUNCH CENTER', lat: 40.9606, lon: 100.2910, status: '🟢 Active', accentColor: '#f43f5e', country: 'China', tagline: 'CHINA\'S OLDEST CREWED SPACEPORT', established: '1958', operator: 'Chinese People\'s Liberation Army / CNSA', history: 'China’s first satellite launch center, established in 1958 in the Gobi Desert, Jiuquan has launched every Chinese crewed Shenzhou mission as well as numerous Long March satellite payloads.' },
+    { id: 'xichang', name: 'XICHANG SATELLITE LAUNCH CENTER', lat: 28.2460, lon: 102.0270, status: '🟢 Active', accentColor: '#fb7185', country: 'China', tagline: 'CHINA\'S LUNAR & GEOSTATIONARY HUB', established: '1984', operator: 'CNSA', history: 'Operational since 1984 in Sichuan province, Xichang specializes in geostationary and lunar missions, including China’s Chang’e lunar probes and Beidou navigation satellites.' },
+    { id: 'taiyuan', name: 'TAIYUAN SATELLITE LAUNCH CENTER', lat: 38.8490, lon: 111.6080, status: '🟢 Active', accentColor: '#e11d48', country: 'China', tagline: 'CHINA\'S POLAR ORBIT SPACEPORT', established: '1968', operator: 'CNSA', history: 'Active since the 1960s in Shanxi province, Taiyuan primarily launches Chinese meteorological, remote-sensing and polar-orbiting satellites aboard Long March rockets.' },
+    { id: 'wenchang', name: 'WENCHANG SPACE LAUNCH SITE', lat: 19.6140, lon: 110.9510, status: '🟢 Active', accentColor: '#fda4af', country: 'China', tagline: 'CHINA\'S COASTAL HEAVY-LIFT SITE', established: '2016', operator: 'CNSA', history: 'Opened in 2016 on Hainan Island, Wenchang is China’s newest and southernmost spaceport, chosen for its coastal location and low latitude to support the heavy-lift Long March 5 and China’s space station and lunar programs.' },
+    { id: 'korla', name: 'KORLA SPACE LAUNCH SITE', lat: 41.6100, lon: 88.9700, status: '🟢 Active', accentColor: '#f472b6', country: 'China', tagline: 'CHINESE COMMERCIAL LAUNCH SITE', established: '2020', operator: 'Commercial Chinese launch operators', history: 'A newer site in China’s Xinjiang region, Korla has emerged in the 2020s as a launch location for Chinese commercial small-satellite rockets, supplementing the country’s four main state spaceports.' },
+    { id: 'tanegashima', name: 'TANEGASHIMA SPACE CENTER', lat: 30.4042, lon: 130.9702, status: '🟢 Active', accentColor: '#2dd4bf', country: 'Japan', tagline: 'JAPAN\'S PRIMARY SPACEPORT', established: '1969', operator: 'JAXA', history: 'JAXA’s main launch site since the 1960s on an island south of Kyushu, Tanegashima Space Center is renowned for its scenic coastal location and launches Japan’s H-II and H3 rockets.' },
+    { id: 'uchinoura', name: 'UCHINOURA SPACE CENTER', lat: 31.2510, lon: 131.0820, status: '🟢 Active', accentColor: '#14b8a6', country: 'Japan', tagline: 'JAPAN\'S SOLID-FUEL & SCIENCE LAUNCH SITE', established: '1962', operator: 'JAXA', history: 'Japan’s original space launch site dating to 1962, Uchinoura now focuses on solid-fuel Epsilon rockets and scientific and asteroid-sampling missions such as Hayabusa.' },
+    { id: 'sriharikota', name: 'SATISH DHAWAN SPACE CENTRE', lat: 13.7199, lon: 80.2304, status: '🟢 Active', batch: 1, isMajor: true, accentColor: '#ff9933', country: 'India', tagline: 'ISRO\'S PRIMARY SPACEPORT', established: '1971', operator: 'ISRO', history: 'ISRO’s main launch center since 1971 on Sriharikota Island, renamed for former ISRO chairman Satish Dhawan in 2002, it has launched every major Indian mission including Chandrayaan and Mangalyaan aboard PSLV and GSLV rockets.' },
+    { id: 'kulasekarapattinam', name: 'KULASEKARAPATTINAM SPACEPORT', lat: 8.3670, lon: 78.0250, status: '🟡 Developing', accentColor: '#fbbf24', country: 'India', tagline: 'ISRO\'S UPCOMING SECOND SPACEPORT', established: '2024', operator: 'ISRO', history: 'Under construction in Tamil Nadu since the early 2020s, this new ISRO spaceport is designed to handle small-satellite launch vehicles and relieve pressure on Sriharikota.' },
+    { id: 'thumba', name: 'THUMBA EQUATORIAL ROCKET LAUNCHING STATION', lat: 8.5360, lon: 76.8700, status: '🟢 Active', accentColor: '#fdba74', country: 'India', tagline: 'INDIA\'S FIRST ROCKET LAUNCH SITE', established: '1963', operator: 'ISRO', history: 'India’s first rocket range, established in 1963 near Thiruvananthapuram under Vikram Sarabhai, TERLS launched India’s earliest sounding rockets and continues supporting atmospheric research launches today.' },
+    { id: 'chandipur', name: 'INTEGRATED TEST RANGE', lat: 21.3170, lon: 87.2950, status: '🟢 Active', accentColor: '#fb923c', country: 'India', tagline: 'INDIAN DEFENCE MISSILE TEST RANGE', established: '1989', operator: 'DRDO', history: 'Operated by India’s DRDO on the Odisha coast since the late 1980s, the Integrated Test Range at Chandipur is primarily used for testing Indian missile systems rather than orbital launches.' },
+    { id: 'mahia', name: 'ROCKET LAB LAUNCH COMPLEX 1', lat: -39.2562, lon: 177.8647, status: '🟢 Active', accentColor: '#22d3ee', country: 'New Zealand', tagline: 'WORLD\'S FIRST PRIVATE ORBITAL SPACEPORT', established: '2016', operator: 'Rocket Lab', history: 'Opened by Rocket Lab in 2016 on the Māhia Peninsula, this was the world’s first private orbital launch site and has hosted the majority of Rocket Lab’s Electron small-satellite missions.' },
+    { id: 'woomera', name: 'WOOMERA RANGE COMPLEX', lat: -31.1600, lon: 136.8050, status: '🟢 Active', accentColor: '#fb7185', country: 'Australia', tagline: 'HISTORIC ANGLO-AUSTRALIAN TEST RANGE', established: '1947', operator: 'Australian Department of Defence', history: 'Established in 1947 as a joint UK-Australian weapons and rocket test range, Woomera hosted early British satellite launches and remains one of the world’s largest land-based test ranges, used today for research and small rocket testing.' },
+    { id: 'arnhem', name: 'ARNHEM SPACE CENTRE', lat: -12.3680, lon: 136.8140, status: '🟡 Developing', accentColor: '#fca5a5', country: 'Australia', tagline: 'NORTHERN TERRITORY EQUATORIAL SITE', established: '2022', operator: 'Equatorial Launch Australia', history: 'A commercial spaceport being developed on the Dhupuma Plateau in Australia’s Northern Territory, Arnhem Space Centre hosted small US-built suborbital rocket test launches in 2022 as it works toward orbital operations.' },
+    { id: 'alcantara', name: 'ALCANTARA SPACE CENTER', lat: -2.3170, lon: -44.3690, status: '🟢 Active', accentColor: '#22c55e', country: 'Brazil', tagline: 'BRAZIL\'S EQUATORIAL SPACEPORT', established: '1983', operator: 'Brazilian Air Force', history: 'Operated by the Brazilian Air Force since 1983 near the equator, Alcântara offers a natural fuel-efficiency advantage for orbital launches and has recently opened to international commercial rocket operators.' },
+    { id: 'barreira', name: 'BARREIRA DO INFERNO LAUNCH CENTER', lat: -5.9100, lon: -35.1630, status: '🟢 Active', accentColor: '#16a34a', country: 'Brazil', tagline: 'BRAZIL\'S FIRST LAUNCH SITE', established: '1965', operator: 'Brazilian Air Force', history: 'Brazil’s original rocket range, opened in 1965 near Natal with French assistance, Barreira do Inferno has long supported sounding rocket launches and continues limited research activity today.' },
+    { id: 'semnan', name: 'SEMNAN SPACE CENTER', lat: 35.2340, lon: 53.9210, status: '🟢 Active', accentColor: '#4ade80', country: 'Iran', tagline: 'IRAN\'S PRIMARY SATELLITE LAUNCH SITE', established: '2009', operator: 'Iranian Space Agency', history: 'Iran’s main space launch facility since the 2000s, the Imam Khomeini Space Center at Semnan has launched the country’s Safir and Simorgh rockets carrying domestically built satellites.' },
+    { id: 'imam', name: 'IMAM KHOMEINI SPACEPORT', lat: 35.2340, lon: 53.9210, status: '🟢 Active', accentColor: '#86efac', country: 'Iran', tagline: 'IRAN\'S NATIONAL SPACE CENTER', established: '2009', operator: 'Iranian Space Agency', history: 'Sharing the Semnan launch complex, the Imam Khomeini Space Center is Iran’s principal orbital launch facility, operational since the late 2000s for national satellite programs.' },
+    { id: 'shahrud', name: 'SHAHRUD MISSILE TEST SITE', lat: 36.4180, lon: 55.0180, status: '🟢 Active', accentColor: '#65a30d', country: 'Iran', tagline: 'IRANIAN MISSILE & ROCKET TEST FACILITY', established: '2012', operator: 'Islamic Revolutionary Guard Corps', history: 'A missile development and test site in northeastern Iran, Shahrud has been used since the 2010s for testing rocket technology associated with Iran’s space and missile programs.' },
+    { id: 'tongchangri', name: 'TONGCHANG-RI SOHAE SATELLITE LAUNCHING GROUND', lat: 39.6600, lon: 124.7060, status: '🟢 Active', accentColor: '#facc15', country: 'North Korea', tagline: 'NORTH KOREA\'S MAIN SPACEPORT', established: '2012', operator: 'National Aerospace Development Administration', history: 'Built in the 2000s on North Korea’s west coast, the Sohae Satellite Launching Station at Tongchang-ri is the country’s primary and most modern site for satellite launch attempts.' },
+    { id: 'musudanri', name: 'MUSUDAN-RI LAUNCH SITE', lat: 40.8560, lon: 129.6660, status: '🔴 Inactive', accentColor: '#71717a', country: 'North Korea', tagline: 'NORTH KOREA\'S FORMER EAST COAST SITE', established: '1984', operator: 'Korean Committee of Space Technology', history: 'North Korea’s original launch site on its east coast, active from the 1990s through the 2000s for early satellite and missile launch attempts, Musudan-ri was largely superseded by the newer Sohae site.' },
+    { id: 'sanmarco', name: 'SAN MARCO EQUATORIAL RANGE', lat: -2.9460, lon: 40.2120, status: '🔴 Inactive', accentColor: '#71717a', country: 'Kenya', tagline: 'ITALIAN OCEAN PLATFORM SPACEPORT', established: '1967', operator: 'Italian Space Agency (ASI)', history: 'An Italian-operated floating launch platform off the Kenyan coast active from 1967, the San Marco range launched Italian and NASA satellites and was the first spaceport to reach orbit outside the US or USSR, before being retired in the 1980s.' },
+    { id: 'palmachim', name: 'PALMACHIM AIRBASE', lat: 31.8960, lon: 34.6900, status: '🟢 Active', accentColor: '#38bdf8', country: 'Israel', tagline: 'ISRAEL\'S RETROGRADE-ORBIT SPACEPORT', established: '1988', operator: 'Israeli Air Force / Israel Space Agency', history: 'An Israeli Air Force base on the Mediterranean coast, Palmachim has launched Israel’s Shavit rockets and Ofeq satellites westward against Earth’s rotation since 1988, a necessity dictated by the region’s geography.' },
+    { id: 'white', name: 'WHITE SANDS MISSILE RANGE', lat: 32.9900, lon: -106.9750, status: '🟢 Active', accentColor: '#e5e7eb', country: 'United States', tagline: 'HISTORIC US ROCKET TEST RANGE', established: '1945', operator: 'US Army', history: 'The US Army’s primary rocket test range since 1945 in New Mexico, White Sands hosted the first V-2 and early American rocket tests and a Space Shuttle landing, and remains active for missile and rocket testing.' },
+    { id: 'poker', name: 'POKER FLAT RESEARCH RANGE', lat: 65.1270, lon: -147.4350, status: '🟢 Active', accentColor: '#93c5fd', country: 'United States', tagline: 'WORLD\'S LARGEST LAND-BASED ROCKET RANGE', established: '1969', operator: 'University of Alaska Fairbanks', history: 'Operated by the University of Alaska Fairbanks since 1969, Poker Flat is the world’s largest land-based rocket range and studies the aurora and upper atmosphere using sounding rockets.' },
+    { id: 'midland', name: 'MIDLAND INTERNATIONAL AIR AND SPACE PORT', lat: 31.9425, lon: -102.2019, status: '🟢 Active', accentColor: '#fdba74', country: 'United States', tagline: 'TEXAS HORIZONTAL SPACEPORT', established: '2014', operator: 'Midland International Air and Space Port', history: 'A commercial airport in West Texas licensed by the FAA as a spaceport in 2014, Midland supports horizontal-launch and reusable suborbital vehicle testing including early XCOR Aerospace operations.' },
+    { id: 'kiruna', name: 'KIRUNA ROCKET RANGE', lat: 67.8558, lon: 20.2253, status: '🟢 Active', accentColor: '#7dd3fc', country: 'Sweden', tagline: 'ARCTIC SWEDISH LAUNCH RANGE', established: '1966', operator: 'Swedish Space Corporation', history: 'Part of the Esrange complex near Kiruna in Swedish Lapland, this Arctic range has supported European sounding rocket and balloon research since the 1960s.' },
+    { id: 'nyalesund', name: 'NY-ALESUND ROCKET RANGE', lat: 78.9230, lon: 11.9230, status: '🟢 Active', accentColor: '#bae6fd', country: 'Norway', tagline: 'WORLD\'S NORTHERNMOST LAUNCH RANGE', established: '1997', operator: 'Norwegian / international research consortium', history: 'Located in the Svalbard archipelago far above the Arctic Circle, Ny-Ålesund is one of the northernmost rocket ranges on Earth, used for scientific sounding rocket launches studying the polar atmosphere and aurora.' }
   ];
 
   const majorLaunchpads = allLaunchpads.filter(p => p.isMajor);
@@ -352,8 +389,23 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
 
   const currentBatchAgencies = allAgencies.filter(a => a.batch === agencyBatchIndex);
 
-  const latestLaunches = upcomingLaunches?.slice(0, 9) || [];
-  const remainingLaunches = upcomingLaunches?.slice(9) || [];
+  // Split the single `launches` table feed into two buckets: launches that
+  // haven't happened yet, and launches that have already flown (regardless
+  // of whether the stored status text has been re-synced yet — a launch
+  // whose NET date has already passed is always treated as past here).
+  const upcomingLaunchList = (upcomingLaunches || [])
+    .filter((launch) => !isLaunchPast(launch))
+    .sort((a, b) => new Date(a.net) - new Date(b.net));
+
+  const pastLaunchList = (upcomingLaunches || [])
+    .filter((launch) => isLaunchPast(launch))
+    .sort((a, b) => new Date(b.net) - new Date(a.net));
+
+  const latestLaunches = upcomingLaunchList.slice(0, 9);
+  const remainingLaunches = upcomingLaunchList.slice(9);
+
+  const latestPastLaunches = pastLaunchList.slice(0, 9);
+  const remainingPastLaunches = pastLaunchList.slice(9);
 
   const handleOpenExploreMore = () => {
     setIsTransitioningExplore(true);
@@ -361,6 +413,14 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
       setIsTransitioningExplore(false);
       setShowAllLaunchesPage(true);
     }, 3500); 
+  };
+
+  const handleOpenPastLaunchesExplore = () => {
+    setIsTransitioningPastLaunches(true);
+    setTimeout(() => {
+      setIsTransitioningPastLaunches(false);
+      setShowAllPastLaunchesPage(true);
+    }, 3500);
   };
 
 
@@ -808,6 +868,17 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                 LOADING ARCHIVED MANIFEST...
               </motion.p>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* PAST LAUNCHES ARCHIVE TRANSITION SCREEN */}
+      <AnimatePresence>
+        {isTransitioningPastLaunches && (
+          <motion.div key="past-launches-transition" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000', padding: '2rem' }}>
+            {spaceBackgrounds.map((bgUrl, idx) => <div key={`past-trans-bg-${idx}`} style={{ position: 'fixed', inset: 0, backgroundImage: `url('${bgUrl}')`, backgroundSize: 'cover', backgroundPosition: 'center', zIndex: 0, opacity: bgIndex === idx ? 1 : 0, transition: 'opacity 1.8s ease-in-out', filter: 'brightness(0.4) contrast(1.25)', pointerEvents: 'none' }} />)}
+            <div style={{ position: 'fixed', inset: 0, background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)', zIndex: 1, pointerEvents: 'none' }} />
+            <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}><motion.h1 layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}>SPACETEC</motion.h1><motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>LOADING GLOBAL LAUNCH ARCHIVE...</motion.p></div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1305,6 +1376,73 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
           )}
         </section>
 
+        {/* PAST LAUNCHES */}
+        <section id="past-launches" className="content-container" style={{ paddingBottom: '8rem', scrollMarginTop: '8rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
+            <div>
+              <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
+                // MISSION ARCHIVE
+              </span>
+              <h2 style={{ fontSize: '1.8rem', textTransform: 'uppercase', margin: '0.5rem 0 0 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
+                PAST GLOBAL LAUNCHES
+              </h2>
+            </div>
+          </div>
+
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={staggerContainer} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+            {latestPastLaunches.map((launch) => (
+              <motion.div 
+                key={launch.id} 
+                layoutId={`launch-card-${launch.id}`}
+                variants={fadeInUp}
+                whileHover={{ y: -6, borderColor: '#ffffff' }}
+                onClick={() => setExpandedLaunch(launch)}
+                className="glass-card" 
+                style={{ padding: '2rem', borderRadius: '2px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '220px', transition: 'border-color 0.3s ease', cursor: 'pointer' }}
+              >
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
+                    <span style={{ fontSize: '0.65rem', letterSpacing: '2px', textTransform: 'uppercase', padding: '0.3rem 0.6rem', background: 'rgba(255, 255, 255, 0.08)', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.2)', fontWeight: '700' }}>
+                      {launch.provider || 'AGENCY'}
+                    </span>
+                    <span style={{ fontSize: '0.65rem', color: getLaunchStatusColor(launch.status), letterSpacing: '1px', fontWeight: '700', textAlign: 'right' }}>● {(launch.status || 'STATUS UNKNOWN').toUpperCase()}</span>
+                  </div>
+                  <h3 style={{ fontSize: '1.05rem', margin: '0 0 1.2rem 0', fontWeight: '700', lineHeight: '1.4', letterSpacing: '1px', textTransform: 'uppercase', color: '#ffffff' }}>
+                    {launch.name}
+                  </h3>
+                </div>
+
+                <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '1rem' }}>
+                  <p style={{ margin: '0 0 0.4rem 0', fontSize: '0.80rem', color: '#a1a1aa', letterSpacing: '1px' }}>
+                    LAUNCHED: {new Date(launch.net).toUTCString().slice(0, 16)}
+                  </p>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#2dd4bf', fontWeight: '700', letterSpacing: '1px' }}>
+                    {formatTimeAgo(launch.net)}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+            {latestPastLaunches.length === 0 && (
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem', color: '#71717a', border: '1px dashed rgba(255,255,255,0.15)' }}>
+                No completed launches synced yet. Check back after the next manifest sync.
+              </div>
+            )}
+          </motion.div>
+
+          {remainingPastLaunches.length > 0 && (
+            <div style={{ marginTop: '3rem', textAlign: 'center' }}>
+              <button 
+                className="explore-btn" 
+                onClick={handleOpenPastLaunchesExplore}
+                style={{ maxWidth: '420px', margin: '0 auto' }}
+              >
+                <span>Explore More Past Launches ({remainingPastLaunches.length} More)</span>
+                <span>→</span>
+              </button>
+            </div>
+          )}
+        </section>
+
       </motion.div>
 
       {/* EXPLORE MORE LAUNCHES FULL PAGE VIEW */}
@@ -1312,8 +1450,22 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
         {showAllLaunchesPage && (
           <AllLaunchesPage 
             launches={remainingLaunches} 
+            mode="upcoming"
             spaceBackgrounds={spaceBackgrounds}
             onClose={() => setShowAllLaunchesPage(false)}
+            onSelectLaunch={(launch) => setExpandedLaunch(launch)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* EXPLORE MORE PAST LAUNCHES FULL PAGE VIEW */}
+      <AnimatePresence>
+        {showAllPastLaunchesPage && (
+          <AllLaunchesPage 
+            launches={remainingPastLaunches} 
+            mode="past"
+            spaceBackgrounds={spaceBackgrounds}
+            onClose={() => setShowAllPastLaunchesPage(false)}
             onSelectLaunch={(launch) => setExpandedLaunch(launch)}
           />
         )}
@@ -1635,11 +1787,10 @@ function AllLaunchpadsPage({ launchpads, weatherById, getStatusColor, spaceBackg
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', paddingBottom: '4rem' }}>
           {filteredPads.map((pad, index) => (
-            <motion.article key={pad.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * 0.04, 0.6) }} onClick={() => setExpandedPad(pad)} style={{ cursor: 'pointer', minHeight: '220px', position: 'relative', overflow: 'hidden', border: `1px solid ${pad.accentColor}66`, backgroundColor: 'rgba(0,0,0,0.72)', padding: '2rem', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-              <div style={{ position: 'absolute', inset: 0, backgroundImage: `linear-gradient(160deg, ${pad.accentColor}22 0%, rgba(0,0,0,0.96) 75%)` }} />
+            <motion.article key={pad.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * 0.04, 0.6) }} onClick={() => setExpandedPad(pad)} whileHover={{ borderColor: 'rgba(255,255,255,0.4)' }} style={{ cursor: 'pointer', minHeight: '220px', position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.14)', backgroundColor: '#050505', padding: '2rem', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', transition: 'border-color 0.3s ease' }}>
               <div style={{ position: 'relative', zIndex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.7rem' }}>
-                  <span style={{ color: pad.accentColor, fontSize: '0.65rem', letterSpacing: '2px', fontWeight: '800' }}>// {pad.id.toUpperCase()}</span>
+                  <span style={{ color: '#a1a1aa', fontSize: '0.65rem', letterSpacing: '2px', fontWeight: '800' }}>// {pad.id.toUpperCase()}</span>
                   <span style={{ fontSize: '0.62rem', letterSpacing: '1px', color: getStatusColor(pad.status), border: `1px solid ${getStatusColor(pad.status)}`, padding: '0.25rem 0.6rem', fontWeight: '700' }}>{pad.status}</span>
                 </div>
                 <h3 style={{ color: '#fff', margin: '0 0 0.6rem', fontSize: '1.25rem', letterSpacing: '1px', lineHeight: '1.3' }}>{pad.name}</h3>
@@ -1659,10 +1810,10 @@ function AllLaunchpadsPage({ launchpads, weatherById, getStatusColor, spaceBackg
             const liveWeather = weatherById?.[expandedPad.id];
             return (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setExpandedPad(null)} style={{ position: 'fixed', inset: 0, zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', background: 'rgba(0,0,0,0.86)' }}>
-                <motion.article initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24 }} onClick={(event) => event.stopPropagation()} style={{ width: 'min(760px, 100%)', maxHeight: '85vh', overflowY: 'auto', background: '#050505', border: `1px solid ${expandedPad.accentColor || '#38bdf8'}`, padding: '2rem', boxSizing: 'border-box' }}>
+                <motion.article initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24 }} onClick={(event) => event.stopPropagation()} style={{ width: 'min(760px, 100%)', maxHeight: '85vh', overflowY: 'auto', background: '#050505', border: '1px solid rgba(255,255,255,0.25)', padding: '2rem', boxSizing: 'border-box' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'start' }}>
                     <div>
-                      <span style={{ color: expandedPad.accentColor || '#38bdf8', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: '800' }}>// {expandedPad.id.toUpperCase()} / {expandedPad.country}</span>
+                      <span style={{ color: '#94a3b8', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: '800' }}>// {expandedPad.id.toUpperCase()} / {expandedPad.country}</span>
                       <h2 style={{ margin: '0.5rem 0 0', color: '#fff', fontSize: '2rem', letterSpacing: '1px' }}>{expandedPad.name}</h2>
                     </div>
                     <button onClick={() => setExpandedPad(null)} style={{ background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', padding: '0.5rem 0.7rem', cursor: 'pointer' }}>CLOSE</button>
@@ -1677,11 +1828,15 @@ function AllLaunchpadsPage({ launchpads, weatherById, getStatusColor, spaceBackg
                       <p style={{ color: getStatusColor(expandedPad.status), margin: '0.4rem 0 0', fontWeight: '700' }}>{expandedPad.status}</p>
                     </section>
                     <section>
-                      <p style={{ color: '#71717a', margin: 0, fontSize: '0.68rem', letterSpacing: '2px' }}>03 / HISTORY</p>
+                      <p style={{ color: '#71717a', margin: 0, fontSize: '0.68rem', letterSpacing: '2px' }}>03 / OPERATOR & ESTABLISHED</p>
+                      <p style={{ color: '#fff', margin: '0.4rem 0 0' }}>{expandedPad.operator || 'Not listed'} {expandedPad.established ? `// Est. ${expandedPad.established}` : ''}</p>
+                    </section>
+                    <section>
+                      <p style={{ color: '#71717a', margin: 0, fontSize: '0.68rem', letterSpacing: '2px' }}>04 / HISTORY</p>
                       <p style={{ color: '#d4d4d8', lineHeight: '1.7', margin: '0.4rem 0 0' }}>{expandedPad.history}</p>
                     </section>
                     <section>
-                      <p style={{ color: '#71717a', margin: 0, fontSize: '0.68rem', letterSpacing: '2px' }}>04 / LIVE PAD WEATHER</p>
+                      <p style={{ color: '#71717a', margin: 0, fontSize: '0.68rem', letterSpacing: '2px' }}>05 / LIVE PAD WEATHER</p>
                       {liveWeather ? (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.8rem', marginTop: '0.6rem' }}>
                           <div style={{ background: 'rgba(0,0,0,0.5)', padding: '0.8rem', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -1719,9 +1874,10 @@ function AllLaunchpadsPage({ launchpads, weatherById, getStatusColor, spaceBackg
     </motion.div>
   );
 }
-function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }) {
+function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch, mode = 'upcoming' }) {
+  const isPastMode = mode === 'past';
   const [bgIdx, setBgIdx] = useState(0);
-  const [sortBy, setSortBy] = useState('latest');
+  const [sortBy, setSortBy] = useState(isPastMode ? 'recent' : 'latest');
   const [selectedProvider, setSelectedProvider] = useState('all');
   const [isReturningMain, setIsReturningMain] = useState(false);
   const canvasRef = useRef(null);
@@ -1796,8 +1952,10 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
   }).sort((a, b) => {
     const dateA = new Date(a.net).getTime();
     const dateB = new Date(b.net).getTime();
-    if (sortBy === 'latest') return dateA - dateB; 
-    if (sortBy === 'oldest') return dateB - dateA; 
+    if (sortBy === 'latest') return dateA - dateB;    // upcoming: soonest first
+    if (sortBy === 'distant') return dateB - dateA;   // upcoming: farthest out first
+    if (sortBy === 'recent') return dateB - dateA;    // past: most recently launched first
+    if (sortBy === 'oldest') return dateA - dateB;    // past: oldest launch first
     return 0;
   });
 
@@ -1878,10 +2036,10 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '2.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
           <div>
             <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
-              // ARCHIVED ORBITAL MANIFEST
+              {isPastMode ? '// GLOBAL MISSION ARCHIVE' : '// ARCHIVED ORBITAL MANIFEST'}
             </span>
             <h2 style={{ color: '#fff', fontSize: '2rem', margin: 0, textTransform: 'uppercase', fontWeight: '900' }}>
-              EXPLORE MORE LAUNCHES
+              {isPastMode ? 'EXPLORE MORE PAST LAUNCHES' : 'EXPLORE MORE LAUNCHES'}
             </h2>
           </div>
 
@@ -1893,8 +2051,17 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
                 onChange={(e) => setSortBy(e.target.value)}
                 style={{ background: '#121212', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', padding: '0.6rem 1rem', fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}
               >
-                <option value="latest">Chronological (Upcoming First)</option>
-                <option value="oldest">Distant Future First</option>
+                {isPastMode ? (
+                  <>
+                    <option value="recent">Most Recent First</option>
+                    <option value="oldest">Oldest Launch First</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="latest">Chronological (Upcoming First)</option>
+                    <option value="distant">Distant Future First</option>
+                  </>
+                )}
               </select>
             </div>
 
@@ -1927,7 +2094,11 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
                   <span style={{ fontSize: '0.65rem', letterSpacing: '2px', textTransform: 'uppercase', padding: '0.3rem 0.6rem', background: 'rgba(255, 255, 255, 0.08)', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.2)', fontWeight: '700' }}>
                     {launch.provider || 'AGENCY'}
                   </span>
-                  <span style={{ fontSize: '0.65rem', color: '#ffffff', letterSpacing: '2px', fontWeight: '700' }}>● SCHEDULED</span>
+                  {isPastMode ? (
+                    <span style={{ fontSize: '0.65rem', color: getLaunchStatusColor(launch.status), letterSpacing: '1px', fontWeight: '700', textAlign: 'right' }}>● {(launch.status || 'STATUS UNKNOWN').toUpperCase()}</span>
+                  ) : (
+                    <span style={{ fontSize: '0.65rem', color: '#ffffff', letterSpacing: '2px', fontWeight: '700' }}>● SCHEDULED</span>
+                  )}
                 </div>
                 <h3 style={{ fontSize: '1.05rem', margin: '0 0 1.2rem 0', fontWeight: '700', lineHeight: '1.4', letterSpacing: '1px', textTransform: 'uppercase', color: '#ffffff' }}>
                   {launch.name}
@@ -1936,11 +2107,17 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch }
 
               <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '1rem' }}>
                 <p style={{ margin: '0 0 0.4rem 0', fontSize: '0.80rem', color: '#a1a1aa', letterSpacing: '1px' }}>
-                  NET: {new Date(launch.net).toUTCString().slice(0, 16)}
+                  {isPastMode ? 'LAUNCHED' : 'NET'}: {new Date(launch.net).toUTCString().slice(0, 16)}
                 </p>
-                <p style={{ margin: 0, fontSize: '0.75rem', color: '#71717a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  PAD: {launch.pad_location || 'Vandenberg Space Force Base'}
-                </p>
+                {isPastMode ? (
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#2dd4bf', fontWeight: '700', letterSpacing: '1px' }}>
+                    {formatTimeAgo(launch.net)}
+                  </p>
+                ) : (
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#71717a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    PAD: {launch.pad_location || 'Vandenberg Space Force Base'}
+                  </p>
+                )}
               </div>
             </motion.div>
           ))}
@@ -2025,6 +2202,7 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: false });
   const [modalBgIdx, setModalBgIdx] = useState(0);
   const modalCanvasRef = useRef(null);
+  const launchHasFlown = isLaunchPast(launch);
 
   useEffect(() => {
     const modalBgTimer = setInterval(() => {
@@ -2088,25 +2266,28 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
 
     const updateTimer = () => {
       const now = new Date().getTime();
-      const difference = targetTime - now;
 
-      if (difference <= 0) {
+      // Past launches count UP from liftoff (T+); upcoming launches count DOWN to liftoff (T-).
+      const difference = launchHasFlown ? (now - targetTime) : (targetTime - now);
+
+      if (!launchHasFlown && difference <= 0) {
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: true });
         return;
       }
 
-      const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+      const absDifference = Math.abs(difference);
+      const days = Math.floor(absDifference / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((absDifference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((absDifference % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((absDifference % (1000 * 60)) / 1000);
 
-      setTimeLeft({ days, hours, minutes, seconds, isPast: false });
+      setTimeLeft({ days, hours, minutes, seconds, isPast: launchHasFlown });
     };
 
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [launch]);
+  }, [launch, launchHasFlown]);
 
   if (!launch) return null;
 
@@ -2168,9 +2349,12 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
             <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
               // FULL MISSION TELEMETRY & PAD ENVIRONMENT
             </span>
-            <h2 style={{ color: '#fff', fontSize: '1.8rem', margin: 0, textTransform: 'uppercase', fontWeight: '900', lineHeight: '1.3' }}>
+            <h2 style={{ color: '#fff', fontSize: '1.8rem', margin: '0 0 0.8rem 0', textTransform: 'uppercase', fontWeight: '900', lineHeight: '1.3' }}>
               {launch.name}
             </h2>
+            <span style={{ fontSize: '0.7rem', padding: '0.35rem 0.9rem', border: `1px solid ${getLaunchStatusColor(launch.status)}`, color: getLaunchStatusColor(launch.status), fontWeight: '700', letterSpacing: '2px', textTransform: 'uppercase', display: 'inline-block' }}>
+              {launch.status || 'STATUS PENDING'}
+            </span>
           </div>
           <button 
             onClick={onClose}
@@ -2193,7 +2377,7 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
 
         <div className="glass-card" style={{ padding: '2.5rem', marginBottom: '2rem', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
           <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.75rem', color: '#38bdf8', letterSpacing: '3px', textTransform: 'uppercase', fontWeight: '700' }}>
-            {timeLeft.isPast ? 'LAUNCH WINDOW OPEN / LIFTED' : 'LIVE T-MINUS COUNTDOWN TIMER'}
+            {launchHasFlown ? 'T+ MISSION ELAPSED TIME (LIVE)' : (timeLeft.isPast ? 'LAUNCH WINDOW OPEN / LIFTED' : 'LIVE T-MINUS COUNTDOWN TIMER')}
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
@@ -2204,7 +2388,7 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
               { label: 'SECS', val: timeLeft.seconds }
             ].map((t, idx) => (
               <div key={idx} style={{ background: 'rgba(0,0,0,0.8)', padding: '1.5rem 1rem', textAlign: 'center', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
-                <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#fff', fontFamily: 'monospace' }}>{String(t.val).padStart(2, '0')}</div>
+                <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#fff', fontFamily: 'monospace' }}>{launchHasFlown ? '+' : ''}{String(t.val).padStart(2, '0')}</div>
                 <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '0.5rem', letterSpacing: '2px' }}>{t.label}</div>
               </div>
             ))}
@@ -2233,34 +2417,72 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
             </div>
           </div>
 
+          {!launchHasFlown && (
+            <div className="glass-card" style={{ padding: '2rem' }}>
+              <h3 style={{ fontSize: '0.85rem', color: '#a1a1aa', letterSpacing: '3px', textTransform: 'uppercase', margin: '0 0 1.5rem 0', fontWeight: '700' }}>
+                // PAD METEOROLOGICAL TELEMETRY {weather ? `(${weather.pad_name})` : ''}
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>WIND SPEED</span>
+                  <p style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{weather?.wind_speed || 'SYNCING...'}</p>
+                </div>
+                <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>SKY CONDITION</span>
+                  <p style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{weather?.condition || 'SYNCING...'}</p>
+                </div>
+                <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>AMBIENT TEMP / HUMIDITY</span>
+                  <p style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{weather?.temperature || '--'} / {weather?.humidity || '--'}</p>
+                </div>
+                <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>GO/NO-GO STATUS</span>
+                  <p style={{ color: weather ? '#22c55e' : '#a1a1aa', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{weather ? 'GO FOR LAUNCH' : 'AWAITING TELEMETRY'}</p>
+                </div>
+              </div>
+              {weather?.updated_at && (
+                <p style={{ color: '#52525b', fontSize: '0.65rem', letterSpacing: '1px', margin: '1rem 0 0 0' }}>
+                  LAST SYNCED: {new Date(weather.updated_at).toUTCString()}
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="glass-card" style={{ padding: '2rem' }}>
             <h3 style={{ fontSize: '0.85rem', color: '#a1a1aa', letterSpacing: '3px', textTransform: 'uppercase', margin: '0 0 1.5rem 0', fontWeight: '700' }}>
-              // PAD METEOROLOGICAL TELEMETRY {weather ? `(${weather.pad_name})` : ''}
+              // MISSION BRIEFING
             </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>WIND SPEED</span>
-                <p style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{weather?.wind_speed || 'SYNCING...'}</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', fontSize: '0.85rem' }}>
+              <div>
+                <span style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>MISSION TYPE:</span>
+                <span style={{ color: '#fff', fontWeight: '700', textTransform: 'uppercase' }}>{launch.mission_type || 'Not yet catalogued'}</span>
               </div>
-              <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>SKY CONDITION</span>
-                <p style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{weather?.condition || 'SYNCING...'}</p>
+              <div>
+                <span style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>TARGET ORBIT:</span>
+                <span style={{ color: '#2dd4bf', fontWeight: '700' }}>{launch.mission_orbit || 'TBD'}</span>
               </div>
-              <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>AMBIENT TEMP / HUMIDITY</span>
-                <p style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{weather?.temperature || '--'} / {weather?.humidity || '--'}</p>
-              </div>
-              <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>GO/NO-GO STATUS</span>
-                <p style={{ color: weather ? '#22c55e' : '#a1a1aa', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{weather ? 'GO FOR LAUNCH' : 'AWAITING TELEMETRY'}</p>
+              <div>
+                <span style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>OBJECTIVE:</span>
+                <p style={{ color: '#d4d4d8', lineHeight: '1.65', margin: '0.4rem 0 0 0', fontSize: '0.85rem' }}>
+                  {launch.mission_description || 'Detailed mission objectives for this flight have not yet been synced from the global launch manifest.'}
+                </p>
               </div>
             </div>
-            {weather?.updated_at && (
-              <p style={{ color: '#52525b', fontSize: '0.65rem', letterSpacing: '1px', margin: '1rem 0 0 0' }}>
-                LAST SYNCED: {new Date(weather.updated_at).toUTCString()}
-              </p>
-            )}
           </div>
+
+          {launchHasFlown && (
+            <div className="glass-card" style={{ padding: '2rem' }}>
+              <h3 style={{ fontSize: '0.85rem', color: '#a1a1aa', letterSpacing: '3px', textTransform: 'uppercase', margin: '0 0 1.5rem 0', fontWeight: '700' }}>
+                // FLIGHT OUTCOME
+              </h3>
+              <p style={{ fontSize: '1.5rem', fontWeight: '900', color: getLaunchStatusColor(launch.status), margin: '0 0 1rem 0', textTransform: 'uppercase' }}>
+                {launch.status || 'STATUS UNKNOWN'}
+              </p>
+              <p style={{ color: '#71717a', fontSize: '0.75rem', lineHeight: '1.6', margin: 0 }}>
+                Reflects the most recent result synced from the global launch manifest. If this mission just flew, the final outcome may take a few hours to update.
+              </p>
+            </div>
+          )}
 
         </div>
       </motion.div>
