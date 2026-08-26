@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -10,7 +10,6 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// List of launchpads to fetch weather for
 const launchpads = [
   { id: 'ksc', name: 'KENNEDY SPACE CENTER', lat: 28.5729, lon: -80.6490 },
   { id: 'cape', name: 'CAPE CANAVERAL SFS', lat: 28.4888, lon: -80.5778 },
@@ -28,7 +27,6 @@ async function syncWeather() {
 
   for (const pad of launchpads) {
     try {
-      // Fetching live weather data from open-meteo (free, no API key required)
       const response = await fetch(
         `https://api.open-meteo.com/v1/forecast?latitude=${pad.lat}&longitude=${pad.lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code`
       );
@@ -38,8 +36,6 @@ async function syncWeather() {
         const temp = `${Math.round(data.current.temperature_2m)}°C`;
         const humidity = `${data.current.relative_humidity_2m}%`;
         const wind = `${data.current.wind_speed_10m} km/h`;
-        
-        // Simple condition mapping based on weather code or defaults
         const condition = 'Clear / Optimal';
 
         const weatherPayload = {
@@ -52,7 +48,6 @@ async function syncWeather() {
           updated_at: new Date().toISOString()
         };
 
-        // Upsert data into Supabase weather table
         const { error } = await supabase
           .from('weather')
           .upsert(weatherPayload, { onConflict: 'id' });
