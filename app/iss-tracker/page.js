@@ -22,7 +22,7 @@ const ReactGlobe = dynamic(() => import('react-globe.gl'), {
 
 const EARTH_RADIUS_KM = 6378.137;
 const MIN_PASS_ELEVATION_DEG = 10;
-const SAMPLE_SECONDS = 60;
+const SAMPLE_SECONDS = 30;
 const ORBIT_MINUTES = 96;
 
 function fmt(value, digits = 2) {
@@ -224,7 +224,7 @@ export default function ISSTrackerPage() {
     useState(null);
 
   const [follow, setFollow] =
-    useState(true);
+    useState(false);
 
   const [showOrbit, setShowOrbit] =
     useState(true);
@@ -289,6 +289,21 @@ export default function ISSTrackerPage() {
       clearInterval(refresh);
   }, [acquire]);
 
+  // Build the orbital ground track once for the current TLE.
+  // It must NOT be rebuilt every telemetry tick.
+  useEffect(() => {
+    if (!satrec) return;
+
+    setOrbit(
+      calculateOrbit(
+        satrec,
+        new Date()
+      )
+    );
+  }, [satrec]);
+
+  // Update the actual ISS position every second.
+  // This is independent from the orbit path and camera controls.
   useEffect(() => {
     if (!satrec) return;
 
@@ -309,45 +324,38 @@ export default function ISSTrackerPage() {
       setState(next);
       setLastUpdate(now);
       setStatus('LIVE');
-
-      if (showOrbit) {
-        setOrbit(
-          calculateOrbit(
-            satrec,
-            now
-          )
-        );
-      }
-
-      if (
-        follow &&
-        globeRef.current
-      ) {
-        globeRef.current.pointOfView(
-          {
-            lat: next.lat,
-            lng: next.lon,
-            altitude: 2.2,
-          },
-          450
-        );
-      }
     };
 
     update();
 
     const timer = setInterval(
       update,
-      5000
+      1000
     );
 
     return () =>
       clearInterval(timer);
-  }, [
-    satrec,
-    follow,
-    showOrbit,
-  ]);
+  }, [satrec]);
+
+  // FOLLOW ISS only controls the camera.
+  useEffect(() => {
+    if (
+      !follow ||
+      !state ||
+      !globeRef.current
+    ) {
+      return;
+    }
+
+    globeRef.current.pointOfView(
+      {
+        lat: state.lat,
+        lng: state.lon,
+        altitude: 2.2,
+      },
+      700
+    );
+  }, [follow, state]);
 
   useEffect(() => {
     if (
@@ -753,6 +761,8 @@ export default function ISSTrackerPage() {
 
             <button
               onClick={() => {
+                setFollow(false);
+
                 globeRef.current?.pointOfView(
                   {
                     lat: 15,
@@ -766,7 +776,6 @@ export default function ISSTrackerPage() {
               RESET VIEW
             </button>
           </div>
-
           <div className="panel-block pass-block">
             <span className="block-label">
               NEXT VISIBLE PASS
