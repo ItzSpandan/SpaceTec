@@ -411,6 +411,37 @@ export default function ISSTrackerPage() {
     );
   };
 
+  // NEW: reliable camera helper
+  const goToISS = () => {
+    if (!state) return;
+    if (!globeRef.current) return;
+
+    globeRef.current.pointOfView(
+      {
+        lat: state.lat,
+        lng: state.lon,
+        altitude: 1.8,
+      },
+      800
+    );
+  };
+
+  // NEW: reset camera helper
+  const resetView = () => {
+    setFollow(false);
+
+    if (!globeRef.current) return;
+
+    globeRef.current.pointOfView(
+      {
+        lat: 15,
+        lng: 70,
+        altitude: 2.3,
+      },
+      800
+    );
+  };
+
   const orbitSegments = useMemo(() => {
     const segments = [];
     let current = [];
@@ -479,6 +510,7 @@ export default function ISSTrackerPage() {
 
       <header className="iss-header">
         <button
+          type="button"
           className="iss-brand"
           onClick={() => {
             window.location.href =
@@ -503,6 +535,7 @@ export default function ISSTrackerPage() {
         </div>
 
         <button
+          type="button"
           className="iss-back"
           onClick={() => {
             window.location.href =
@@ -738,6 +771,7 @@ export default function ISSTrackerPage() {
 
           <div className="controls">
             <button
+              type="button"
               className={
                 showOrbit
                   ? 'active'
@@ -753,51 +787,28 @@ export default function ISSTrackerPage() {
             </button>
 
             <button
+              type="button"
               className={
                 follow
                   ? 'active'
                   : ''
               }
               onClick={() => {
-                if (
-                  !state ||
-                  !globeRef.current
-                ) {
+                if (follow) {
+                  setFollow(false);
                   return;
                 }
 
-                if (!follow) {
-                  globeRef.current.pointOfView(
-                    {
-                      lat: state.lat,
-                      lng: state.lon,
-                      altitude: 1.8,
-                    },
-                    800
-                  );
-
-                  setFollow(true);
-                } else {
-                  setFollow(false);
-                }
+                goToISS();
+                setFollow(true);
               }}
             >
               FOLLOW ISS
             </button>
 
             <button
-              onClick={() => {
-                setFollow(false);
-
-                globeRef.current?.pointOfView(
-                  {
-                    lat: 15,
-                    lng: 70,
-                    altitude: 2.3,
-                  },
-                  800
-                );
-              }}
+              type="button"
+              onClick={resetView}
             >
               RESET VIEW
             </button>
@@ -818,10 +829,9 @@ export default function ISSTrackerPage() {
                 </p>
 
                 <button
+                  type="button"
                   className="location-button"
-                  onClick={
-                    requestLocation
-                  }
+                  onClick={requestLocation}
                 >
                   USE MY LOCATION
                 </button>
@@ -833,10 +843,7 @@ export default function ISSTrackerPage() {
             ) : nextPass ? (
               <div className="pass-grid">
                 <div>
-                  <span>
-                    START
-                  </span>
-
+                  <span>START</span>
                   <b>
                     {formatPassTime(
                       nextPass.rise
@@ -845,10 +852,7 @@ export default function ISSTrackerPage() {
                 </div>
 
                 <div>
-                  <span>
-                    PEAK*
-                  </span>
-
+                  <span>PEAK*</span>
                   <b>
                     {formatPassTime(
                       nextPass.peakApprox
@@ -857,10 +861,7 @@ export default function ISSTrackerPage() {
                 </div>
 
                 <div>
-                  <span>
-                    END
-                  </span>
-
+                  <span>END</span>
                   <b>
                     {formatPassTime(
                       nextPass.set
@@ -869,10 +870,7 @@ export default function ISSTrackerPage() {
                 </div>
 
                 <div>
-                  <span>
-                    DURATION
-                  </span>
-
+                  <span>DURATION</span>
                   <b>
                     {nextPass.durationMinutes}{' '}
                     MIN
