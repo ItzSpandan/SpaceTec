@@ -719,10 +719,15 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
             </button>
             <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
             
-            {/* ISS Tracker Replaced Button */}
-            <button className="nav-link" onClick={() => alert('ISS Tracker separate live telemetry view coming soon!')}>
-              ISS Tracker
-            </button>
+           {/* ISS Tracker */}
+<button
+  className="nav-link"
+  onClick={() => {
+    window.location.href = '/iss-tracker';
+  }}
+>
+  ISS Tracker
+</button>
 
             <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
 
