@@ -282,15 +282,21 @@ export default function ISSTrackerPage() {
 
     const refresh = setInterval(
       acquire,
-      30 * 60 * 1000
+      2 * 60 * 60 * 1000
     );
 
     return () =>
       clearInterval(refresh);
   }, [acquire]);
 
-  // Build the orbital ground track once for the current TLE.
-  // It must NOT be rebuilt every telemetry tick.
+  /*
+   * Build the orbital path only when the
+   * orbital elements change.
+   *
+   * IMPORTANT:
+   * This is deliberately separate from
+   * the live position update below.
+   */
   useEffect(() => {
     if (!satrec) return;
 
@@ -302,8 +308,10 @@ export default function ISSTrackerPage() {
     );
   }, [satrec]);
 
-  // Update the actual ISS position every second.
-  // This is independent from the orbit path and camera controls.
+  /*
+   * Update the ISS position locally every
+   * second. No new TLE request is made here.
+   */
   useEffect(() => {
     if (!satrec) return;
 
@@ -337,7 +345,10 @@ export default function ISSTrackerPage() {
       clearInterval(timer);
   }, [satrec]);
 
-  // FOLLOW ISS only controls the camera.
+  /*
+   * FOLLOW ISS only controls the camera.
+   * It never recalculates the orbit.
+   */
   useEffect(() => {
     if (
       !follow ||
@@ -353,7 +364,7 @@ export default function ISSTrackerPage() {
         lng: state.lon,
         altitude: 2.2,
       },
-      700
+      450
     );
   }, [follow, state]);
 
@@ -518,6 +529,7 @@ export default function ISSTrackerPage() {
             <span>
               ORBITAL VISUALIZATION
             </span>
+
             <b>
               NORAD 25544
             </b>
@@ -538,7 +550,7 @@ export default function ISSTrackerPage() {
                   ? Math.max(
                       500,
                       window.innerHeight -
-                        110
+                        68
                     )
                   : 700
               }
@@ -554,14 +566,37 @@ export default function ISSTrackerPage() {
                   ? [state]
                   : []
               }
+              pointsMerge={false}
               pointLat="lat"
               pointLng="lon"
-              pointAltitude={() => 0.045}
-              pointRadius={() => 0.18}
-              pointColor={() => '#ffffff'}
+              pointAltitude={() =>
+                0.055
+              }
+              pointRadius={() =>
+                0.34
+              }
+              pointColor={() =>
+                '#ffffff'
+              }
               pointLabel={() =>
                 '<b>ISS // NORAD 25544</b>'
               }
+              ringsData={
+                state
+                  ? [state]
+                  : []
+              }
+              ringLat="lat"
+              ringLng="lon"
+              ringAltitude={() =>
+                0.055
+              }
+              ringColor={() =>
+                '#ffffff'
+              }
+              ringMaxRadius={1.7}
+              ringPropagationSpeed={1.6}
+              ringRepeatPeriod={1300}
               pathsData={
                 showOrbit
                   ? pathData
@@ -810,6 +845,7 @@ export default function ISSTrackerPage() {
                   <span>
                     START
                   </span>
+
                   <b>
                     {formatPassTime(
                       nextPass.rise
@@ -821,6 +857,7 @@ export default function ISSTrackerPage() {
                   <span>
                     PEAK*
                   </span>
+
                   <b>
                     {formatPassTime(
                       nextPass.peakApprox
@@ -832,6 +869,7 @@ export default function ISSTrackerPage() {
                   <span>
                     END
                   </span>
+
                   <b>
                     {formatPassTime(
                       nextPass.set
@@ -843,6 +881,7 @@ export default function ISSTrackerPage() {
                   <span>
                     DURATION
                   </span>
+
                   <b>
                     {
                       nextPass.durationMinutes
@@ -877,7 +916,7 @@ export default function ISSTrackerPage() {
 
             <small>
               NORAD 25544 · TLE
-              REFRESHED PERIODICALLY
+              REFRESHED EVERY 2 HOURS
             </small>
           </div>
         </aside>
@@ -888,24 +927,25 @@ export default function ISSTrackerPage() {
           box-sizing: border-box;
         }
 
+        html,
         body {
           margin: 0;
-          background: #03060b;
+          padding: 0;
+          background: #030507;
           color: #fff;
+          overflow: hidden;
+        }
+
+        body {
           font-family:
             'Space Grotesk',
             sans-serif;
         }
 
         .iss-page {
-          min-height: 100vh;
-          background:
-            radial-gradient(
-              circle at 65% 40%,
-              rgba(20, 55, 110, 0.16),
-              transparent 35%
-            ),
-            #03060b;
+          height: 100vh;
+          width: 100%;
+          background: #030507;
           overflow: hidden;
         }
 
@@ -913,7 +953,8 @@ export default function ISSTrackerPage() {
           position: fixed;
           inset: 0;
           pointer-events: none;
-          opacity: 0.35;
+          opacity: 0.3;
+          z-index: 0;
 
           background-image:
             radial-gradient(
@@ -923,7 +964,7 @@ export default function ISSTrackerPage() {
             ),
             radial-gradient(
               circle,
-              rgba(96, 165, 250, 0.6) 0 1px,
+              rgba(255, 255, 255, 0.5) 0 1px,
               transparent 1.2px
             );
 
@@ -938,32 +979,34 @@ export default function ISSTrackerPage() {
 
         .iss-header {
           height: 68px;
-          padding: 0 28px;
+          padding: 0 30px;
+
           display: flex;
           align-items: center;
           justify-content: space-between;
+
           position: relative;
-          z-index: 5;
+          z-index: 10;
 
           border-bottom:
             1px solid
-            rgba(255, 255, 255, 0.09);
+            rgba(255, 255, 255, 0.08);
 
-          background:
-            rgba(3, 6, 11, 0.82);
-
-          backdrop-filter: blur(18px);
+          background: #030507;
         }
 
         .iss-brand,
         .iss-back {
           border: 0;
           background: transparent;
-          color: #fff;
           cursor: pointer;
+        }
+
+        .iss-brand {
+          color: #fff;
 
           font:
-            800 0.76rem/1
+            800 1.25rem/1
             'Space Grotesk',
             sans-serif;
 
@@ -971,20 +1014,29 @@ export default function ISSTrackerPage() {
         }
 
         .iss-brand span {
-          color: #3b82f6;
-          margin: 0 7px;
+          color: #64748b;
+          margin: 0 8px;
         }
 
         .iss-back {
-          color: #94a3b8;
-          font-weight: 600;
-        }
-
-        .iss-header-status {
-          color: #a1a1aa;
+          color: #64748b;
 
           font:
             600 0.62rem/1
+            monospace;
+
+          letter-spacing: 1.5px;
+        }
+
+        .iss-back:hover {
+          color: #fff;
+        }
+
+        .iss-header-status {
+          color: #64748b;
+
+          font:
+            600 0.58rem/1
             monospace;
 
           letter-spacing: 2px;
@@ -992,53 +1044,64 @@ export default function ISSTrackerPage() {
 
         .status-dot {
           display: inline-block;
+
           width: 7px;
           height: 7px;
+
           border-radius: 50%;
           margin-right: 7px;
-          background: #64748b;
 
-          box-shadow:
-            0 0 8px
-            rgba(100, 116, 139, 0.6);
+          background: #64748b;
         }
 
         .status-dot.live {
           background: #22c55e;
           box-shadow:
-            0 0 10px #22c55e;
+            0 0 8px
+            rgba(34, 197, 94, 0.7);
         }
 
         .status-dot.delayed {
           background: #eab308;
           box-shadow:
-            0 0 10px #eab308;
+            0 0 8px
+            rgba(234, 179, 8, 0.6);
         }
 
         .status-dot.acquiring {
           background: #3b82f6;
           box-shadow:
-            0 0 10px #3b82f6;
+            0 0 8px
+            rgba(59, 130, 246, 0.6);
         }
 
         .iss-layout {
-          position: relative;
-          z-index: 2;
+          height:
+            calc(100vh - 68px);
 
           display: grid;
+
           grid-template-columns:
             minmax(0, 1fr)
             360px;
 
-          min-height:
-            calc(100vh - 68px);
+          position: relative;
+          z-index: 2;
         }
 
+        /*
+         * The globe is locked to the viewport.
+         * Only the right panel scrolls.
+         */
         .iss-visual {
           position: relative;
-          min-height:
+          height:
             calc(100vh - 68px);
+
+          min-height: 0;
           overflow: hidden;
+
+          background: #000;
         }
 
         .globe-shell {
@@ -1053,20 +1116,21 @@ export default function ISSTrackerPage() {
 
         .visual-label {
           position: absolute;
-          z-index: 4;
-
-          font:
-            600 0.58rem/1.5
-            monospace;
-
-          letter-spacing: 2px;
-          color: #64748b;
+          z-index: 5;
 
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 5px;
 
           pointer-events: none;
+
+          color: #64748b;
+
+          font:
+            600 0.58rem/1.4
+            monospace;
+
+          letter-spacing: 2px;
           text-transform: uppercase;
         }
 
@@ -1077,24 +1141,51 @@ export default function ISSTrackerPage() {
 
         .top-left {
           top: 24px;
-          left: 28px;
+          left: 32px;
         }
 
         .bottom-left {
           bottom: 25px;
-          left: 28px;
+          left: 32px;
         }
 
+        /*
+         * Nearly black sidebar matching
+         * the rest of the SpaceTec UI.
+         */
         .iss-panel {
+          height:
+            calc(100vh - 68px);
+
+          min-height: 0;
+
+          overflow-y: auto;
+          overflow-x: hidden;
+
           border-left:
             1px solid
-            rgba(255, 255, 255, 0.1);
+            rgba(255, 255, 255, 0.08);
 
-          background:
-            rgba(7, 11, 18, 0.92);
+          background: #05080c;
 
-          padding: 32px 26px;
-          overflow-y: auto;
+          padding: 34px 28px 45px;
+
+          scrollbar-width: thin;
+          scrollbar-color:
+            #1e293b
+            transparent;
+        }
+
+        .iss-panel::-webkit-scrollbar {
+          width: 5px;
+        }
+
+        .iss-panel::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .iss-panel::-webkit-scrollbar-thumb {
+          background: #1e293b;
         }
 
         .panel-kicker,
@@ -1109,12 +1200,21 @@ export default function ISSTrackerPage() {
           text-transform: uppercase;
         }
 
+        /*
+         * Smaller than before so ISS doesn't
+         * dominate the whole sidebar.
+         */
         .iss-panel h1 {
-          margin: 8px 0 6px;
+          margin: 8px 0 8px;
 
-          font-size: 4.2rem;
-          line-height: 0.9;
-          letter-spacing: -3px;
+          color: #f8fafc;
+
+          font:
+            800 3.35rem/0.9
+            'Space Grotesk',
+            sans-serif;
+
+          letter-spacing: -2px;
         }
 
         .live-badge {
@@ -1123,14 +1223,16 @@ export default function ISSTrackerPage() {
 
           border:
             1px solid
-            rgba(34, 197, 94, 0.25);
+            rgba(34, 197, 94, 0.22);
 
           color: #86efac;
 
           padding: 6px 9px;
 
+          background: transparent;
+
           font:
-            700 0.56rem/1
+            700 0.55rem/1
             monospace;
 
           letter-spacing: 2px;
@@ -1152,7 +1254,9 @@ export default function ISSTrackerPage() {
         }
 
         .telemetry-grid > div {
-          padding: 15px 12px;
+          min-width: 0;
+
+          padding: 16px 13px;
 
           border-right:
             1px solid
@@ -1161,14 +1265,17 @@ export default function ISSTrackerPage() {
           border-bottom:
             1px solid
             rgba(255, 255, 255, 0.08);
+
+          background: #05080c;
         }
 
         .telemetry-grid span {
           display: block;
+
           color: #64748b;
 
           font:
-            600 0.55rem
+            600 0.55rem/1
             monospace;
 
           letter-spacing: 1.5px;
@@ -1176,18 +1283,19 @@ export default function ISSTrackerPage() {
 
         .telemetry-grid strong {
           display: block;
-          margin-top: 7px;
+
+          margin-top: 8px;
+
+          color: #dbe4ef;
 
           font:
-            700 0.88rem
+            700 0.86rem/1.2
             monospace;
-
-          color: #e2e8f0;
         }
 
         .panel-block {
           margin-top: 25px;
-          padding-top: 19px;
+          padding-top: 20px;
 
           border-top:
             1px solid
@@ -1195,22 +1303,24 @@ export default function ISSTrackerPage() {
         }
 
         .big-readout {
-          margin-top: 9px;
-          color: #fff;
+          margin-top: 10px;
+
+          color: #f1f5f9;
 
           font:
-            700 0.82rem
+            700 0.8rem/1.3
             monospace;
 
-          letter-spacing: 1px;
+          letter-spacing: 0.8px;
         }
 
         .status-line {
-          margin-top: 10px;
+          margin-top: 11px;
+
           color: #cbd5e1;
 
           font:
-            600 0.67rem
+            600 0.66rem/1.3
             monospace;
 
           letter-spacing: 1px;
@@ -1218,12 +1328,15 @@ export default function ISSTrackerPage() {
 
         .status-line i {
           display: inline-block;
+
           width: 6px;
           height: 6px;
 
-          background: #22c55e;
+          margin-right: 8px;
+
           border-radius: 50%;
-          margin-right: 7px;
+
+          background: #22c55e;
 
           box-shadow:
             0 0 8px #22c55e;
@@ -1232,67 +1345,88 @@ export default function ISSTrackerPage() {
         .panel-block small,
         .tle-box small {
           display: block;
+
           margin-top: 9px;
+
           color: #475569;
 
           font:
-            0.56rem
+            0.55rem/1.5
             monospace;
-
-          line-height: 1.5;
         }
 
+        /*
+         * Neutral black buttons.
+         * Blue is only used for the active state.
+         */
         .controls {
           display: grid;
+
           grid-template-columns:
             1fr 1fr 1fr;
 
-          gap: 6px;
+          gap: 7px;
+
           margin-top: 25px;
         }
 
         .controls button,
         .location-button {
-          background:
-            rgba(15, 23, 42, 0.8);
-
-          color: #94a3b8;
+          min-height: 43px;
 
           border:
             1px solid
-            rgba(255, 255, 255, 0.1);
+            rgba(255, 255, 255, 0.11);
 
-          padding: 10px 6px;
+          background: #070a0f;
+
+          color: #94a3b8;
 
           cursor: pointer;
 
           font:
-            700 0.52rem
+            700 0.52rem/1
             monospace;
 
           letter-spacing: 1px;
+
+          transition:
+            border-color 160ms ease,
+            color 160ms ease,
+            background 160ms ease;
         }
 
         .controls button:hover,
-        .controls button.active,
         .location-button:hover {
-          color: #fff;
+          color: #e2e8f0;
+
+          border-color:
+            rgba(255, 255, 255, 0.22);
+
+          background: #0a0e14;
+        }
+
+        .controls button.active {
+          color: #e2e8f0;
 
           border-color:
             rgba(59, 130, 246, 0.65);
 
-          background:
-            rgba(59, 130, 246, 0.12);
+          background: #080d15;
+
+          box-shadow:
+            inset 0 0 12px
+            rgba(59, 130, 246, 0.05);
         }
 
         .pass-block p {
+          margin: 10px 0 13px;
+
           color: #64748b;
 
           font:
-            0.64rem/1.6
+            0.62rem/1.6
             monospace;
-
-          margin: 10px 0 13px;
         }
 
         .location-button {
@@ -1301,29 +1435,31 @@ export default function ISSTrackerPage() {
 
         .pass-grid {
           display: grid;
+
           grid-template-columns: 1fr 1fr;
 
           gap: 8px;
+
           margin-top: 12px;
         }
 
         .pass-grid div {
-          padding: 10px;
-
-          background:
-            rgba(0, 0, 0, 0.22);
+          padding: 11px;
 
           border:
             1px solid
-            rgba(255, 255, 255, 0.06);
+            rgba(255, 255, 255, 0.07);
+
+          background: #06090d;
         }
 
         .pass-grid span {
           display: block;
+
           color: #475569;
 
           font:
-            0.5rem
+            0.5rem/1
             monospace;
 
           letter-spacing: 1px;
@@ -1331,41 +1467,44 @@ export default function ISSTrackerPage() {
 
         .pass-grid b {
           display: block;
-          color: #e2e8f0;
-          margin-top: 5px;
+
+          margin-top: 6px;
+
+          color: #cbd5e1;
 
           font:
-            700 0.67rem
+            700 0.67rem/1
             monospace;
         }
 
         .pass-value {
           margin-top: 12px;
-          color: #60a5fa;
+
+          color: #94a3b8;
 
           font:
-            700 0.65rem
+            700 0.62rem/1
             monospace;
         }
 
         .tle-box {
           margin-top: 25px;
-          padding: 14px;
+          padding: 15px;
 
           border:
             1px solid
-            rgba(59, 130, 246, 0.18);
+            rgba(255, 255, 255, 0.07);
 
-          background:
-            rgba(59, 130, 246, 0.04);
+          background: #06090d;
         }
 
         .tle-box span {
           display: block;
+
           color: #475569;
 
           font:
-            0.52rem
+            0.52rem/1
             monospace;
 
           letter-spacing: 2px;
@@ -1373,71 +1512,123 @@ export default function ISSTrackerPage() {
 
         .tle-box strong {
           display: block;
-          margin-top: 6px;
+
+          margin-top: 7px;
+
+          color: #cbd5e1;
 
           font:
-            700 0.72rem
+            700 0.72rem/1
             monospace;
         }
 
         .iss-loading {
+          width: 100%;
           height: 100%;
+
           display: grid;
           place-items: center;
 
-          color: #3b82f6;
+          background: #000;
+
+          color: #64748b;
 
           font:
-            0.65rem
+            0.62rem
             monospace;
 
           letter-spacing: 2px;
         }
 
         @media (max-width: 900px) {
+          html,
+          body {
+            overflow: auto;
+          }
+
+          .iss-page {
+            min-height: 100vh;
+            height: auto;
+            overflow: visible;
+          }
+
           .iss-layout {
+            height: auto;
+
             grid-template-columns: 1fr;
           }
 
           .iss-visual {
-            min-height: 58vh;
+            height: 58vh;
+            min-height: 480px;
           }
 
           .iss-panel {
+            height: auto;
+            max-height: none;
+
+            overflow: visible;
+
             border-left: 0;
+
             border-top:
               1px solid
-              rgba(255, 255, 255, 0.1);
+              rgba(255, 255, 255, 0.08);
           }
         }
 
         @media (max-width: 560px) {
           .iss-header {
-            padding: 0 15px;
+            height: 62px;
+            padding: 0 16px;
+          }
+
+          .iss-layout {
+            min-height:
+              calc(100vh - 62px);
           }
 
           .iss-header-status {
             display: none;
           }
 
+          .iss-brand {
+            font-size: 1rem;
+            letter-spacing: 2px;
+          }
+
           .iss-back {
-            font-size: 0.6rem;
+            font-size: 0.55rem;
           }
 
           .iss-visual {
-            min-height: 52vh;
+            min-height: 430px;
+            height: 52vh;
           }
 
           .iss-panel {
-            padding: 25px 18px;
+            padding:
+              26px 18px 40px;
           }
 
           .iss-panel h1 {
-            font-size: 3.4rem;
+            font-size: 2.9rem;
           }
 
           .controls {
             grid-template-columns: 1fr;
+          }
+
+          .visual-label {
+            left: 18px;
+          }
+
+          .top-left {
+            top: 18px;
+          }
+
+          .bottom-left {
+            bottom: 18px;
           }
         }
       `}</style>
