@@ -289,14 +289,8 @@ export default function ISSTrackerPage() {
       clearInterval(refresh);
   }, [acquire]);
 
-  /*
-   * Build the orbital path only when the
-   * orbital elements change.
-   *
-   * IMPORTANT:
-   * This is deliberately separate from
-   * the live position update below.
-   */
+  // Build the orbital ground track once for the current TLE.
+  // This prevents the orbit from constantly regenerating.
   useEffect(() => {
     if (!satrec) return;
 
@@ -308,10 +302,8 @@ export default function ISSTrackerPage() {
     );
   }, [satrec]);
 
-  /*
-   * Update the ISS position locally every
-   * second. No new TLE request is made here.
-   */
+  // Live ISS telemetry.
+  // The marker updates every second locally.
   useEffect(() => {
     if (!satrec) return;
 
@@ -345,10 +337,8 @@ export default function ISSTrackerPage() {
       clearInterval(timer);
   }, [satrec]);
 
-  /*
-   * FOLLOW ISS only controls the camera.
-   * It never recalculates the orbit.
-   */
+  // Follow mode only controls the camera.
+  // It does not rebuild the orbit.
   useEffect(() => {
     if (
       !follow ||
@@ -364,7 +354,7 @@ export default function ISSTrackerPage() {
         lng: state.lon,
         altitude: 2.2,
       },
-      450
+      700
     );
   }, [follow, state]);
 
@@ -550,7 +540,7 @@ export default function ISSTrackerPage() {
                   ? Math.max(
                       500,
                       window.innerHeight -
-                        68
+                        110
                     )
                   : 700
               }
@@ -566,14 +556,13 @@ export default function ISSTrackerPage() {
                   ? [state]
                   : []
               }
-              pointsMerge={false}
               pointLat="lat"
               pointLng="lon"
               pointAltitude={() =>
-                0.055
+                0.045
               }
               pointRadius={() =>
-                0.34
+                0.18
               }
               pointColor={() =>
                 '#ffffff'
@@ -581,22 +570,6 @@ export default function ISSTrackerPage() {
               pointLabel={() =>
                 '<b>ISS // NORAD 25544</b>'
               }
-              ringsData={
-                state
-                  ? [state]
-                  : []
-              }
-              ringLat="lat"
-              ringLng="lon"
-              ringAltitude={() =>
-                0.055
-              }
-              ringColor={() =>
-                '#ffffff'
-              }
-              ringMaxRadius={1.7}
-              ringPropagationSpeed={1.6}
-              ringRepeatPeriod={1300}
               pathsData={
                 showOrbit
                   ? pathData
@@ -764,62 +737,71 @@ export default function ISSTrackerPage() {
           </div>
 
           <div className="controls">
-  <button
-    className={showOrbit ? 'active' : ''}
-    onClick={() => {
-      setShowOrbit((v) => !v);
-    }}
-  >
-    ORBIT
-  </button>
+            <button
+              className={
+                showOrbit
+                  ? 'active'
+                  : ''
+              }
+              onClick={() =>
+                setShowOrbit(
+                  (v) => !v
+                )
+              }
+            >
+              ORBIT
+            </button>
 
-  <button
-    className={follow ? 'active' : ''}
-    onClick={() => {
-      if (!state || !globeRef.current) return;
+            <button
+              className={
+                follow
+                  ? 'active'
+                  : ''
+              }
+              onClick={() => {
+                if (
+                  !state ||
+                  !globeRef.current
+                ) {
+                  return;
+                }
 
-      setFollow((currentlyFollowing) => {
-        const nextFollowing =
-          !currentlyFollowing;
+                if (!follow) {
+                  globeRef.current.pointOfView(
+                    {
+                      lat: state.lat,
+                      lng: state.lon,
+                      altitude: 1.8,
+                    },
+                    800
+                  );
 
-        if (nextFollowing) {
-          // Immediately move camera to the ISS.
-          globeRef.current.pointOfView(
-            {
-              lat: state.lat,
-              lng: state.lon,
-              altitude: 1.8,
-            },
-            800
-          );
-        }
+                  setFollow(true);
+                } else {
+                  setFollow(false);
+                }
+              }}
+            >
+              FOLLOW ISS
+            </button>
 
-        return nextFollowing;
-      });
-    }}
-  >
-    FOLLOW ISS
-  </button>
+            <button
+              onClick={() => {
+                setFollow(false);
 
-  <button
-    onClick={() => {
-      // Stop following first.
-      setFollow(false);
-
-      // Return to the original SpaceTec globe view.
-      globeRef.current?.pointOfView(
-        {
-          lat: 15,
-          lng: 70,
-          altitude: 2.3,
-        },
-        800
-      );
-    }}
-  >
-    RESET VIEW
-  </button>
-</div>
+                globeRef.current?.pointOfView(
+                  {
+                    lat: 15,
+                    lng: 70,
+                    altitude: 2.3,
+                  },
+                  800
+                );
+              }}
+            >
+              RESET VIEW
+            </button>
+          </div>
           <div className="panel-block pass-block">
             <span className="block-label">
               NEXT VISIBLE PASS
@@ -892,9 +874,7 @@ export default function ISSTrackerPage() {
                   </span>
 
                   <b>
-                    {
-                      nextPass.durationMinutes
-                    }{' '}
+                    {nextPass.durationMinutes}{' '}
                     MIN
                   </b>
                 </div>
@@ -1098,10 +1078,6 @@ export default function ISSTrackerPage() {
           z-index: 2;
         }
 
-        /*
-         * The globe is locked to the viewport.
-         * Only the right panel scrolls.
-         */
         .iss-visual {
           position: relative;
           height:
@@ -1158,10 +1134,6 @@ export default function ISSTrackerPage() {
           left: 32px;
         }
 
-        /*
-         * Nearly black sidebar matching
-         * the rest of the SpaceTec UI.
-         */
         .iss-panel {
           height:
             calc(100vh - 68px);
@@ -1170,6 +1142,9 @@ export default function ISSTrackerPage() {
 
           overflow-y: auto;
           overflow-x: hidden;
+
+          position: relative;
+          z-index: 10;
 
           border-left:
             1px solid
@@ -1209,10 +1184,6 @@ export default function ISSTrackerPage() {
           text-transform: uppercase;
         }
 
-        /*
-         * Smaller than before so ISS doesn't
-         * dominate the whole sidebar.
-         */
         .iss-panel h1 {
           margin: 8px 0 8px;
 
@@ -1364,10 +1335,6 @@ export default function ISSTrackerPage() {
             monospace;
         }
 
-        /*
-         * Neutral black buttons.
-         * Blue is only used for the active state.
-         */
         .controls {
           display: grid;
 
