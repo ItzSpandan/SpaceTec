@@ -1,0 +1,1437 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
+import {
+  eciToGeodetic,
+  gstime,
+  propagate,
+  ecfToLookAngles,
+  degreesLat,
+  degreesLong,
+} from 'satellite.js';
+
+const ReactGlobe = dynamic(() => import('react-globe.gl'), {
+  ssr: false,
+  loading: () => (
+    <div className="iss-loading">
+      <span>INITIALIZING ORBITAL VISUALIZATION...</span>
+    </div>
+  ),
+});
+
+const EARTH_RADIUS_KM = 6378.137;
+const MIN_PASS_ELEVATION_DEG = 10;
+const SAMPLE_SECONDS = 60;
+const ORBIT_MINUTES = 96;
+
+function fmt(value, digits = 2) {
+  if (value == null || Number.isNaN(value)) return '--';
+  return Number(value).toFixed(digits);
+}
+
+function latLngLabel(lat, lon) {
+  if (lat == null || lon == null) return '--';
+
+  return `${Math.abs(lat).toFixed(2)}° ${
+    lat >= 0 ? 'N' : 'S'
+  }  /  ${Math.abs(lon).toFixed(2)}° ${
+    lon >= 0 ? 'E' : 'W'
+  }`;
+}
+
+function calculateState(satrec, date) {
+  const pv = propagate(satrec, date);
+
+  if (!pv.position) return null;
+
+  const gmst = gstime(date);
+  const geo = eciToGeodetic(pv.position, gmst);
+
+  const lat = degreesLat(geo.latitude);
+  const lon = degreesLong(geo.longitude);
+  const altitude = geo.height;
+
+  let velocity = null;
+
+  if (pv.velocity) {
+    velocity =
+      Math.sqrt(
+        pv.velocity.x ** 2 +
+          pv.velocity.y ** 2 +
+          pv.velocity.z ** 2
+      ) * 3600;
+  }
+
+  return {
+    lat,
+    lon,
+    altitude,
+    velocity,
+    date,
+  };
+}
+
+function calculateOrbit(satrec, centerDate) {
+  const points = [];
+
+  const start = new Date(
+    centerDate.getTime() -
+      (ORBIT_MINUTES / 2) * 60000
+  );
+
+  for (
+    let i = 0;
+    i <= (ORBIT_MINUTES * 60) / SAMPLE_SECONDS;
+    i++
+  ) {
+    const date = new Date(
+      start.getTime() +
+        i * SAMPLE_SECONDS * 1000
+    );
+
+    const state = calculateState(satrec, date);
+
+    if (!state) continue;
+
+    const previous =
+      points[points.length - 1];
+
+    if (
+      previous &&
+      Math.abs(state.lon - previous[1]) > 180
+    ) {
+      points.push([null, null, null]);
+    }
+
+    points.push([
+      state.lat,
+      state.lon,
+      Math.max(0.1, state.altitude),
+    ]);
+  }
+
+  return points;
+}
+
+function eciToEcf(position, gmst) {
+  const cos = Math.cos(gmst);
+  const sin = Math.sin(gmst);
+
+  return {
+    x: position.x * cos + position.y * sin,
+    y: -position.x * sin + position.y * cos,
+    z: position.z,
+  };
+}
+
+function getPass(satrec, lat, lon, now) {
+  if (lat == null || lon == null) return null;
+
+  const observerGd = {
+    latitude: (lat * Math.PI) / 180,
+    longitude: (lon * Math.PI) / 180,
+    height: 0,
+  };
+
+  const horizonMs = 12 * 60 * 60 * 1000;
+
+  let previous = null;
+  let rise = null;
+
+  for (
+    let offset = 0;
+    offset <= horizonMs;
+    offset += 60 * 1000
+  ) {
+    const date = new Date(
+      now.getTime() + offset
+    );
+
+    const pv = propagate(satrec, date);
+
+    if (!pv.position) continue;
+
+    const satEcf = eciToEcf(
+      pv.position,
+      gstime(date)
+    );
+
+    const look = ecfToLookAngles(
+      observerGd,
+      satEcf
+    );
+
+    const elevation =
+      (look.elevation * 180) / Math.PI;
+
+    if (
+      elevation >= MIN_PASS_ELEVATION_DEG &&
+      !rise
+    ) {
+      rise = date;
+      previous = {
+        date,
+        elevation,
+      };
+
+      continue;
+    }
+
+    if (
+      rise &&
+      elevation < MIN_PASS_ELEVATION_DEG
+    ) {
+      return {
+        rise,
+        peakApprox:
+          previous?.date || rise,
+        set: date,
+        durationMinutes: Math.max(
+          1,
+          Math.round(
+            (date - rise) / 60000
+          )
+        ),
+      };
+    }
+
+    if (
+      rise &&
+      (!previous ||
+        elevation > previous.elevation)
+    ) {
+      previous = {
+        date,
+        elevation,
+      };
+    }
+  }
+
+  return null;
+}
+
+export default function ISSTrackerPage() {
+  const globeRef = useRef(null);
+
+  const [satrec, setSatrec] = useState(null);
+  const [state, setState] = useState(null);
+  const [orbit, setOrbit] = useState([]);
+  const [status, setStatus] =
+    useState('ACQUIRING');
+
+  const [lastUpdate, setLastUpdate] =
+    useState(null);
+
+  const [follow, setFollow] =
+    useState(true);
+
+  const [showOrbit, setShowOrbit] =
+    useState(true);
+
+  const [observer, setObserver] =
+    useState(null);
+
+  const [nextPass, setNextPass] =
+    useState(null);
+
+  const [passLoading, setPassLoading] =
+    useState(false);
+
+  const acquire = useCallback(async () => {
+    try {
+      setStatus('ACQUIRING');
+
+      const res = await fetch(
+        '/api/iss-tle',
+        {
+          cache: 'no-store',
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error(
+          'ISS orbital feed unavailable'
+        );
+      }
+
+      const data = await res.json();
+
+      const {
+        twoline2satrec,
+      } = await import(
+        'satellite.js'
+      );
+
+      const nextSatrec =
+        twoline2satrec(
+          data.line1,
+          data.line2
+        );
+
+      setSatrec(nextSatrec);
+      setStatus('LIVE');
+    } catch (error) {
+      console.error(error);
+      setStatus('DELAYED');
+    }
+  }, []);
+
+  useEffect(() => {
+    acquire();
+
+    const refresh = setInterval(
+      acquire,
+      30 * 60 * 1000
+    );
+
+    return () =>
+      clearInterval(refresh);
+  }, [acquire]);
+
+  useEffect(() => {
+    if (!satrec) return;
+
+    const update = () => {
+      const now = new Date();
+
+      const next =
+        calculateState(
+          satrec,
+          now
+        );
+
+      if (!next) {
+        setStatus('DELAYED');
+        return;
+      }
+
+      setState(next);
+      setLastUpdate(now);
+      setStatus('LIVE');
+
+      if (showOrbit) {
+        setOrbit(
+          calculateOrbit(
+            satrec,
+            now
+          )
+        );
+      }
+
+      if (
+        follow &&
+        globeRef.current
+      ) {
+        globeRef.current.pointOfView(
+          {
+            lat: next.lat,
+            lng: next.lon,
+            altitude: 2.2,
+          },
+          450
+        );
+      }
+    };
+
+    update();
+
+    const timer = setInterval(
+      update,
+      5000
+    );
+
+    return () =>
+      clearInterval(timer);
+  }, [
+    satrec,
+    follow,
+    showOrbit,
+  ]);
+
+  useEffect(() => {
+    if (
+      !satrec ||
+      !observer
+    ) {
+      return;
+    }
+
+    setPassLoading(true);
+
+    const timer = setTimeout(() => {
+      setNextPass(
+        getPass(
+          satrec,
+          observer.lat,
+          observer.lon,
+          new Date()
+        )
+      );
+
+      setPassLoading(false);
+    }, 50);
+
+    return () =>
+      clearTimeout(timer);
+  }, [
+    satrec,
+    observer,
+  ]);
+
+  const requestLocation = () => {
+    if (!navigator.geolocation)
+      return;
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setObserver({
+          lat:
+            position.coords.latitude,
+          lon:
+            position.coords.longitude,
+        });
+      },
+      () => {
+        setObserver(null);
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 8000,
+      }
+    );
+  };
+
+  const orbitSegments = useMemo(() => {
+    const segments = [];
+    let current = [];
+
+    orbit.forEach((p) => {
+      if (p[0] == null) {
+        if (current.length > 1) {
+          segments.push(current);
+        }
+
+        current = [];
+      } else {
+        current.push({
+          lat: p[0],
+          lng: p[1],
+          altitude: Math.max(
+            0.01,
+            p[2] / EARTH_RADIUS_KM
+          ),
+        });
+      }
+    });
+
+    if (current.length > 1) {
+      segments.push(current);
+    }
+
+    return segments;
+  }, [orbit]);
+
+  const pathData = useMemo(() => {
+    return orbitSegments.map(
+      (segment, index) => ({
+        id: index,
+        points: segment,
+      })
+    );
+  }, [orbitSegments]);
+
+  const formatTime = (date) =>
+    date
+      ? date.toLocaleTimeString(
+          [],
+          {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          }
+        )
+      : '--:--:--';
+
+  const formatPassTime = (date) =>
+    date
+      ? date.toLocaleTimeString(
+          [],
+          {
+            hour: '2-digit',
+            minute: '2-digit',
+          }
+        )
+      : '--:--';
+
+  return (
+    <main className="iss-page">
+      <div className="iss-stars" />
+
+      <header className="iss-header">
+        <button
+          className="iss-brand"
+          onClick={() => {
+            window.location.href =
+              '/';
+          }}
+        >
+          SPACETEC
+          <span>//</span>
+          ISS
+        </button>
+
+        <div className="iss-header-status">
+          <span
+            className={`status-dot ${status.toLowerCase()}`}
+          />
+
+          {status === 'LIVE'
+            ? 'LIVE ORBITAL TELEMETRY'
+            : status === 'ACQUIRING'
+            ? 'ACQUIRING ORBITAL DATA'
+            : 'DATA DELAYED'}
+        </div>
+
+        <button
+          className="iss-back"
+          onClick={() => {
+            window.location.href =
+              '/';
+          }}
+        >
+          ← SPACE TEC
+        </button>
+      </header>
+
+      <section className="iss-layout">
+        <div className="iss-visual">
+          <div className="visual-label top-left">
+            <span>
+              ORBITAL VISUALIZATION
+            </span>
+            <b>
+              NORAD 25544
+            </b>
+          </div>
+
+          <div className="globe-shell">
+            <ReactGlobe
+              ref={globeRef}
+              width={
+                typeof window !==
+                'undefined'
+                  ? window.innerWidth
+                  : 900
+              }
+              height={
+                typeof window !==
+                'undefined'
+                  ? Math.max(
+                      500,
+                      window.innerHeight -
+                        110
+                    )
+                  : 700
+              }
+              backgroundColor="rgba(0,0,0,0)"
+              globeImageUrl="https://unpkg.com/three-globe/example/img/earth-night.jpg"
+              bumpImageUrl="https://unpkg.com/three-globe/example/img/earth-topology.png"
+              backgroundImageUrl="https://unpkg.com/three-globe/example/img/night-sky.png"
+              showAtmosphere
+              atmosphereColor="#3b82f6"
+              atmosphereAltitude={0.13}
+              pointsData={
+                state
+                  ? [state]
+                  : []
+              }
+              pointLat="lat"
+              pointLng="lon"
+              pointAltitude={() => 0.045}
+              pointRadius={() => 0.18}
+              pointColor={() => '#ffffff'}
+              pointLabel={() =>
+                '<b>ISS // NORAD 25544</b>'
+              }
+              pathsData={
+                showOrbit
+                  ? pathData
+                  : []
+              }
+              pathPoints="points"
+              pathPointLat="lat"
+              pathPointLng="lng"
+              pathPointAlt="altitude"
+              pathColor={() =>
+                '#3b82f6'
+              }
+              pathStroke={1.2}
+              pathDashLength={0.015}
+              pathDashGap={0.008}
+              pathDashAnimateTime={2600}
+              onGlobeReady={() => {
+                if (!globeRef.current)
+                  return;
+
+                globeRef.current
+                  .controls()
+                  .autoRotate = false;
+
+                globeRef.current.pointOfView(
+                  {
+                    lat: 15,
+                    lng: 70,
+                    altitude: 2.3,
+                  }
+                );
+              }}
+            />
+          </div>
+
+          <div className="visual-label bottom-left">
+            <span>
+              GROUND TRACK
+            </span>
+
+            <b>
+              {state
+                ? latLngLabel(
+                    state.lat,
+                    state.lon
+                  )
+                : 'CALCULATING...'}
+            </b>
+          </div>
+        </div>
+
+        <aside className="iss-panel">
+          <div className="panel-kicker">
+            // INTERNATIONAL SPACE
+            STATION
+          </div>
+
+          <h1>ISS</h1>
+
+          <div className="live-badge">
+            <span
+              className={`status-dot ${status.toLowerCase()}`}
+            />
+
+            {status === 'LIVE'
+              ? 'LIVE'
+              : status}
+          </div>
+
+          <div className="telemetry-grid">
+            <div>
+              <span>
+                ALTITUDE
+              </span>
+
+              <strong>
+                {state
+                  ? `${fmt(
+                      state.altitude,
+                      1
+                    )} KM`
+                  : '--'}
+              </strong>
+            </div>
+
+            <div>
+              <span>
+                VELOCITY
+              </span>
+
+              <strong>
+                {state
+                  ? `${fmt(
+                      state.velocity,
+                      0
+                    )} KM/H`
+                  : '--'}
+              </strong>
+            </div>
+
+            <div>
+              <span>
+                LATITUDE
+              </span>
+
+              <strong>
+                {state
+                  ? `${fmt(
+                      state.lat,
+                      3
+                    )}°`
+                  : '--'}
+              </strong>
+            </div>
+
+            <div>
+              <span>
+                LONGITUDE
+              </span>
+
+              <strong>
+                {state
+                  ? `${fmt(
+                      state.lon,
+                      3
+                    )}°`
+                  : '--'}
+              </strong>
+            </div>
+          </div>
+
+          <div className="panel-block">
+            <span className="block-label">
+              CURRENT SUBPOINT
+            </span>
+
+            <div className="big-readout">
+              {state
+                ? latLngLabel(
+                    state.lat,
+                    state.lon
+                  )
+                : 'ACQUIRING...'}
+            </div>
+          </div>
+
+          <div className="panel-block">
+            <span className="block-label">
+              ORBITAL STATUS
+            </span>
+
+            <div className="status-line">
+              <i />
+              {status === 'LIVE'
+                ? 'NOMINAL / TRACKING'
+                : 'TELEMETRY UNAVAILABLE'}
+            </div>
+
+            <small>
+              Last update:{' '}
+              {formatTime(
+                lastUpdate
+              )}
+            </small>
+          </div>
+
+          <div className="controls">
+            <button
+              className={
+                showOrbit
+                  ? 'active'
+                  : ''
+              }
+              onClick={() =>
+                setShowOrbit(
+                  (v) => !v
+                )
+              }
+            >
+              ORBIT
+            </button>
+
+            <button
+              className={
+                follow
+                  ? 'active'
+                  : ''
+              }
+              onClick={() =>
+                setFollow(
+                  (v) => !v
+                )
+              }
+            >
+              FOLLOW ISS
+            </button>
+
+            <button
+              onClick={() => {
+                globeRef.current?.pointOfView(
+                  {
+                    lat: 15,
+                    lng: 70,
+                    altitude: 2.3,
+                  },
+                  650
+                );
+              }}
+            >
+              RESET VIEW
+            </button>
+          </div>
+
+          <div className="panel-block pass-block">
+            <span className="block-label">
+              NEXT VISIBLE PASS
+            </span>
+
+            {!observer ? (
+              <>
+                <p>
+                  Use your location to
+                  calculate the next
+                  approximate ISS pass
+                  above a 10° elevation
+                  mask.
+                </p>
+
+                <button
+                  className="location-button"
+                  onClick={
+                    requestLocation
+                  }
+                >
+                  USE MY LOCATION
+                </button>
+              </>
+            ) : passLoading ? (
+              <div className="pass-value">
+                CALCULATING PASS...
+              </div>
+            ) : nextPass ? (
+              <div className="pass-grid">
+                <div>
+                  <span>
+                    START
+                  </span>
+                  <b>
+                    {formatPassTime(
+                      nextPass.rise
+                    )}
+                  </b>
+                </div>
+
+                <div>
+                  <span>
+                    PEAK*
+                  </span>
+                  <b>
+                    {formatPassTime(
+                      nextPass.peakApprox
+                    )}
+                  </b>
+                </div>
+
+                <div>
+                  <span>
+                    END
+                  </span>
+                  <b>
+                    {formatPassTime(
+                      nextPass.set
+                    )}
+                  </b>
+                </div>
+
+                <div>
+                  <span>
+                    DURATION
+                  </span>
+                  <b>
+                    {
+                      nextPass.durationMinutes
+                    }{' '}
+                    MIN
+                  </b>
+                </div>
+              </div>
+            ) : (
+              <p>
+                No pass above 10°
+                found in the next 12
+                hours.
+              </p>
+            )}
+
+            <small>
+              *Peak is an approximate
+              pass maximum from the
+              1-minute search step.
+            </small>
+          </div>
+
+          <div className="tle-box">
+            <span>
+              TRACKING OBJECT
+            </span>
+
+            <strong>
+              ISS (ZARYA)
+            </strong>
+
+            <small>
+              NORAD 25544 · TLE
+              REFRESHED PERIODICALLY
+            </small>
+          </div>
+        </aside>
+      </section>
+
+      <style jsx global>{`
+        * {
+          box-sizing: border-box;
+        }
+
+        body {
+          margin: 0;
+          background: #03060b;
+          color: #fff;
+          font-family:
+            'Space Grotesk',
+            sans-serif;
+        }
+
+        .iss-page {
+          min-height: 100vh;
+          background:
+            radial-gradient(
+              circle at 65% 40%,
+              rgba(20, 55, 110, 0.16),
+              transparent 35%
+            ),
+            #03060b;
+          overflow: hidden;
+        }
+
+        .iss-stars {
+          position: fixed;
+          inset: 0;
+          pointer-events: none;
+          opacity: 0.35;
+
+          background-image:
+            radial-gradient(
+              circle,
+              rgba(255, 255, 255, 0.8) 0 1px,
+              transparent 1.2px
+            ),
+            radial-gradient(
+              circle,
+              rgba(96, 165, 250, 0.6) 0 1px,
+              transparent 1.2px
+            );
+
+          background-size:
+            97px 97px,
+            157px 157px;
+
+          background-position:
+            10px 20px,
+            50px 70px;
+        }
+
+        .iss-header {
+          height: 68px;
+          padding: 0 28px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          position: relative;
+          z-index: 5;
+
+          border-bottom:
+            1px solid
+            rgba(255, 255, 255, 0.09);
+
+          background:
+            rgba(3, 6, 11, 0.82);
+
+          backdrop-filter: blur(18px);
+        }
+
+        .iss-brand,
+        .iss-back {
+          border: 0;
+          background: transparent;
+          color: #fff;
+          cursor: pointer;
+
+          font:
+            800 0.76rem/1
+            'Space Grotesk',
+            sans-serif;
+
+          letter-spacing: 3px;
+        }
+
+        .iss-brand span {
+          color: #3b82f6;
+          margin: 0 7px;
+        }
+
+        .iss-back {
+          color: #94a3b8;
+          font-weight: 600;
+        }
+
+        .iss-header-status {
+          color: #a1a1aa;
+
+          font:
+            600 0.62rem/1
+            monospace;
+
+          letter-spacing: 2px;
+        }
+
+        .status-dot {
+          display: inline-block;
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          margin-right: 7px;
+          background: #64748b;
+
+          box-shadow:
+            0 0 8px
+            rgba(100, 116, 139, 0.6);
+        }
+
+        .status-dot.live {
+          background: #22c55e;
+          box-shadow:
+            0 0 10px #22c55e;
+        }
+
+        .status-dot.delayed {
+          background: #eab308;
+          box-shadow:
+            0 0 10px #eab308;
+        }
+
+        .status-dot.acquiring {
+          background: #3b82f6;
+          box-shadow:
+            0 0 10px #3b82f6;
+        }
+
+        .iss-layout {
+          position: relative;
+          z-index: 2;
+
+          display: grid;
+          grid-template-columns:
+            minmax(0, 1fr)
+            360px;
+
+          min-height:
+            calc(100vh - 68px);
+        }
+
+        .iss-visual {
+          position: relative;
+          min-height:
+            calc(100vh - 68px);
+          overflow: hidden;
+        }
+
+        .globe-shell {
+          position: absolute;
+          inset: 0;
+        }
+
+        .globe-shell > div {
+          width: 100% !important;
+          height: 100% !important;
+        }
+
+        .visual-label {
+          position: absolute;
+          z-index: 4;
+
+          font:
+            600 0.58rem/1.5
+            monospace;
+
+          letter-spacing: 2px;
+          color: #64748b;
+
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+
+          pointer-events: none;
+          text-transform: uppercase;
+        }
+
+        .visual-label b {
+          color: #cbd5e1;
+          font-weight: 600;
+        }
+
+        .top-left {
+          top: 24px;
+          left: 28px;
+        }
+
+        .bottom-left {
+          bottom: 25px;
+          left: 28px;
+        }
+
+        .iss-panel {
+          border-left:
+            1px solid
+            rgba(255, 255, 255, 0.1);
+
+          background:
+            rgba(7, 11, 18, 0.92);
+
+          padding: 32px 26px;
+          overflow-y: auto;
+        }
+
+        .panel-kicker,
+        .block-label {
+          color: #64748b;
+
+          font:
+            700 0.58rem/1.4
+            monospace;
+
+          letter-spacing: 2px;
+          text-transform: uppercase;
+        }
+
+        .iss-panel h1 {
+          margin: 8px 0 6px;
+
+          font-size: 4.2rem;
+          line-height: 0.9;
+          letter-spacing: -3px;
+        }
+
+        .live-badge {
+          display: inline-flex;
+          align-items: center;
+
+          border:
+            1px solid
+            rgba(34, 197, 94, 0.25);
+
+          color: #86efac;
+
+          padding: 6px 9px;
+
+          font:
+            700 0.56rem/1
+            monospace;
+
+          letter-spacing: 2px;
+        }
+
+        .telemetry-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+
+          margin-top: 30px;
+
+          border-top:
+            1px solid
+            rgba(255, 255, 255, 0.08);
+
+          border-left:
+            1px solid
+            rgba(255, 255, 255, 0.08);
+        }
+
+        .telemetry-grid > div {
+          padding: 15px 12px;
+
+          border-right:
+            1px solid
+            rgba(255, 255, 255, 0.08);
+
+          border-bottom:
+            1px solid
+            rgba(255, 255, 255, 0.08);
+        }
+
+        .telemetry-grid span {
+          display: block;
+          color: #64748b;
+
+          font:
+            600 0.55rem
+            monospace;
+
+          letter-spacing: 1.5px;
+        }
+
+        .telemetry-grid strong {
+          display: block;
+          margin-top: 7px;
+
+          font:
+            700 0.88rem
+            monospace;
+
+          color: #e2e8f0;
+        }
+
+        .panel-block {
+          margin-top: 25px;
+          padding-top: 19px;
+
+          border-top:
+            1px solid
+            rgba(255, 255, 255, 0.08);
+        }
+
+        .big-readout {
+          margin-top: 9px;
+          color: #fff;
+
+          font:
+            700 0.82rem
+            monospace;
+
+          letter-spacing: 1px;
+        }
+
+        .status-line {
+          margin-top: 10px;
+          color: #cbd5e1;
+
+          font:
+            600 0.67rem
+            monospace;
+
+          letter-spacing: 1px;
+        }
+
+        .status-line i {
+          display: inline-block;
+          width: 6px;
+          height: 6px;
+
+          background: #22c55e;
+          border-radius: 50%;
+          margin-right: 7px;
+
+          box-shadow:
+            0 0 8px #22c55e;
+        }
+
+        .panel-block small,
+        .tle-box small {
+          display: block;
+          margin-top: 9px;
+          color: #475569;
+
+          font:
+            0.56rem
+            monospace;
+
+          line-height: 1.5;
+        }
+
+        .controls {
+          display: grid;
+          grid-template-columns:
+            1fr 1fr 1fr;
+
+          gap: 6px;
+          margin-top: 25px;
+        }
+
+        .controls button,
+        .location-button {
+          background:
+            rgba(15, 23, 42, 0.8);
+
+          color: #94a3b8;
+
+          border:
+            1px solid
+            rgba(255, 255, 255, 0.1);
+
+          padding: 10px 6px;
+
+          cursor: pointer;
+
+          font:
+            700 0.52rem
+            monospace;
+
+          letter-spacing: 1px;
+        }
+
+        .controls button:hover,
+        .controls button.active,
+        .location-button:hover {
+          color: #fff;
+
+          border-color:
+            rgba(59, 130, 246, 0.65);
+
+          background:
+            rgba(59, 130, 246, 0.12);
+        }
+
+        .pass-block p {
+          color: #64748b;
+
+          font:
+            0.64rem/1.6
+            monospace;
+
+          margin: 10px 0 13px;
+        }
+
+        .location-button {
+          width: 100%;
+        }
+
+        .pass-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+
+          gap: 8px;
+          margin-top: 12px;
+        }
+
+        .pass-grid div {
+          padding: 10px;
+
+          background:
+            rgba(0, 0, 0, 0.22);
+
+          border:
+            1px solid
+            rgba(255, 255, 255, 0.06);
+        }
+
+        .pass-grid span {
+          display: block;
+          color: #475569;
+
+          font:
+            0.5rem
+            monospace;
+
+          letter-spacing: 1px;
+        }
+
+        .pass-grid b {
+          display: block;
+          color: #e2e8f0;
+          margin-top: 5px;
+
+          font:
+            700 0.67rem
+            monospace;
+        }
+
+        .pass-value {
+          margin-top: 12px;
+          color: #60a5fa;
+
+          font:
+            700 0.65rem
+            monospace;
+        }
+
+        .tle-box {
+          margin-top: 25px;
+          padding: 14px;
+
+          border:
+            1px solid
+            rgba(59, 130, 246, 0.18);
+
+          background:
+            rgba(59, 130, 246, 0.04);
+        }
+
+        .tle-box span {
+          display: block;
+          color: #475569;
+
+          font:
+            0.52rem
+            monospace;
+
+          letter-spacing: 2px;
+        }
+
+        .tle-box strong {
+          display: block;
+          margin-top: 6px;
+
+          font:
+            700 0.72rem
+            monospace;
+        }
+
+        .iss-loading {
+          height: 100%;
+          display: grid;
+          place-items: center;
+
+          color: #3b82f6;
+
+          font:
+            0.65rem
+            monospace;
+
+          letter-spacing: 2px;
+        }
+
+        @media (max-width: 900px) {
+          .iss-layout {
+            grid-template-columns: 1fr;
+          }
+
+          .iss-visual {
+            min-height: 58vh;
+          }
+
+          .iss-panel {
+            border-left: 0;
+            border-top:
+              1px solid
+              rgba(255, 255, 255, 0.1);
+          }
+        }
+
+        @media (max-width: 560px) {
+          .iss-header {
+            padding: 0 15px;
+          }
+
+          .iss-header-status {
+            display: none;
+          }
+
+          .iss-back {
+            font-size: 0.6rem;
+          }
+
+          .iss-visual {
+            min-height: 52vh;
+          }
+
+          .iss-panel {
+            padding: 25px 18px;
+          }
+
+          .iss-panel h1 {
+            font-size: 3.4rem;
+          }
+
+          .controls {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
+    </main>
+  );
+}
