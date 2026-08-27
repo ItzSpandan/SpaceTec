@@ -764,53 +764,62 @@ export default function ISSTrackerPage() {
           </div>
 
           <div className="controls">
-            <button
-              className={
-                showOrbit
-                  ? 'active'
-                  : ''
-              }
-              onClick={() =>
-                setShowOrbit(
-                  (v) => !v
-                )
-              }
-            >
-              ORBIT
-            </button>
+  <button
+    className={showOrbit ? 'active' : ''}
+    onClick={() => {
+      setShowOrbit((v) => !v);
+    }}
+  >
+    ORBIT
+  </button>
 
-            <button
-              className={
-                follow
-                  ? 'active'
-                  : ''
-              }
-              onClick={() =>
-                setFollow(
-                  (v) => !v
-                )
-              }
-            >
-              FOLLOW ISS
-            </button>
+  <button
+    className={follow ? 'active' : ''}
+    onClick={() => {
+      if (!state || !globeRef.current) return;
 
-            <button
-              onClick={() => {
-                setFollow(false);
+      setFollow((currentlyFollowing) => {
+        const nextFollowing =
+          !currentlyFollowing;
 
-                globeRef.current?.pointOfView(
-                  {
-                    lat: 15,
-                    lng: 70,
-                    altitude: 2.3,
-                  },
-                  650
-                );
-              }}
-            >
-              RESET VIEW
-            </button>
-          </div>
+        if (nextFollowing) {
+          // Immediately move camera to the ISS.
+          globeRef.current.pointOfView(
+            {
+              lat: state.lat,
+              lng: state.lon,
+              altitude: 1.8,
+            },
+            800
+          );
+        }
+
+        return nextFollowing;
+      });
+    }}
+  >
+    FOLLOW ISS
+  </button>
+
+  <button
+    onClick={() => {
+      // Stop following first.
+      setFollow(false);
+
+      // Return to the original SpaceTec globe view.
+      globeRef.current?.pointOfView(
+        {
+          lat: 15,
+          lng: 70,
+          altitude: 2.3,
+        },
+        800
+      );
+    }}
+  >
+    RESET VIEW
+  </button>
+</div>
           <div className="panel-block pass-block">
             <span className="block-label">
               NEXT VISIBLE PASS
