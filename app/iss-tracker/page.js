@@ -289,8 +289,6 @@ export default function ISSTrackerPage() {
       clearInterval(refresh);
   }, [acquire]);
 
-  // Build the orbital ground track once for the current TLE.
-  // This prevents the orbit from constantly regenerating.
   useEffect(() => {
     if (!satrec) return;
 
@@ -302,8 +300,6 @@ export default function ISSTrackerPage() {
     );
   }, [satrec]);
 
-  // Live ISS telemetry.
-  // The marker updates every second locally.
   useEffect(() => {
     if (!satrec) return;
 
@@ -337,8 +333,17 @@ export default function ISSTrackerPage() {
       clearInterval(timer);
   }, [satrec]);
 
-  // Follow mode only controls the camera.
-  // It does not rebuild the orbit.
+  /*
+   * FOLLOW CAMERA
+   *
+   * The important fix:
+   * The camera is updated every time the
+   * live ISS coordinates change.
+   *
+   * The ISS telemetry changes every second,
+   * so FOLLOW ISS now continuously keeps
+   * the camera centered on the ISS.
+   */
   useEffect(() => {
     if (
       !follow ||
@@ -348,11 +353,15 @@ export default function ISSTrackerPage() {
       return;
     }
 
-    globeRef.current.pointOfView(
+    const globe = globeRef.current;
+
+    globe.controls().autoRotate = false;
+
+    globe.pointOfView(
       {
-        lat: state.lat,
-        lng: state.lon,
-        altitude: 2.2,
+        lat: Number(state.lat),
+        lng: Number(state.lon),
+        altitude: 0.75,
       },
       700
     );
@@ -411,34 +420,53 @@ export default function ISSTrackerPage() {
     );
   };
 
-  // NEW: reliable camera helper
+  /*
+   * Move camera directly to the current
+   * ISS position.
+   */
   const goToISS = () => {
-    if (!state) return;
-    if (!globeRef.current) return;
+    if (
+      !state ||
+      !globeRef.current
+    ) {
+      return;
+    }
 
-    globeRef.current.pointOfView(
+    const globe = globeRef.current;
+
+    globe.controls().autoRotate = false;
+
+    globe.pointOfView(
       {
-        lat: state.lat,
-        lng: state.lon,
-        altitude: 1.8,
+        lat: Number(state.lat),
+        lng: Number(state.lon),
+        altitude: 0.75,
       },
-      800
+      1500
     );
   };
 
-  // NEW: reset camera helper
+  /*
+   * Return to the original globe view.
+   */
   const resetView = () => {
     setFollow(false);
 
-    if (!globeRef.current) return;
+    if (!globeRef.current) {
+      return;
+    }
 
-    globeRef.current.pointOfView(
+    const globe = globeRef.current;
+
+    globe.controls().autoRotate = false;
+
+    globe.pointOfView(
       {
         lat: 15,
         lng: 70,
         altitude: 2.3,
       },
-      800
+      1200
     );
   };
 
@@ -799,6 +827,13 @@ export default function ISSTrackerPage() {
                   return;
                 }
 
+                if (
+                  !state ||
+                  !globeRef.current
+                ) {
+                  return;
+                }
+
                 goToISS();
                 setFollow(true);
               }}
@@ -821,11 +856,9 @@ export default function ISSTrackerPage() {
             {!observer ? (
               <>
                 <p>
-                  Use your location to
-                  calculate the next
-                  approximate ISS pass
-                  above a 10° elevation
-                  mask.
+                  Use your location to calculate
+                  the next approximate ISS pass
+                  above a 10° elevation mask.
                 </p>
 
                 <button
@@ -872,23 +905,20 @@ export default function ISSTrackerPage() {
                 <div>
                   <span>DURATION</span>
                   <b>
-                    {nextPass.durationMinutes}{' '}
-                    MIN
+                    {nextPass.durationMinutes} MIN
                   </b>
                 </div>
               </div>
             ) : (
               <p>
-                No pass above 10°
-                found in the next 12
-                hours.
+                No pass above 10° found in the
+                next 12 hours.
               </p>
             )}
 
             <small>
-              *Peak is an approximate
-              pass maximum from the
-              1-minute search step.
+              *Peak is an approximate pass maximum
+              from the 1-minute search step.
             </small>
           </div>
 
@@ -902,8 +932,7 @@ export default function ISSTrackerPage() {
             </strong>
 
             <small>
-              NORAD 25544 · TLE
-              REFRESHED EVERY 2 HOURS
+              NORAD 25544 · TLE REFRESHED EVERY 2 HOURS
             </small>
           </div>
         </aside>
@@ -918,7 +947,7 @@ export default function ISSTrackerPage() {
         body {
           margin: 0;
           padding: 0;
-          background: #030507;
+          background: #000000;
           color: #fff;
           overflow: hidden;
         }
@@ -932,7 +961,7 @@ export default function ISSTrackerPage() {
         .iss-page {
           height: 100vh;
           width: 100%;
-          background: #030507;
+          background: #000000;
           overflow: hidden;
         }
 
@@ -964,6 +993,7 @@ export default function ISSTrackerPage() {
             50px 70px;
         }
 
+        /* TRUE BLACK HEADER */
         .iss-header {
           height: 68px;
           padding: 0 30px;
@@ -979,7 +1009,7 @@ export default function ISSTrackerPage() {
             1px solid
             rgba(255, 255, 255, 0.08);
 
-          background: #030507;
+          background: #000000;
         }
 
         .iss-brand,
@@ -1084,7 +1114,7 @@ export default function ISSTrackerPage() {
           min-height: 0;
           overflow: hidden;
 
-          background: #000;
+          background: #000000;
         }
 
         .globe-shell {
@@ -1132,6 +1162,7 @@ export default function ISSTrackerPage() {
           left: 32px;
         }
 
+        /* TRUE BLACK SIDEBAR */
         .iss-panel {
           height:
             calc(100vh - 68px);
@@ -1148,7 +1179,7 @@ export default function ISSTrackerPage() {
             1px solid
             rgba(255, 255, 255, 0.08);
 
-          background: #05080c;
+          background: #000000;
 
           padding: 34px 28px 45px;
 
@@ -1231,6 +1262,7 @@ export default function ISSTrackerPage() {
             rgba(255, 255, 255, 0.08);
         }
 
+        /* TRUE BLACK TELEMETRY CARDS */
         .telemetry-grid > div {
           min-width: 0;
 
@@ -1244,7 +1276,7 @@ export default function ISSTrackerPage() {
             1px solid
             rgba(255, 255, 255, 0.08);
 
-          background: #05080c;
+          background: #000000;
         }
 
         .telemetry-grid span {
@@ -1352,7 +1384,7 @@ export default function ISSTrackerPage() {
             1px solid
             rgba(255, 255, 255, 0.11);
 
-          background: #070a0f;
+          background: #000000;
 
           color: #94a3b8;
 
@@ -1377,7 +1409,7 @@ export default function ISSTrackerPage() {
           border-color:
             rgba(255, 255, 255, 0.22);
 
-          background: #0a0e14;
+          background: #080808;
         }
 
         .controls button.active {
@@ -1386,7 +1418,7 @@ export default function ISSTrackerPage() {
           border-color:
             rgba(59, 130, 246, 0.65);
 
-          background: #080d15;
+          background: #050505;
 
           box-shadow:
             inset 0 0 12px
@@ -1424,7 +1456,7 @@ export default function ISSTrackerPage() {
             1px solid
             rgba(255, 255, 255, 0.07);
 
-          background: #06090d;
+          background: #000000;
         }
 
         .pass-grid span {
@@ -1461,6 +1493,7 @@ export default function ISSTrackerPage() {
             monospace;
         }
 
+        /* TRUE BLACK TLE CARD */
         .tle-box {
           margin-top: 25px;
           padding: 15px;
@@ -1469,7 +1502,7 @@ export default function ISSTrackerPage() {
             1px solid
             rgba(255, 255, 255, 0.07);
 
-          background: #06090d;
+          background: #000000;
         }
 
         .tle-box span {
@@ -1503,7 +1536,7 @@ export default function ISSTrackerPage() {
           display: grid;
           place-items: center;
 
-          background: #000;
+          background: #000000;
 
           color: #64748b;
 
