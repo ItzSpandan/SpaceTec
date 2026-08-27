@@ -40,8 +40,18 @@ function formatTimeAgo(dateStr) {
   return `T+ ${days} DAYS AGO`;
 }
 
+const HERO_ROTATING_PHRASES = ['ORGANIZED.', 'CONNECTED.', 'AT A GLANCE.', 'IN FOCUS.', 'IN MOTION.', 'IN REAL TIME.'];
+
 export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) {
   const [entered, setEntered] = useState(false);
+  const [heroPhraseIndex, setHeroPhraseIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHeroPhraseIndex((prev) => (prev + 1) % HERO_ROTATING_PHRASES.length);
+    }, 2800);
+    return () => clearInterval(interval);
+  }, []);
 
   const [bgIndex, setBgIndex] = useState(0);
   const [activeAgency, setActiveAgency] = useState(null);
@@ -985,7 +995,24 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
             </motion.p>
             
             <motion.h2 variants={fadeInUp} style={{ fontSize: 'calc(2.2rem + 3vw)', fontWeight: '900', lineHeight: '1.1', letterSpacing: '1px', margin: '0 0 1.8rem 0', textTransform: 'uppercase', color: '#ffffff' }}>
-              HUMANITY'S GATEWAY TO THE COSMOS.
+              THE UNIVERSE,
+              <br />
+              <span style={{ position: 'relative', display: 'inline-block', overflow: 'hidden', verticalAlign: 'top', minWidth: '100%' }}>
+                {/* Invisible reference phrase reserves space for the longest rotating phrase so the layout never shifts */}
+                <span style={{ visibility: 'hidden' }}>IN REAL TIME.</span>
+                <AnimatePresence mode="wait">
+                  <motion.span
+                    key={HERO_ROTATING_PHRASES[heroPhraseIndex]}
+                    initial={{ opacity: 0, y: 18 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -18 }}
+                    transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                    style={{ position: 'absolute', left: 0, top: 0, whiteSpace: 'nowrap', color: '#ffffff' }}
+                  >
+                    {HERO_ROTATING_PHRASES[heroPhraseIndex]}
+                  </motion.span>
+                </AnimatePresence>
+              </span>
             </motion.h2>
 
             <motion.p variants={fadeInUp} style={{ fontSize: '1.05rem', color: '#d4d4d8', lineHeight: '1.7', maxWidth: '680px', marginBottom: '2.5rem', fontWeight: '400' }}>
