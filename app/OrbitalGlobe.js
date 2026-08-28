@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { createClient } from '@supabase/supabase-js';
 import * as satellite from 'satellite.js';
@@ -21,7 +21,8 @@ const ReactGlobe = dynamic(() => import('react-globe.gl'), {
         justifyContent: 'center',
         color: '#ffffff',
         fontFamily: 'monospace',
-        fontSize: '0.8rem'
+        fontSize: '0.8rem',
+        background: '#000'
       }}
     >
       INITIALIZING 3D WEBGL ENGINE...
@@ -29,13 +30,17 @@ const ReactGlobe = dynamic(() => import('react-globe.gl'), {
   )
 });
 
+/* =========================================================
+   GLOBAL LAUNCH PADS
+   ========================================================= */
+
 const globalLaunchPads = [
   {
     id: 1,
     name: 'Kennedy Space Center (LC-39A)',
     agency: 'NASA / SpaceX',
-    lat: 28.6084,
-    lng: -80.6043,
+    lat: 28.5858,
+    lng: -80.6511,
     type: 'major',
     country: 'USA'
   },
@@ -52,8 +57,8 @@ const globalLaunchPads = [
     id: 3,
     name: 'Vandenberg Space Force Base (SLC-4E)',
     agency: 'SpaceX / USSF',
-    lat: 34.6328,
-    lng: -120.6107,
+    lat: 34.7420,
+    lng: -120.5724,
     type: 'major',
     country: 'USA'
   },
@@ -61,8 +66,8 @@ const globalLaunchPads = [
     id: 4,
     name: 'Wallops Flight Facility',
     agency: 'NASA / Northrop Grumman',
-    lat: 37.9402,
-    lng: -75.4664,
+    lat: 37.9332,
+    lng: -75.4836,
     type: 'minor',
     country: 'USA'
   },
@@ -77,7 +82,7 @@ const globalLaunchPads = [
   },
   {
     id: 6,
-    name: 'Pacific Spaceport Complex Alaska',
+    name: 'Pacific Spaceport Complex (Alaska)',
     agency: 'Astra / USSF',
     lat: 57.4358,
     lng: -152.3477,
@@ -86,10 +91,10 @@ const globalLaunchPads = [
   },
   {
     id: 7,
-    name: 'Guiana Space Centre',
+    name: 'Guiana Space Centre (Ariane ELA-4)',
     agency: 'ESA / Arianespace',
-    lat: 5.2360,
-    lng: -52.7680,
+    lat: 5.2372,
+    lng: -52.7683,
     type: 'major',
     country: 'French Guiana'
   },
@@ -115,8 +120,8 @@ const globalLaunchPads = [
     id: 10,
     name: 'Baikonur Cosmodrome',
     agency: 'Roscosmos',
-    lat: 45.9650,
-    lng: 63.3050,
+    lat: 45.9646,
+    lng: 63.3052,
     type: 'major',
     country: 'Kazakhstan'
   },
@@ -124,8 +129,8 @@ const globalLaunchPads = [
     id: 11,
     name: 'Plesetsk Cosmodrome',
     agency: 'Roscosmos',
-    lat: 62.9278,
-    lng: 40.5770,
+    lat: 62.9298,
+    lng: 40.5735,
     type: 'major',
     country: 'Russia'
   },
@@ -133,8 +138,8 @@ const globalLaunchPads = [
     id: 12,
     name: 'Vostochny Cosmodrome',
     agency: 'Roscosmos',
-    lat: 51.8844,
-    lng: 128.3330,
+    lat: 51.8841,
+    lng: 128.3339,
     type: 'major',
     country: 'Russia'
   },
@@ -248,145 +253,281 @@ const globalLaunchPads = [
   }
 ];
 
+/* =========================================================
+   HELPERS
+   ========================================================= */
+
 function safeNumber(value, fallback = null) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
 }
 
-function getSatellitePosition(satrec, date) {
-  try {
-    const pv = satellite.propagate(satrec, date);
+function normalizeLongitude(lng) {
+  if (!Number.isFinite(lng)) return 0;
 
-    if (!pv || !pv.position) return null;
+  let result = lng;
+
+  while (result > 180) result -= 360;
+  while (result < -180) result += 360;
+
+  return result;
+}
+
+/*
+ * Convert a Supabase satellite record into a satellite.js
+ * SatRec object.
+ */
+function createSatrec(sat) {
+  if (!sat?.tle_line1 || !sat?.tle_line2) return null;
+
+  try {
+    return satellite.twoline2satrec(
+      String(sat.tle_line1).trim(),
+      String(sat.tle_line2).trim()
+    );
+  } catch (error) {
+    console.warn(
+      'Unable to parse TLE for satellite:',
+      sat?.name,
+      error
+    );
+
+    return null;
+  }
+}
+
+/*
+ * Calculate the REAL current position from the TLE.
+ *
+ * This is the important replacement for the old:
+ *
+ *     lng + speed
+ *
+ * movement.
+ */
+function calculateLivePosition(sat, date = new Date()) {
+  const satrec = createSatrec(sat);
+
+  if (!satrec) return null;
+
+  try {
+    const positionAndVelocity = satellite.propagate(
+      satrec,
+      date
+    );
+
+    if (
+      !positionAndVelocity ||
+      !positionAndVelocity.position
+    ) {
+      return null;
+    }
 
     const gmst = satellite.gstime(date);
 
     const geodetic = satellite.eciToGeodetic(
-      pv.position,
+      positionAndVelocity.position,
       gmst
     );
 
     const lat = satellite.degreesLat(geodetic.latitude);
     const lng = satellite.degreesLong(geodetic.longitude);
 
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      return null;
+    const altitudeKm = geodetic.height;
+
+    let velocityKmS = null;
+
+    if (positionAndVelocity.velocity) {
+      const velocity = positionAndVelocity.velocity;
+
+      velocityKmS = Math.sqrt(
+        velocity.x * velocity.x +
+        velocity.y * velocity.y +
+        velocity.z * velocity.z
+      );
     }
 
-    const altitude = Number(geodetic.height);
-
-    let velocity = null;
-
-    if (pv.velocity) {
-      const v = pv.velocity;
-
-      velocity = Math.sqrt(
-        v.x * v.x +
-        v.y * v.y +
-        v.z * v.z
-      );
+    if (
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng)
+    ) {
+      return null;
     }
 
     return {
       lat,
-      lng,
-      altitudeKm: altitude,
-      velocity
+      lng: normalizeLongitude(lng),
+      altitudeKm,
+      velocityKmS
     };
-  } catch {
+  } catch (error) {
     return null;
   }
 }
 
-function createSatrec(row) {
-  if (!row?.tle_line1 || !row?.tle_line2) {
-    return null;
-  }
+/*
+ * Calculate an actual orbital track from the TLE.
 
-  try {
-    return satellite.twoline2satrec(
-      String(row.tle_line1).trim(),
-      String(row.tle_line2).trim()
-    );
-  } catch {
-    return null;
-  }
-}
+ * The orbit is sampled around the current time.
+ */
+function calculateOrbitFromTLE(sat) {
+  const satrec = createSatrec(sat);
 
-function getOrbitPeriodMinutes(row, satrec) {
-  const mm =
-    safeNumber(row?.mean_motion) ||
-    safeNumber(satrec?.no);
-
-  if (!mm) return 90;
-
-  // mean_motion from database is normally revolutions/day.
-  if (mm > 0.1 && mm < 20) {
-    return 1440 / mm;
-  }
-
-  // satellite.js satrec.no is radians/minute.
-  if (mm > 0 && mm < 1) {
-    return (2 * Math.PI) / mm;
-  }
-
-  return 90;
-}
-
-function calculateOrbit(row, satrec) {
   if (!satrec) return [];
 
-  const periodMinutes = Math.max(
+  const meanMotion = safeNumber(
+    sat.mean_motion,
+    null
+  );
+
+  /*
+   * mean_motion is normally revolutions/day.
+   *
+   * If it exists, calculate the orbital period.
+   * Otherwise use 90 minutes as a reasonable fallback
+   * for LEO objects.
+   */
+  let periodMinutes = 90;
+
+  if (meanMotion && meanMotion > 0) {
+    periodMinutes = (24 * 60) / meanMotion;
+  }
+
+  /*
+   * Keep sampling sensible for visualization.
+   */
+  periodMinutes = Math.max(
     20,
-    Math.min(
-      1440,
-      getOrbitPeriodMinutes(row, satrec)
-    )
+    Math.min(periodMinutes, 300)
+  );
+
+  const samples = 180;
+
+  const startTime = new Date(
+    Date.now() - (periodMinutes * 60 * 1000) / 2
   );
 
   const points = [];
-  const now = new Date();
-
-  const samples = 180;
-  const totalMinutes = periodMinutes;
 
   for (let i = 0; i <= samples; i++) {
-    const minutes =
-      -totalMinutes / 2 +
-      (totalMinutes * i) / samples;
-
     const time = new Date(
-      now.getTime() + minutes * 60 * 1000
+      startTime.getTime() +
+      (i / samples) *
+        periodMinutes *
+        60 *
+        1000
     );
 
-    const position = getSatellitePosition(
-      satrec,
-      time
-    );
+    try {
+      const positionAndVelocity =
+        satellite.propagate(
+          satrec,
+          time
+        );
 
-    if (!position) continue;
+      if (
+        !positionAndVelocity ||
+        !positionAndVelocity.position
+      ) {
+        continue;
+      }
 
-    points.push({
-      lat: position.lat,
-      lng: position.lng,
-      altitude:
-        Math.max(0.01, position.altitudeKm) /
-        6371
-    });
+      const gmst = satellite.gstime(time);
+
+      const geodetic =
+        satellite.eciToGeodetic(
+          positionAndVelocity.position,
+          gmst
+        );
+
+      const lat = satellite.degreesLat(
+        geodetic.latitude
+      );
+
+      const lng = normalizeLongitude(
+        satellite.degreesLong(
+          geodetic.longitude
+        )
+      );
+
+      const altitudeKm =
+        geodetic.height;
+
+      if (
+        Number.isFinite(lat) &&
+        Number.isFinite(lng) &&
+        Number.isFinite(altitudeKm)
+      ) {
+        points.push({
+          lat,
+          lng,
+          altitude: Math.max(
+            0.01,
+            Math.min(
+              0.5,
+              altitudeKm / 6371
+            )
+          )
+        });
+      }
+    } catch {
+      // Skip invalid propagation sample.
+    }
   }
 
   return points;
 }
 
-export default function OrbitalGlobe({ requestedView }) {
+/*
+ * Split an orbital line when it crosses the ±180°
+ * longitude boundary.
+
+ * Without this, react-globe.gl can draw a huge
+ * line across the Earth when the orbit crosses
+ * the date line.
+ */
+function splitDateline(points) {
+  if (!points.length) return [];
+
+  const segments = [];
+  let current = [points[0]];
+
+  for (let i = 1; i < points.length; i++) {
+    const previous = points[i - 1];
+    const point = points[i];
+
+    const longitudeJump = Math.abs(
+      point.lng - previous.lng
+    );
+
+    if (longitudeJump > 180) {
+      if (current.length > 1) {
+        segments.push(current);
+      }
+
+      current = [point];
+    } else {
+      current.push(point);
+    }
+  }
+
+  if (current.length > 1) {
+    segments.push(current);
+  }
+
+  return segments;
+}
+
+export default function OrbitalGlobe({
+  requestedView
+}) {
   const globeRef = useRef(null);
 
-  const satrecCacheRef = useRef({});
-  const rawSatelliteCacheRef = useRef({});
+  const [viewMode, setViewMode] =
+    useState('pads');
 
-  const [viewMode, setViewMode] = useState('pads');
-
-  const [padFilter, setPadFilter] = useState('all');
+  const [padFilter, setPadFilter] =
+    useState('all');
 
   const [satFilter, setSatFilter] =
     useState('stations');
@@ -409,7 +550,11 @@ export default function OrbitalGlobe({ requestedView }) {
   const [lastUpdate, setLastUpdate] =
     useState(null);
 
-  const [wikiData, setWikiData] = useState([]);
+  /*
+   * Satellite database / Wiki.
+   */
+  const [wikiData, setWikiData] =
+    useState([]);
 
   const [wikiSearch, setWikiSearch] =
     useState('');
@@ -422,6 +567,12 @@ export default function OrbitalGlobe({ requestedView }) {
 
   const pageSize = 50;
 
+  /*
+   * Cache the original database records.
+   * Live positions are recalculated from their TLE.
+   */
+  const satCacheRef = useRef({});
+
   useEffect(() => {
     if (requestedView?.mode) {
       setViewMode(requestedView.mode);
@@ -430,192 +581,229 @@ export default function OrbitalGlobe({ requestedView }) {
 
   const filteredPads = useMemo(() => {
     return globalLaunchPads.filter(
-      p =>
+      pad =>
         padFilter === 'all' ||
-        p.type === padFilter
+        pad.type === padFilter
     );
   }, [padFilter]);
 
-  async function fetchAllRows() {
-    const all = [];
+  /* =======================================================
+     LOAD SATELLITES
+     ======================================================= */
 
-    const batchSize = 1000;
-
-    let start = 0;
-
-    while (true) {
-      const { data, error } = await supabase
-        .from('satellites')
-        .select('*')
-        .range(
-          start,
-          start + batchSize - 1
-        );
-
-      if (error) {
-        throw error;
-      }
-
-      if (!data || data.length === 0) {
-        break;
-      }
-
-      all.push(...data);
-
-      if (data.length < batchSize) {
-        break;
-      }
-
-      start += batchSize;
-
-      if (start > 100000) {
-        break;
-      }
-    }
-
-    return all;
-  }
-
-  function matchesFilter(row) {
-    const name =
-      String(row?.name || '').toUpperCase();
-
-    if (satFilter === 'stations') {
-      return (
-        name.includes('ISS') ||
-        name.includes('ZARYA') ||
-        name.includes('TIANGONG') ||
-        name.includes('CSS')
-      );
-    }
-
-    if (satFilter === 'starlink') {
-      return name.includes('STARLINK');
-    }
-
-    if (satFilter === 'weather') {
-      return (
-        name.includes('NOAA') ||
-        name.includes('GOES') ||
-        name.includes('METEOSAT') ||
-        name.includes('METEOR') ||
-        name.includes('JPSS') ||
-        name.includes('SUOMI')
-      );
-    }
-
-    if (satFilter === 'active') {
-      return true;
-    }
-
-    return true;
-  }
-
-  function prepareSatellite(row) {
-    const key = String(row.id);
-
-    let satrec =
-      satrecCacheRef.current[key];
-
-    if (!satrec) {
-      satrec = createSatrec(row);
-
-      if (satrec) {
-        satrecCacheRef.current[key] =
-          satrec;
-      }
-    }
-
-    if (!satrec) return null;
-
-    const now = new Date();
-
-    const position =
-      getSatellitePosition(
-        satrec,
-        now
-      );
-
-    if (!position) return null;
-
-    const orbitalAltitude =
-      Math.max(
-        0.015,
-        position.altitudeKm / 6371
-      );
-
-    return {
-      ...row,
-
-      lat: position.lat,
-      lng: position.lng,
-
-      altitudeKm:
-        position.altitudeKm,
-
-      velocityLive:
-        position.velocity,
-
-      altitude:
-        orbitalAltitude,
-
-      color: '#ffffff',
-
-      radius: 0.22,
-
-      satrec
-    };
-  }
-    useEffect(() => {
+  useEffect(() => {
     if (viewMode === 'wiki') return;
 
     let cancelled = false;
 
-    async function loadSatellites() {
+    async function fetchSatellites() {
+      if (satCacheRef.current[satFilter]) {
+        const cached =
+          satCacheRef.current[satFilter];
+
+        const updated = cached.map(sat => {
+          const live =
+            calculateLivePosition(
+              sat,
+              new Date()
+            );
+
+          return live
+            ? {
+                ...sat,
+                lat: live.lat,
+                lng: live.lng,
+                altitudeKm:
+                  live.altitudeKm,
+                velocityKmS:
+                  live.velocityKmS
+              }
+            : sat;
+        });
+
+        if (!cancelled) {
+          setSatellites(updated);
+          setLastUpdate(new Date());
+        }
+
+        return;
+      }
+
       setLoadingSats(true);
 
       try {
-        let rows =
-          rawSatelliteCacheRef.current[
-            satFilter
-          ];
+        /*
+         * Select the fields needed by the globe.
+         *
+         * We intentionally don't rely on database lat/lng
+         * because the TLE is what gives us the current
+         * orbital position.
+         */
+        let query = supabase
+          .from('satellites')
+          .select(`
+            id,
+            name,
+            organization,
+            velocity,
+            altitude,
+            inclination,
+            eccentricity,
+            arg_perigee,
+            raan,
+            mean_anomaly,
+            mean_motion,
+            mean_motion_dot,
+            mean_motion_ddot,
+            bstar,
+            epoch,
+            orbital_epoch,
+            orbital_source,
+            tle_line1,
+            tle_line2,
+            lat,
+            lng,
+            updated_at
+          `);
 
-        if (!rows) {
-          const allRows =
-            await fetchAllRows();
+        if (satFilter === 'stations') {
+          query = query.ilike(
+            'name',
+            '%ISS%'
+          );
+        }
 
-          rows = allRows.filter(
-            matchesFilter
+        if (satFilter === 'starlink') {
+          query = query
+            .ilike(
+              'name',
+              '%STARLINK%'
+            )
+            .limit(1000);
+        }
+
+        if (satFilter === 'weather') {
+          query = query.or(
+            'name.ilike.%NOAA%,name.ilike.%GOES%'
+          );
+        }
+
+        /*
+         * IMPORTANT:
+         *
+         * Do NOT put a tiny 1,500-record cap here.
+         *
+         * The old code was the reason "All Active"
+         * did not represent the whole database.
+         *
+         * Supabase/PostgREST can return the configured
+         * result set in pages. We request the records
+         * without the artificial 1,500 limit.
+         */
+        if (satFilter === 'active') {
+          query = query.order(
+            'id',
+            { ascending: true }
+          );
+        }
+
+        const {
+          data,
+          error
+        } = await query;
+
+        if (error) {
+          throw error;
+        }
+
+        if (cancelled) return;
+
+        const sourceData = Array.isArray(data)
+          ? data
+          : [];
+
+        /*
+         * Keep only records that actually have usable
+         * TLE information for live tracking.
+         */
+        const formatted = sourceData
+          .map((sat, index) => {
+            const name =
+              sat.name || 'UNKNOWN OBJECT';
+
+            const live =
+              calculateLivePosition(
+                sat,
+                new Date()
+              );
+
+            return {
+              ...sat,
+
+              /*
+               * REAL position if TLE works.
+               *
+               * We don't create fake coordinates.
+               */
+              lat: live
+                ? live.lat
+                : safeNumber(
+                    sat.lat,
+                    null
+                  ),
+
+              lng: live
+                ? live.lng
+                : safeNumber(
+                    sat.lng,
+                    null
+                  ),
+
+              altitudeKm:
+                live?.altitudeKm ??
+                safeNumber(
+                  sat.altitude,
+                  null
+                ),
+
+              velocityKmS:
+                live?.velocityKmS ??
+                safeNumber(
+                  sat.velocity,
+                  null
+                ),
+
+              /*
+               * Internal stable index.
+               */
+              _index: index,
+
+              /*
+               * Whether satellite.js successfully
+               * propagated this object.
+               */
+              _hasLiveTLE: Boolean(live),
+
+              /*
+               * Clean white marker.
+               */
+              _baseColor: '#ffffff'
+            };
+          })
+          .filter(
+            sat =>
+              Number.isFinite(sat.lat) &&
+              Number.isFinite(sat.lng)
           );
 
-          rawSatelliteCacheRef.current[
-            satFilter
-          ] = rows;
-        }
+        satCacheRef.current[satFilter] =
+          formatted;
 
-        if (cancelled) return;
-
-        const prepared = [];
-
-        for (const row of rows) {
-          const sat =
-            prepareSatellite(row);
-
-          if (sat) {
-            prepared.push(sat);
-          }
-        }
-
-        if (cancelled) return;
-
-        setSatellites(prepared);
-
-        setLastUpdate(
-          new Date()
-        );
+        setSatellites(formatted);
+        setLastUpdate(new Date());
       } catch (error) {
         console.error(
-          'Satellite database error:',
+          'Supabase satellite fetch error:',
           error
         );
 
@@ -629,392 +817,546 @@ export default function OrbitalGlobe({ requestedView }) {
       }
     }
 
-    loadSatellites();
+    fetchSatellites();
 
     return () => {
       cancelled = true;
     };
   }, [satFilter, viewMode]);
 
-  /*
-   * REAL LIVE POSITION UPDATE
-   *
-   * We do NOT artificially increase longitude.
-   *
-   * Every 2 seconds the TLE is propagated
-   * again for the current UTC time.
-   */
+  /* =======================================================
+     REAL-TIME TLE POSITION REFRESH
+     ======================================================= */
+
   useEffect(() => {
-    if (
-      viewMode !== 'satellites' ||
-      satellites.length === 0
-    ) {
+    if (viewMode !== 'satellites') {
       return;
     }
 
-    const timer = setInterval(() => {
+    /*
+     * Recalculate positions every second.
+     *
+     * This is much more accurate than manually adding
+     * longitude every 50 ms.
+     */
+    const interval = setInterval(() => {
       const now = new Date();
 
       setSatellites(previous => {
         return previous.map(sat => {
-          if (!sat.satrec) {
-            return sat;
-          }
-
-          const position =
-            getSatellitePosition(
-              sat.satrec,
+          const live =
+            calculateLivePosition(
+              sat,
               now
             );
 
-          if (!position) {
+          if (!live) {
             return sat;
           }
 
           return {
             ...sat,
-
-            lat: position.lat,
-
-            lng: position.lng,
-
+            lat: live.lat,
+            lng: live.lng,
             altitudeKm:
-              position.altitudeKm,
-
-            velocityLive:
-              position.velocity,
-
-            altitude:
-              Math.max(
-                0.015,
-                position.altitudeKm /
-                  6371
-              )
+              live.altitudeKm,
+            velocityKmS:
+              live.velocityKmS,
+            _hasLiveTLE: true
           };
         });
       });
 
       setSelectedSat(current => {
-        if (!current?.satrec) {
-          return current;
-        }
+        if (!current) return null;
 
-        const position =
-          getSatellitePosition(
-            current.satrec,
+        const live =
+          calculateLivePosition(
+            current,
             now
           );
 
-        if (!position) {
+        if (!live) {
           return current;
         }
 
         return {
           ...current,
-
-          lat: position.lat,
-
-          lng: position.lng,
-
+          lat: live.lat,
+          lng: live.lng,
           altitudeKm:
-            position.altitudeKm,
-
-          velocityLive:
-            position.velocity,
-
-          altitude:
-            Math.max(
-              0.015,
-              position.altitudeKm /
-                6371
-            )
+            live.altitudeKm,
+          velocityKmS:
+            live.velocityKmS
         };
       });
 
       setLastUpdate(now);
-    }, 2000);
+    }, 1000);
 
-    return () => {
-      clearInterval(timer);
-    };
-  }, [
-    viewMode,
-    satellites.length
-  ]);
+    return () => clearInterval(interval);
+  }, [viewMode]);
 
-  /*
-   * WIKI DATABASE
-   */
+  /* =======================================================
+     WIKI DATABASE SEARCH
+     ======================================================= */
+
   useEffect(() => {
     if (viewMode !== 'wiki') return;
 
     let cancelled = false;
 
-    async function fetchWikiCatalog() {
-      setLoadingSats(true);
+    const timer = setTimeout(
+      async () => {
+        setLoadingSats(true);
 
-      try {
-        const from =
-          wikiPage * pageSize;
+        try {
+          const from =
+            wikiPage * pageSize;
 
-        const to =
-          from + pageSize - 1;
+          const to =
+            from + pageSize - 1;
 
-        let query =
-          supabase
-            .from('satellites')
-            .select('*', {
-              count: 'exact'
-            });
+          let query =
+            supabase
+              .from('satellites')
+              .select(
+                '*',
+                { count: 'exact' }
+              );
 
-        const search =
-          wikiSearch.trim();
+          const search =
+            wikiSearch.trim();
 
-        if (search) {
-          if (/^\d+$/.test(search)) {
-            query = query.or(
-              `name.ilike.%${search}%,id.eq.${search}`
-            );
-          } else {
-            query = query.ilike(
-              'name',
-              `%${search}%`
-            );
+          if (search) {
+            /*
+             * Search numeric input against ID
+             * and name.
+             */
+            if (
+              /^\d+$/.test(search)
+            ) {
+              query = query.or(
+                `name.ilike.%${search}%,id.eq.${search}`
+              );
+            } else {
+              query = query.ilike(
+                'name',
+                `%${search}%`
+              );
+            }
           }
-        }
 
-        const result =
-          await query
-            .order('id', {
-              ascending: true
-            })
+          const {
+            data,
+            count,
+            error
+          } = await query
+            .order(
+              'id',
+              { ascending: true }
+            )
             .range(from, to);
 
-        if (result.error) {
-          throw result.error;
-        }
+          if (error) {
+            throw error;
+          }
 
-        if (!cancelled) {
-          setWikiData(
-            result.data || []
+          if (!cancelled) {
+            setWikiData(data || []);
+            setTotalWikiCount(
+              count || 0
+            );
+          }
+        } catch (error) {
+          console.error(
+            'Wiki fetch error:',
+            error
           );
 
-          setTotalWikiCount(
-            result.count || 0
-          );
+          if (!cancelled) {
+            setWikiData([]);
+            setTotalWikiCount(0);
+          }
+        } finally {
+          if (!cancelled) {
+            setLoadingSats(false);
+          }
         }
-      } catch (error) {
-        console.error(
-          'Wiki fetch error:',
-          error
-        );
-      } finally {
-        if (!cancelled) {
-          setLoadingSats(false);
-        }
-      }
-    }
+      },
+      300
+    );
 
-    const timeout =
-      setTimeout(
-        fetchWikiCatalog,
-        250
-      );
-
-    return () =>
-      clearTimeout(timeout);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [
     wikiSearch,
     wikiPage,
     viewMode
   ]);
 
-  /*
-   * SELECTED SATELLITE ORBIT
-   *
-   * Calculated from the actual TLE.
-   * No fake sine-wave orbit.
-   */
-  const orbitalPaths = useMemo(() => {
-    if (!selectedSat?.satrec) {
-      return [];
-    }
+  /* =======================================================
+     CLEAN SATELLITE RENDER DATA
+     ======================================================= */
 
-    const points =
-      calculateOrbit(
-        selectedSat,
-        selectedSat.satrec
-      );
-
-    if (points.length < 2) {
-      return [];
-    }
-
-    return [points];
-  }, [
-    selectedSat?.id,
-    selectedSat?.satrec,
-    selectedSat?.lat,
-    selectedSat?.lng
-  ]);
-
-  /*
-   * IMPORTANT:
-   * NO DIMMING.
-   *
-   * Every satellite stays white.
-   * Only the selected satellite becomes
-   * slightly larger.
-   */
   const renderSatellites =
     useMemo(() => {
-      return satellites.map(
-        sat => ({
-          ...sat,
+      return satellites
+        .filter(
+          sat =>
+            Number.isFinite(sat.lat) &&
+            Number.isFinite(sat.lng)
+        )
+        .map(sat => {
+          const focused =
+            hoveredSat?.id === sat.id ||
+            selectedSat?.id === sat.id;
 
-          color: '#ffffff',
+          const hasFocus =
+            Boolean(
+              hoveredSat ||
+              selectedSat
+            );
 
-          radius:
-            selectedSat?.id === sat.id
-              ? 0.42
-              : hoveredSat?.id === sat.id
-              ? 0.32
-              : 0.20
-        })
-      );
+          return {
+            ...sat,
+
+            /*
+             * Clean white look.
+             */
+            color:
+              focused || !hasFocus
+                ? '#ffffff'
+                : 'rgba(255,255,255,0.16)',
+
+            /*
+             * Keep markers small.
+             * The previous values made them look
+             * like long colored spikes.
+             */
+            radius:
+              focused
+                ? 0.85
+                : 0.42,
+
+            /*
+             * Very small altitude separation.
+             *
+             * This is NOT the physical altitude.
+             * pointAltitude is only a visual offset.
+             */
+            visualAltitude:
+              focused
+                ? 0.035
+                : 0.025
+          };
+        });
     }, [
       satellites,
-      selectedSat,
-      hoveredSat
+      hoveredSat,
+      selectedSat
     ]);
+
+  /* =======================================================
+     SELECTED SATELLITE ORBIT
+     ======================================================= */
+
+  const orbitalPaths =
+    useMemo(() => {
+      if (!selectedSat) {
+        return [];
+      }
+
+      const points =
+        calculateOrbitFromTLE(
+          selectedSat
+        );
+
+      const segments =
+        splitDateline(points);
+
+      return segments.map(
+        segment => ({
+          satelliteId:
+            selectedSat.id,
+          points: segment
+        })
+      );
+    }, [selectedSat]);
 
   const maxPages =
     Math.ceil(
-      totalWikiCount / pageSize
+      totalWikiCount /
+        pageSize
     );
 
-  function focusSatellite(sat) {
-    setSelectedSat(sat);
+  /* =======================================================
+     CAMERA HELPERS
+     ======================================================= */
 
-    setHoveredSat(null);
+  const focusSatellite =
+    useCallback(
+      sat => {
+        if (!sat) return;
 
-    if (globeRef.current) {
-      globeRef.current.pointOfView(
-        {
-          lat: sat.lat,
-          lng: sat.lng,
-          altitude: 1.8
-        },
-        1000
-      );
-    }
-  }
+        setSelectedSat(sat);
 
-  function focusPad(pad) {
-    setSelectedPad(pad);
+        setHoveredSat(null);
 
-    if (globeRef.current) {
-      globeRef.current.pointOfView(
-        {
-          lat: pad.lat,
-          lng: pad.lng,
-          altitude: 1.7
-        },
-        1000
-      );
-    }
-  }
-
-  function formatNumber(
-    value,
-    decimals = 2
-  ) {
-    const n = Number(value);
-
-    if (!Number.isFinite(n)) {
-      return 'N/A';
-    }
-
-    return n.toFixed(decimals);
-  }
-
-  function formatUpdatedAt() {
-    if (!lastUpdate) {
-      return 'WAITING';
-    }
-
-    return lastUpdate.toLocaleTimeString(
-      undefined,
-      {
-        hour12: false
-      }
+        if (
+          globeRef.current &&
+          Number.isFinite(sat.lat) &&
+          Number.isFinite(sat.lng)
+        ) {
+          globeRef.current.pointOfView(
+            {
+              lat: sat.lat,
+              lng: sat.lng,
+              altitude: 1.65
+            },
+            1000
+          );
+        }
+      },
+      []
     );
-  }
+
+  const focusPad =
+    useCallback(
+      pad => {
+        if (!pad) return;
+
+        setSelectedPad(pad);
+
+        if (globeRef.current) {
+          globeRef.current.pointOfView(
+            {
+              lat: pad.lat,
+              lng: pad.lng,
+              altitude: 1.5
+            },
+            1000
+          );
+        }
+      },
+      []
+    );
+
+  /*
+   * When changing mode, clear satellite selection.
+   */
+  const changeViewMode =
+    useCallback(mode => {
+      setViewMode(mode);
+      setSelectedSat(null);
+      setHoveredSat(null);
+    }, []);
 
   return (
     <div
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: '1.25rem',
+        gap: '1.5rem',
         width: '100%',
         maxWidth: '1400px',
         margin: '0 auto'
       }}
     >
+
       <style>{`
-        @keyframes orbitalPulse {
-          0% {
-            opacity: 0.35;
-            transform: scale(0.8);
+
+        @keyframes orbitalStars {
+          from {
+            background-position:
+              0 0,
+              0 0,
+              0 0,
+              0 0;
           }
 
-          50% {
-            opacity: 1;
-            transform: scale(1);
-          }
-
-          100% {
-            opacity: 0.35;
-            transform: scale(0.8);
+          to {
+            background-position:
+              -300px 180px,
+              500px -250px,
+              -700px 350px,
+              900px -400px;
           }
         }
 
-        .orbital-space-bg {
+        .orbital-starfield {
+          background-color: #000000;
+
+          background-image:
+            radial-gradient(
+              1px 1px at 20px 30px,
+              rgba(255,255,255,0.95),
+              transparent
+            ),
+            radial-gradient(
+              1px 1px at 120px 80px,
+              rgba(255,255,255,0.75),
+              transparent
+            ),
+            radial-gradient(
+              1.5px 1.5px at 250px 160px,
+              rgba(255,255,255,0.9),
+              transparent
+            ),
+            radial-gradient(
+              1px 1px at 330px 40px,
+              rgba(255,255,255,0.65),
+              transparent
+            );
+
+          background-size:
+            360px 260px,
+            520px 380px,
+            700px 500px,
+            900px 650px;
+
+          animation:
+            orbitalStars
+            80s
+            linear
+            infinite;
+
+          position: relative;
+          overflow: hidden;
+        }
+
+        .orbital-starfield::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+
           background:
             radial-gradient(
-              circle at 50% 50%,
-              rgba(255,255,255,0.025),
-              transparent 55%
-            ),
-            #000000;
+              ellipse at center,
+              rgba(0,0,0,0)
+              35%,
+              rgba(0,0,0,0.28)
+              100%
+            );
         }
 
-        .orbital-button {
+        .orbital-globe-shell {
+          position: relative;
+          width: 100%;
+          height: 620px;
+          overflow: hidden;
+
+          border:
+            1px solid
+            rgba(255,255,255,0.16);
+
+          background: #000000;
+        }
+
+        .orbital-globe-canvas {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+        }
+
+        .orbital-status {
+          position: absolute;
+          top: 14px;
+          right: 14px;
+          z-index: 20;
+
+          background:
+            rgba(0,0,0,0.82);
+
+          border:
+            1px solid
+            rgba(255,255,255,0.2);
+
+          padding:
+            7px 10px;
+
+          color: #ffffff;
+
+          font-family: monospace;
+
+          font-size: 10px;
+
+          letter-spacing: 1px;
+
+          backdrop-filter:
+            blur(6px);
+        }
+
+        .orbital-live-dot {
+          display: inline-block;
+
+          width: 6px;
+          height: 6px;
+
+          border-radius: 50%;
+
+          background: #ffffff;
+
+          margin-right: 7px;
+
+          box-shadow:
+            0 0 8px
+            rgba(255,255,255,0.9);
+        }
+
+        .orbital-control {
+          padding:
+            0.5rem 1rem;
+
+          background:
+            rgba(255,255,255,0.04);
+
+          border:
+            1px solid
+            rgba(255,255,255,0.14);
+
+          color: #ffffff;
+
+          font-size:
+            0.7rem;
+
+          font-weight: 700;
+
+          letter-spacing:
+            1px;
+
+          text-transform:
+            uppercase;
+
+          cursor: pointer;
+
           transition:
-            background 0.15s ease,
-            border-color 0.15s ease,
-            transform 0.15s ease;
+            background 0.15s,
+            border-color 0.15s;
         }
 
-        .orbital-button:hover {
-          transform: translateY(-1px);
+        .orbital-control:hover {
+          background:
+            rgba(255,255,255,0.1);
+
+          border-color:
+            rgba(255,255,255,0.35);
         }
 
-        .orbital-scroll::-webkit-scrollbar {
-          width: 5px;
+        .orbital-control.active {
+          background:
+            rgba(255,255,255,0.14);
+
+          border-color:
+            rgba(255,255,255,0.65);
         }
 
-        .orbital-scroll::-webkit-scrollbar-track {
-          background: #050505;
-        }
-
-        .orbital-scroll::-webkit-scrollbar-thumb {
-          background: #333333;
-        }
       `}</style>
 
-      {/* TOP CONTROLS */}
+      {/* CONTROLS */}
 
       <div
         style={{
@@ -1028,21 +1370,21 @@ export default function OrbitalGlobe({ requestedView }) {
         <div
           style={{
             display: 'flex',
-            gap: '0.5rem',
+            gap: '0.8rem',
             alignItems: 'center',
             flexWrap: 'wrap'
           }}
         >
           <span
             style={{
-              fontSize: '0.65rem',
-              color: '#888888',
+              fontSize: '0.7rem',
+              color: '#a1a1aa',
               letterSpacing: '2px',
               textTransform: 'uppercase',
               fontWeight: '700'
             }}
           >
-            // DISPLAY:
+            // DISPLAY MODE:
           </span>
 
           {[
@@ -1052,51 +1394,29 @@ export default function OrbitalGlobe({ requestedView }) {
             },
             {
               key: 'satellites',
-              label: `Satellites (${satellites.length})`
+              label:
+                `Live Globe Satellites (${satellites.length})`
             },
             {
               key: 'wiki',
-              label: 'Satellite Database'
+              label:
+                'Satellite Database'
             }
           ].map(btn => (
             <button
               key={btn.key}
-              className="orbital-button"
-              onClick={() => {
-                setViewMode(btn.key);
-                setSelectedSat(null);
-                setHoveredSat(null);
-              }}
-              style={{
-                padding:
-                  '0.5rem 0.9rem',
-
-                background:
+              className={
+                `orbital-control ${
                   viewMode === btn.key
-                    ? '#ffffff'
-                    : '#080808',
-
-                border:
-                  viewMode === btn.key
-                    ? '1px solid #ffffff'
-                    : '1px solid #333333',
-
-                color:
-                  viewMode === btn.key
-                    ? '#000000'
-                    : '#ffffff',
-
-                fontSize: '0.65rem',
-
-                fontWeight: '700',
-
-                letterSpacing: '1px',
-
-                textTransform:
-                  'uppercase',
-
-                cursor: 'pointer'
-              }}
+                    ? 'active'
+                    : ''
+                }`
+              }
+              onClick={() =>
+                changeViewMode(
+                  btn.key
+                )
+              }
             >
               {btn.label}
             </button>
@@ -1107,7 +1427,7 @@ export default function OrbitalGlobe({ requestedView }) {
           <div
             style={{
               display: 'flex',
-              gap: '0.35rem'
+              gap: '0.4rem'
             }}
           >
             {[
@@ -1117,33 +1437,21 @@ export default function OrbitalGlobe({ requestedView }) {
             ].map(filter => (
               <button
                 key={filter}
-                className="orbital-button"
+                className={
+                  `orbital-control ${
+                    padFilter === filter
+                      ? 'active'
+                      : ''
+                  }`
+                }
                 onClick={() =>
-                  setPadFilter(filter)
+                  setPadFilter(
+                    filter
+                  )
                 }
                 style={{
                   padding:
-                    '0.4rem 0.7rem',
-
-                  background:
-                    padFilter === filter
-                      ? '#ffffff'
-                      : '#050505',
-
-                  border:
-                    '1px solid #444444',
-
-                  color:
-                    padFilter === filter
-                      ? '#000000'
-                      : '#ffffff',
-
-                  fontSize: '0.6rem',
-
-                  textTransform:
-                    'uppercase',
-
-                  cursor: 'pointer'
+                    '0.4rem 0.8rem'
                 }}
               >
                 {filter}
@@ -1156,7 +1464,7 @@ export default function OrbitalGlobe({ requestedView }) {
           <div
             style={{
               display: 'flex',
-              gap: '0.35rem',
+              gap: '0.4rem',
               flexWrap: 'wrap'
             }}
           >
@@ -1180,7 +1488,14 @@ export default function OrbitalGlobe({ requestedView }) {
             ].map(filter => (
               <button
                 key={filter.key}
-                className="orbital-button"
+                className={
+                  `orbital-control ${
+                    satFilter ===
+                    filter.key
+                      ? 'active'
+                      : ''
+                  }`
+                }
                 onClick={() =>
                   setSatFilter(
                     filter.key
@@ -1188,29 +1503,7 @@ export default function OrbitalGlobe({ requestedView }) {
                 }
                 style={{
                   padding:
-                    '0.4rem 0.7rem',
-
-                  background:
-                    satFilter ===
-                    filter.key
-                      ? '#ffffff'
-                      : '#050505',
-
-                  border:
-                    '1px solid #444444',
-
-                  color:
-                    satFilter ===
-                    filter.key
-                      ? '#000000'
-                      : '#ffffff',
-
-                  fontSize: '0.6rem',
-
-                  textTransform:
-                    'uppercase',
-
-                  cursor: 'pointer'
+                    '0.4rem 0.7rem'
                 }}
               >
                 {filter.label}
@@ -1219,605 +1512,1537 @@ export default function OrbitalGlobe({ requestedView }) {
           </div>
         )}
       </div>
+'use client';
 
-      {/* GLOBE */}
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import dynamic from 'next/dynamic';
+import { createClient } from '@supabase/supabase-js';
+import * as satellite from 'satellite.js';
 
-      {viewMode !== 'wiki' ? (
-        <div
-          className="orbital-space-bg"
-          style={{
-            position: 'relative',
-            width: '100%',
-            height: '550px',
-            borderRadius: '3px',
-            overflow: 'hidden',
-            border:
-              '1px solid #222222'
-          }}
-        >
-          <div
-            style={{
-              width: '100%',
-              height: '100%',
-              position: 'absolute',
-              inset: 0
-            }}
-          >
-            <ReactGlobe
-              ref={globeRef}
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
-              globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
+const ReactGlobe = dynamic(() => import('react-globe.gl'), {
+  ssr: false,
+  loading: () => (
+    <div
+      style={{
+        display: 'flex',
+        height: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#ffffff',
+        fontFamily: 'monospace',
+        fontSize: '0.8rem',
+        background: '#000'
+      }}
+    >
+      INITIALIZING 3D WEBGL ENGINE...
+    </div>
+  )
+});
 
-              bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+/* =========================================================
+   GLOBAL LAUNCH PADS
+   ========================================================= */
 
-              backgroundColor="#000000"
+const globalLaunchPads = [
+  {
+    id: 1,
+    name: 'Kennedy Space Center (LC-39A)',
+    agency: 'NASA / SpaceX',
+    lat: 28.5858,
+    lng: -80.6511,
+    type: 'major',
+    country: 'USA'
+  },
+  {
+    id: 2,
+    name: 'Cape Canaveral Space Force Station (SLC-40)',
+    agency: 'SpaceX / USSF',
+    lat: 28.5619,
+    lng: -80.5772,
+    type: 'major',
+    country: 'USA'
+  },
+  {
+    id: 3,
+    name: 'Vandenberg Space Force Base (SLC-4E)',
+    agency: 'SpaceX / USSF',
+    lat: 34.7420,
+    lng: -120.5724,
+    type: 'major',
+    country: 'USA'
+  },
+  {
+    id: 4,
+    name: 'Wallops Flight Facility',
+    agency: 'NASA / Northrop Grumman',
+    lat: 37.9332,
+    lng: -75.4836,
+    type: 'minor',
+    country: 'USA'
+  },
+  {
+    id: 5,
+    name: 'Boca Chica Launch Site (Starbase)',
+    agency: 'SpaceX',
+    lat: 25.9973,
+    lng: -97.1560,
+    type: 'major',
+    country: 'USA'
+  },
+  {
+    id: 6,
+    name: 'Pacific Spaceport Complex (Alaska)',
+    agency: 'Astra / USSF',
+    lat: 57.4358,
+    lng: -152.3477,
+    type: 'minor',
+    country: 'USA'
+  },
+  {
+    id: 7,
+    name: 'Guiana Space Centre (Ariane ELA-4)',
+    agency: 'ESA / Arianespace',
+    lat: 5.2372,
+    lng: -52.7683,
+    type: 'major',
+    country: 'French Guiana'
+  },
+  {
+    id: 8,
+    name: 'Esrange Space Center',
+    agency: 'SSC',
+    lat: 67.8894,
+    lng: 21.1050,
+    type: 'minor',
+    country: 'Sweden'
+  },
+  {
+    id: 9,
+    name: 'Andøya Spaceport',
+    agency: 'Andøya Space',
+    lat: 69.2933,
+    lng: 16.0167,
+    type: 'minor',
+    country: 'Norway'
+  },
+  {
+    id: 10,
+    name: 'Baikonur Cosmodrome',
+    agency: 'Roscosmos',
+    lat: 45.9646,
+    lng: 63.3052,
+    type: 'major',
+    country: 'Kazakhstan'
+  },
+  {
+    id: 11,
+    name: 'Plesetsk Cosmodrome',
+    agency: 'Roscosmos',
+    lat: 62.9298,
+    lng: 40.5735,
+    type: 'major',
+    country: 'Russia'
+  },
+  {
+    id: 12,
+    name: 'Vostochny Cosmodrome',
+    agency: 'Roscosmos',
+    lat: 51.8841,
+    lng: 128.3339,
+    type: 'major',
+    country: 'Russia'
+  },
+  {
+    id: 13,
+    name: 'Satish Dhawan Space Centre (SDSC)',
+    agency: 'ISRO',
+    lat: 13.7199,
+    lng: 80.2304,
+    type: 'major',
+    country: 'India'
+  },
+  {
+    id: 14,
+    name: 'Jiuquan Satellite Launch Center',
+    agency: 'CNSA',
+    lat: 40.9575,
+    lng: 100.2917,
+    type: 'major',
+    country: 'China'
+  },
+  {
+    id: 15,
+    name: 'Wenchang Space Launch Site',
+    agency: 'CNSA',
+    lat: 19.6145,
+    lng: 110.9510,
+    type: 'major',
+    country: 'China'
+  },
+  {
+    id: 16,
+    name: 'Xichang Satellite Launch Center',
+    agency: 'CNSA',
+    lat: 28.2465,
+    lng: 102.0264,
+    type: 'minor',
+    country: 'China'
+  },
+  {
+    id: 17,
+    name: 'Taiyuan Satellite Launch Center',
+    agency: 'CNSA',
+    lat: 38.8490,
+    lng: 111.6080,
+    type: 'minor',
+    country: 'China'
+  },
+  {
+    id: 18,
+    name: 'Tanegashima Space Center',
+    agency: 'JAXA',
+    lat: 30.4000,
+    lng: 130.9700,
+    type: 'major',
+    country: 'Japan'
+  },
+  {
+    id: 19,
+    name: 'Uchinoura Space Center',
+    agency: 'JAXA',
+    lat: 31.2515,
+    lng: 131.0825,
+    type: 'minor',
+    country: 'Japan'
+  },
+  {
+    id: 20,
+    name: 'Naro Space Center',
+    agency: 'KARI',
+    lat: 34.4315,
+    lng: 127.5350,
+    type: 'minor',
+    country: 'South Korea'
+  },
+  {
+    id: 21,
+    name: 'Mahia Launch Complex 1',
+    agency: 'Rocket Lab',
+    lat: -39.2608,
+    lng: 177.8656,
+    type: 'minor',
+    country: 'New Zealand'
+  },
+  {
+    id: 22,
+    name: 'Arnhem Space Centre',
+    agency: 'Equatorial Launch Australia',
+    lat: -12.3780,
+    lng: 136.8150,
+    type: 'minor',
+    country: 'Australia'
+  },
+  {
+    id: 23,
+    name: 'Imam Khomeini Spaceport',
+    agency: 'ISA',
+    lat: 35.2344,
+    lng: 53.9211,
+    type: 'minor',
+    country: 'Iran'
+  },
+  {
+    id: 24,
+    name: 'Al-Dahik Launch Site',
+    agency: 'NARSS',
+    lat: 28.4890,
+    lng: 30.4120,
+    type: 'minor',
+    country: 'Egypt'
+  }
+];
 
-              enablePointerInteraction={true}
+/* =========================================================
+   HELPERS
+   ========================================================= */
 
-              pointsData={
-                viewMode === 'pads'
-                  ? filteredPads
-                  : renderSatellites
+function safeNumber(value, fallback = null) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function normalizeLongitude(lng) {
+  if (!Number.isFinite(lng)) return 0;
+
+  let result = lng;
+
+  while (result > 180) result -= 360;
+  while (result < -180) result += 360;
+
+  return result;
+}
+
+/*
+ * Convert a Supabase satellite record into a satellite.js
+ * SatRec object.
+ */
+function createSatrec(sat) {
+  if (!sat?.tle_line1 || !sat?.tle_line2) return null;
+
+  try {
+    return satellite.twoline2satrec(
+      String(sat.tle_line1).trim(),
+      String(sat.tle_line2).trim()
+    );
+  } catch (error) {
+    console.warn(
+      'Unable to parse TLE for satellite:',
+      sat?.name,
+      error
+    );
+
+    return null;
+  }
+}
+
+/*
+ * Calculate the REAL current position from the TLE.
+ *
+ * This is the important replacement for the old:
+ *
+ *     lng + speed
+ *
+ * movement.
+ */
+function calculateLivePosition(sat, date = new Date()) {
+  const satrec = createSatrec(sat);
+
+  if (!satrec) return null;
+
+  try {
+    const positionAndVelocity = satellite.propagate(
+      satrec,
+      date
+    );
+
+    if (
+      !positionAndVelocity ||
+      !positionAndVelocity.position
+    ) {
+      return null;
+    }
+
+    const gmst = satellite.gstime(date);
+
+    const geodetic = satellite.eciToGeodetic(
+      positionAndVelocity.position,
+      gmst
+    );
+
+    const lat = satellite.degreesLat(geodetic.latitude);
+    const lng = satellite.degreesLong(geodetic.longitude);
+
+    const altitudeKm = geodetic.height;
+
+    let velocityKmS = null;
+
+    if (positionAndVelocity.velocity) {
+      const velocity = positionAndVelocity.velocity;
+
+      velocityKmS = Math.sqrt(
+        velocity.x * velocity.x +
+        velocity.y * velocity.y +
+        velocity.z * velocity.z
+      );
+    }
+
+    if (
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng)
+    ) {
+      return null;
+    }
+
+    return {
+      lat,
+      lng: normalizeLongitude(lng),
+      altitudeKm,
+      velocityKmS
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
+/*
+ * Calculate an actual orbital track from the TLE.
+
+ * The orbit is sampled around the current time.
+ */
+function calculateOrbitFromTLE(sat) {
+  const satrec = createSatrec(sat);
+
+  if (!satrec) return [];
+
+  const meanMotion = safeNumber(
+    sat.mean_motion,
+    null
+  );
+
+  /*
+   * mean_motion is normally revolutions/day.
+   *
+   * If it exists, calculate the orbital period.
+   * Otherwise use 90 minutes as a reasonable fallback
+   * for LEO objects.
+   */
+  let periodMinutes = 90;
+
+  if (meanMotion && meanMotion > 0) {
+    periodMinutes = (24 * 60) / meanMotion;
+  }
+
+  /*
+   * Keep sampling sensible for visualization.
+   */
+  periodMinutes = Math.max(
+    20,
+    Math.min(periodMinutes, 300)
+  );
+
+  const samples = 180;
+
+  const startTime = new Date(
+    Date.now() - (periodMinutes * 60 * 1000) / 2
+  );
+
+  const points = [];
+
+  for (let i = 0; i <= samples; i++) {
+    const time = new Date(
+      startTime.getTime() +
+      (i / samples) *
+        periodMinutes *
+        60 *
+        1000
+    );
+
+    try {
+      const positionAndVelocity =
+        satellite.propagate(
+          satrec,
+          time
+        );
+
+      if (
+        !positionAndVelocity ||
+        !positionAndVelocity.position
+      ) {
+        continue;
+      }
+
+      const gmst = satellite.gstime(time);
+
+      const geodetic =
+        satellite.eciToGeodetic(
+          positionAndVelocity.position,
+          gmst
+        );
+
+      const lat = satellite.degreesLat(
+        geodetic.latitude
+      );
+
+      const lng = normalizeLongitude(
+        satellite.degreesLong(
+          geodetic.longitude
+        )
+      );
+
+      const altitudeKm =
+        geodetic.height;
+
+      if (
+        Number.isFinite(lat) &&
+        Number.isFinite(lng) &&
+        Number.isFinite(altitudeKm)
+      ) {
+        points.push({
+          lat,
+          lng,
+          altitude: Math.max(
+            0.01,
+            Math.min(
+              0.5,
+              altitudeKm / 6371
+            )
+          )
+        });
+      }
+    } catch {
+      // Skip invalid propagation sample.
+    }
+  }
+
+  return points;
+}
+
+/*
+ * Split an orbital line when it crosses the ±180°
+ * longitude boundary.
+
+ * Without this, react-globe.gl can draw a huge
+ * line across the Earth when the orbit crosses
+ * the date line.
+ */
+function splitDateline(points) {
+  if (!points.length) return [];
+
+  const segments = [];
+  let current = [points[0]];
+
+  for (let i = 1; i < points.length; i++) {
+    const previous = points[i - 1];
+    const point = points[i];
+
+    const longitudeJump = Math.abs(
+      point.lng - previous.lng
+    );
+
+    if (longitudeJump > 180) {
+      if (current.length > 1) {
+        segments.push(current);
+      }
+
+      current = [point];
+    } else {
+      current.push(point);
+    }
+  }
+
+  if (current.length > 1) {
+    segments.push(current);
+  }
+
+  return segments;
+}
+
+export default function OrbitalGlobe({
+  requestedView
+}) {
+  const globeRef = useRef(null);
+
+  const [viewMode, setViewMode] =
+    useState('pads');
+
+  const [padFilter, setPadFilter] =
+    useState('all');
+
+  const [satFilter, setSatFilter] =
+    useState('stations');
+
+  const [selectedPad, setSelectedPad] =
+    useState(globalLaunchPads[0]);
+
+  const [selectedSat, setSelectedSat] =
+    useState(null);
+
+  const [hoveredSat, setHoveredSat] =
+    useState(null);
+
+  const [satellites, setSatellites] =
+    useState([]);
+
+  const [loadingSats, setLoadingSats] =
+    useState(false);
+
+  const [lastUpdate, setLastUpdate] =
+    useState(null);
+
+  /*
+   * Satellite database / Wiki.
+   */
+  const [wikiData, setWikiData] =
+    useState([]);
+
+  const [wikiSearch, setWikiSearch] =
+    useState('');
+
+  const [wikiPage, setWikiPage] =
+    useState(0);
+
+  const [totalWikiCount, setTotalWikiCount] =
+    useState(0);
+
+  const pageSize = 50;
+
+  /*
+   * Cache the original database records.
+   * Live positions are recalculated from their TLE.
+   */
+  const satCacheRef = useRef({});
+
+  useEffect(() => {
+    if (requestedView?.mode) {
+      setViewMode(requestedView.mode);
+    }
+  }, [requestedView]);
+
+  const filteredPads = useMemo(() => {
+    return globalLaunchPads.filter(
+      pad =>
+        padFilter === 'all' ||
+        pad.type === padFilter
+    );
+  }, [padFilter]);
+
+  /* =======================================================
+     LOAD SATELLITES
+     ======================================================= */
+
+  useEffect(() => {
+    if (viewMode === 'wiki') return;
+
+    let cancelled = false;
+
+    async function fetchSatellites() {
+      if (satCacheRef.current[satFilter]) {
+        const cached =
+          satCacheRef.current[satFilter];
+
+        const updated = cached.map(sat => {
+          const live =
+            calculateLivePosition(
+              sat,
+              new Date()
+            );
+
+          return live
+            ? {
+                ...sat,
+                lat: live.lat,
+                lng: live.lng,
+                altitudeKm:
+                  live.altitudeKm,
+                velocityKmS:
+                  live.velocityKmS
               }
+            : sat;
+        });
 
-              pointLat="lat"
+        if (!cancelled) {
+          setSatellites(updated);
+          setLastUpdate(new Date());
+        }
 
-              pointLng="lng"
+        return;
+      }
 
-              pointAltitude={
-                viewMode === 'pads'
-                  ? 0.015
-                  : "altitude"
-              }
+      setLoadingSats(true);
 
-              pointColor={
-                () => '#ffffff'
-              }
+      try {
+        /*
+         * Select the fields needed by the globe.
+         *
+         * We intentionally don't rely on database lat/lng
+         * because the TLE is what gives us the current
+         * orbital position.
+         */
+        let query = supabase
+          .from('satellites')
+          .select(`
+            id,
+            name,
+            organization,
+            velocity,
+            altitude,
+            inclination,
+            eccentricity,
+            arg_perigee,
+            raan,
+            mean_anomaly,
+            mean_motion,
+            mean_motion_dot,
+            mean_motion_ddot,
+            bstar,
+            epoch,
+            orbital_epoch,
+            orbital_source,
+            tle_line1,
+            tle_line2,
+            lat,
+            lng,
+            updated_at
+          `);
 
-              pointRadius={
-                viewMode === 'pads'
-                  ? 0.55
-                  : d =>
-                      d.radius || 0.2
-              }
+        if (satFilter === 'stations') {
+          query = query.ilike(
+            'name',
+            '%ISS%'
+          );
+        }
 
-              pointResolution={8}
+        if (satFilter === 'starlink') {
+          query = query
+            .ilike(
+              'name',
+              '%STARLINK%'
+            )
+            .limit(1000);
+        }
 
-              pointLabel={d => {
-                if (
-                  viewMode === 'pads'
-                ) {
-                  return `
-                    <div style="
-                      background:#050505;
-                      border:1px solid #ffffff;
-                      padding:8px 10px;
-                      color:#ffffff;
-                      font-family:monospace;
-                      font-size:11px;
-                      pointer-events:none;
-                    ">
-                      <b>${d.name}</b><br/>
-                      ${d.agency}<br/>
-                      ${d.country}<br/>
-                      ${Number(d.lat).toFixed(4)}°,
-                      ${Number(d.lng).toFixed(4)}°
-                    </div>
-                  `;
-                }
+        if (satFilter === 'weather') {
+          query = query.or(
+            'name.ilike.%NOAA%,name.ilike.%GOES%'
+          );
+        }
 
-                return `
-                  <div style="
-                    background:#050505;
-                    border:1px solid #ffffff;
-                    padding:8px 10px;
-                    color:#ffffff;
-                    font-family:monospace;
-                    font-size:11px;
-                    pointer-events:none;
-                  ">
-                    <b>${d.name || 'UNKNOWN'}</b><br/>
-                    NORAD: ${d.id}<br/>
-                    LAT: ${formatNumber(
-                      d.lat,
-                      4
-                    )}°<br/>
-                    LNG: ${formatNumber(
-                      d.lng,
-                      4
-                    )}°<br/>
-                    ALT: ${formatNumber(
-                      d.altitudeKm,
-                      1
-                    )} km
-                  </div>
-                `;
-              }}
+        /*
+         * IMPORTANT:
+         *
+         * Do NOT put a tiny 1,500-record cap here.
+         *
+         * The old code was the reason "All Active"
+         * did not represent the whole database.
+         *
+         * Supabase/PostgREST can return the configured
+         * result set in pages. We request the records
+         * without the artificial 1,500 limit.
+         */
+        if (satFilter === 'active') {
+          query = query.order(
+            'id',
+            { ascending: true }
+          );
+        }
+
+        const {
+          data,
+          error
+        } = await query;
+
+        if (error) {
+          throw error;
+        }
+
+        if (cancelled) return;
+
+        const sourceData = Array.isArray(data)
+          ? data
+          : [];
+
+        /*
+         * Keep only records that actually have usable
+         * TLE information for live tracking.
+         */
+        const formatted = sourceData
+          .map((sat, index) => {
+            const name =
+              sat.name || 'UNKNOWN OBJECT';
+
+            const live =
+              calculateLivePosition(
+                sat,
+                new Date()
+              );
+
+            return {
+              ...sat,
 
               /*
-               * CLICK FIX
+               * REAL position if TLE works.
                *
-               * The actual clicked object is passed
-               * directly into focusSatellite/focusPad.
+               * We don't create fake coordinates.
                */
-              onPointClick={d => {
-                if (
-                  viewMode === 'pads'
-                ) {
-                  focusPad(d);
-                } else {
-                  focusSatellite(d);
-                }
-              }}
+              lat: live
+                ? live.lat
+                : safeNumber(
+                    sat.lat,
+                    null
+                  ),
 
-              onPointHover={d => {
-                if (
-                  viewMode ===
-                  'satellites'
-                ) {
-                  setHoveredSat(
-                    d || null
-                  );
-                }
-              }}
+              lng: live
+                ? live.lng
+                : safeNumber(
+                    sat.lng,
+                    null
+                  ),
 
-              onGlobeClick={() => {
-                if (
-                  viewMode ===
-                  'satellites'
-                ) {
-                  setHoveredSat(null);
-                }
-              }}
+              altitudeKm:
+                live?.altitudeKm ??
+                safeNumber(
+                  sat.altitude,
+                  null
+                ),
 
-              pathsData={
-                viewMode ===
-                  'satellites' &&
-                selectedSat
-                  ? orbitalPaths
-                  : []
-              }
+              velocityKmS:
+                live?.velocityKmS ??
+                safeNumber(
+                  sat.velocity,
+                  null
+                ),
 
-              pathColor={() => '#ffffff'}
+              /*
+               * Internal stable index.
+               */
+              _index: index,
 
-              pathStroke={1.2}
+              /*
+               * Whether satellite.js successfully
+               * propagated this object.
+               */
+              _hasLiveTLE: Boolean(live),
 
-              pathDashLength={0.04}
+              /*
+               * Clean white marker.
+               */
+              _baseColor: '#ffffff'
+            };
+          })
+          .filter(
+            sat =>
+              Number.isFinite(sat.lat) &&
+              Number.isFinite(sat.lng)
+          );
 
-              pathDashGap={0.02}
+        satCacheRef.current[satFilter] =
+          formatted;
 
-              pathDashAnimateTime={12000}
+        setSatellites(formatted);
+        setLastUpdate(new Date());
+      } catch (error) {
+        console.error(
+          'Supabase satellite fetch error:',
+          error
+        );
 
-              pathTransitionDuration={0}
+        if (!cancelled) {
+          setSatellites([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingSats(false);
+        }
+      }
+    }
 
-              ringsData={
-                viewMode === 'pads'
-                  ? selectedPad
-                    ? [selectedPad]
-                    : []
-                  : selectedSat
-                  ? [selectedSat]
-                  : []
-              }
+    fetchSatellites();
 
-              ringLat="lat"
+    return () => {
+      cancelled = true;
+    };
+  }, [satFilter, viewMode]);
 
-              ringLng="lng"
+  /* =======================================================
+     REAL-TIME TLE POSITION REFRESH
+     ======================================================= */
 
-              ringColor={() => '#ffffff'}
+  useEffect(() => {
+    if (viewMode !== 'satellites') {
+      return;
+    }
 
-              ringMaxRadius={2.5}
+    /*
+     * Recalculate positions every second.
+     *
+     * This is much more accurate than manually adding
+     * longitude every 50 ms.
+     */
+    const interval = setInterval(() => {
+      const now = new Date();
 
-              ringPropagationSpeed={1.2}
+      setSatellites(previous => {
+        return previous.map(sat => {
+          const live =
+            calculateLivePosition(
+              sat,
+              now
+            );
 
-              ringRepeatPeriod={1800}
-            />
-          </div>
+          if (!live) {
+            return sat;
+          }
 
-          {loadingSats && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '1rem',
-                right: '1rem',
-                background:
-                  'rgba(0,0,0,0.9)',
-                padding:
-                  '0.45rem 0.8rem',
-                border:
-                  '1px solid #444444',
-                zIndex: 10
-              }}
-            >
-              <span
-                style={{
-                  fontSize:
-                    '0.62rem',
-                  color: '#ffffff',
-                  letterSpacing:
-                    '1px'
-                }}
-              >
-                LOADING TELEMETRY...
-              </span>
-            </div>
-          )}
+          return {
+            ...sat,
+            lat: live.lat,
+            lng: live.lng,
+            altitudeKm:
+              live.altitudeKm,
+            velocityKmS:
+              live.velocityKmS,
+            _hasLiveTLE: true
+          };
+        });
+      });
 
-          {viewMode ===
-            'satellites' && (
-            <div
-              style={{
-                position:
-                  'absolute',
-                bottom: '0.8rem',
-                left: '0.8rem',
-                background:
-                  'rgba(0,0,0,0.8)',
-                border:
-                  '1px solid #222222',
-                padding:
-                  '0.4rem 0.7rem',
-                fontFamily:
-                  'monospace',
-                fontSize:
-                  '0.6rem',
-                color: '#ffffff',
-                pointerEvents:
-                  'none'
-              }}
-            >
-              LIVE TLE PROPAGATION
-              {'  '}
-              •
-              {'  '}
-              UPDATE:{' '}
-              {formatUpdatedAt()}
-            </div>
-          )}
-        </div>
-      ) : null}
-      {/* WIKI */}
+      setSelectedSat(current => {
+        if (!current) return null;
 
-      {viewMode === 'wiki' && (
+        const live =
+          calculateLivePosition(
+            current,
+            now
+          );
+
+        if (!live) {
+          return current;
+        }
+
+        return {
+          ...current,
+          lat: live.lat,
+          lng: live.lng,
+          altitudeKm:
+            live.altitudeKm,
+          velocityKmS:
+            live.velocityKmS
+        };
+      });
+
+      setLastUpdate(now);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [viewMode]);
+
+  /* =======================================================
+     WIKI DATABASE SEARCH
+     ======================================================= */
+
+  useEffect(() => {
+    if (viewMode !== 'wiki') return;
+
+    let cancelled = false;
+
+    const timer = setTimeout(
+      async () => {
+        setLoadingSats(true);
+
+        try {
+          const from =
+            wikiPage * pageSize;
+
+          const to =
+            from + pageSize - 1;
+
+          let query =
+            supabase
+              .from('satellites')
+              .select(
+                '*',
+                { count: 'exact' }
+              );
+
+          const search =
+            wikiSearch.trim();
+
+          if (search) {
+            /*
+             * Search numeric input against ID
+             * and name.
+             */
+            if (
+              /^\d+$/.test(search)
+            ) {
+              query = query.or(
+                `name.ilike.%${search}%,id.eq.${search}`
+              );
+            } else {
+              query = query.ilike(
+                'name',
+                `%${search}%`
+              );
+            }
+          }
+
+          const {
+            data,
+            count,
+            error
+          } = await query
+            .order(
+              'id',
+              { ascending: true }
+            )
+            .range(from, to);
+
+          if (error) {
+            throw error;
+          }
+
+          if (!cancelled) {
+            setWikiData(data || []);
+            setTotalWikiCount(
+              count || 0
+            );
+          }
+        } catch (error) {
+          console.error(
+            'Wiki fetch error:',
+            error
+          );
+
+          if (!cancelled) {
+            setWikiData([]);
+            setTotalWikiCount(0);
+          }
+        } finally {
+          if (!cancelled) {
+            setLoadingSats(false);
+          }
+        }
+      },
+      300
+    );
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [
+    wikiSearch,
+    wikiPage,
+    viewMode
+  ]);
+
+  /* =======================================================
+     CLEAN SATELLITE RENDER DATA
+     ======================================================= */
+
+  const renderSatellites =
+    useMemo(() => {
+      return satellites
+        .filter(
+          sat =>
+            Number.isFinite(sat.lat) &&
+            Number.isFinite(sat.lng)
+        )
+        .map(sat => {
+          const focused =
+            hoveredSat?.id === sat.id ||
+            selectedSat?.id === sat.id;
+
+          const hasFocus =
+            Boolean(
+              hoveredSat ||
+              selectedSat
+            );
+
+          return {
+            ...sat,
+
+            /*
+             * Clean white look.
+             */
+            color:
+              focused || !hasFocus
+                ? '#ffffff'
+                : 'rgba(255,255,255,0.16)',
+
+            /*
+             * Keep markers small.
+             * The previous values made them look
+             * like long colored spikes.
+             */
+            radius:
+              focused
+                ? 0.85
+                : 0.42,
+
+            /*
+             * Very small altitude separation.
+             *
+             * This is NOT the physical altitude.
+             * pointAltitude is only a visual offset.
+             */
+            visualAltitude:
+              focused
+                ? 0.035
+                : 0.025
+          };
+        });
+    }, [
+      satellites,
+      hoveredSat,
+      selectedSat
+    ]);
+
+  /* =======================================================
+     SELECTED SATELLITE ORBIT
+     ======================================================= */
+
+  const orbitalPaths =
+    useMemo(() => {
+      if (!selectedSat) {
+        return [];
+      }
+
+      const points =
+        calculateOrbitFromTLE(
+          selectedSat
+        );
+
+      const segments =
+        splitDateline(points);
+
+      return segments.map(
+        segment => ({
+          satelliteId:
+            selectedSat.id,
+          points: segment
+        })
+      );
+    }, [selectedSat]);
+
+  const maxPages =
+    Math.ceil(
+      totalWikiCount /
+        pageSize
+    );
+
+  /* =======================================================
+     CAMERA HELPERS
+     ======================================================= */
+
+  const focusSatellite =
+    useCallback(
+      sat => {
+        if (!sat) return;
+
+        setSelectedSat(sat);
+
+        setHoveredSat(null);
+
+        if (
+          globeRef.current &&
+          Number.isFinite(sat.lat) &&
+          Number.isFinite(sat.lng)
+        ) {
+          globeRef.current.pointOfView(
+            {
+              lat: sat.lat,
+              lng: sat.lng,
+              altitude: 1.65
+            },
+            1000
+          );
+        }
+      },
+      []
+    );
+
+  const focusPad =
+    useCallback(
+      pad => {
+        if (!pad) return;
+
+        setSelectedPad(pad);
+
+        if (globeRef.current) {
+          globeRef.current.pointOfView(
+            {
+              lat: pad.lat,
+              lng: pad.lng,
+              altitude: 1.5
+            },
+            1000
+          );
+        }
+      },
+      []
+    );
+
+  /*
+   * When changing mode, clear satellite selection.
+   */
+  const changeViewMode =
+    useCallback(mode => {
+      setViewMode(mode);
+      setSelectedSat(null);
+      setHoveredSat(null);
+    }, []);
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '1.5rem',
+        width: '100%',
+        maxWidth: '1400px',
+        margin: '0 auto'
+      }}
+    >
+
+      <style>{`
+
+        @keyframes orbitalStars {
+          from {
+            background-position:
+              0 0,
+              0 0,
+              0 0,
+              0 0;
+          }
+
+          to {
+            background-position:
+              -300px 180px,
+              500px -250px,
+              -700px 350px,
+              900px -400px;
+          }
+        }
+
+        .orbital-starfield {
+          background-color: #000000;
+
+          background-image:
+            radial-gradient(
+              1px 1px at 20px 30px,
+              rgba(255,255,255,0.95),
+              transparent
+            ),
+            radial-gradient(
+              1px 1px at 120px 80px,
+              rgba(255,255,255,0.75),
+              transparent
+            ),
+            radial-gradient(
+              1.5px 1.5px at 250px 160px,
+              rgba(255,255,255,0.9),
+              transparent
+            ),
+            radial-gradient(
+              1px 1px at 330px 40px,
+              rgba(255,255,255,0.65),
+              transparent
+            );
+
+          background-size:
+            360px 260px,
+            520px 380px,
+            700px 500px,
+            900px 650px;
+
+          animation:
+            orbitalStars
+            80s
+            linear
+            infinite;
+
+          position: relative;
+          overflow: hidden;
+        }
+
+        .orbital-starfield::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+
+          background:
+            radial-gradient(
+              ellipse at center,
+              rgba(0,0,0,0)
+              35%,
+              rgba(0,0,0,0.28)
+              100%
+            );
+        }
+
+        .orbital-globe-shell {
+          position: relative;
+          width: 100%;
+          height: 620px;
+          overflow: hidden;
+
+          border:
+            1px solid
+            rgba(255,255,255,0.16);
+
+          background: #000000;
+        }
+
+        .orbital-globe-canvas {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+        }
+
+        .orbital-status {
+          position: absolute;
+          top: 14px;
+          right: 14px;
+          z-index: 20;
+
+          background:
+            rgba(0,0,0,0.82);
+
+          border:
+            1px solid
+            rgba(255,255,255,0.2);
+
+          padding:
+            7px 10px;
+
+          color: #ffffff;
+
+          font-family: monospace;
+
+          font-size: 10px;
+
+          letter-spacing: 1px;
+
+          backdrop-filter:
+            blur(6px);
+        }
+
+        .orbital-live-dot {
+          display: inline-block;
+
+          width: 6px;
+          height: 6px;
+
+          border-radius: 50%;
+
+          background: #ffffff;
+
+          margin-right: 7px;
+
+          box-shadow:
+            0 0 8px
+            rgba(255,255,255,0.9);
+        }
+
+        .orbital-control {
+          padding:
+            0.5rem 1rem;
+
+          background:
+            rgba(255,255,255,0.04);
+
+          border:
+            1px solid
+            rgba(255,255,255,0.14);
+
+          color: #ffffff;
+
+          font-size:
+            0.7rem;
+
+          font-weight: 700;
+
+          letter-spacing:
+            1px;
+
+          text-transform:
+            uppercase;
+
+          cursor: pointer;
+
+          transition:
+            background 0.15s,
+            border-color 0.15s;
+        }
+
+        .orbital-control:hover {
+          background:
+            rgba(255,255,255,0.1);
+
+          border-color:
+            rgba(255,255,255,0.35);
+        }
+
+        .orbital-control.active {
+          background:
+            rgba(255,255,255,0.14);
+
+          border-color:
+            rgba(255,255,255,0.65);
+        }
+
+      `}</style>
+
+      {/* CONTROLS */}
+
+      <div
+        style={{
+          display: 'flex',
+          gap: '1rem',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}
+      >
         <div
           style={{
-            padding: '1.25rem',
-            borderRadius: '3px',
-            border:
-              '1px solid #222222',
-            background: '#000000'
+            display: 'flex',
+            gap: '0.8rem',
+            alignItems: 'center',
+            flexWrap: 'wrap'
           }}
         >
+          <span
+            style={{
+              fontSize: '0.7rem',
+              color: '#a1a1aa',
+              letterSpacing: '2px',
+              textTransform: 'uppercase',
+              fontWeight: '700'
+            }}
+          >
+            // DISPLAY MODE:
+          </span>
+
+          {[
+            {
+              key: 'pads',
+              label: 'Launch Pads'
+            },
+            {
+              key: 'satellites',
+              label:
+                `Live Globe Satellites (${satellites.length})`
+            },
+            {
+              key: 'wiki',
+              label:
+                'Satellite Database'
+            }
+          ].map(btn => (
+            <button
+              key={btn.key}
+              className={
+                `orbital-control ${
+                  viewMode === btn.key
+                    ? 'active'
+                    : ''
+                }`
+              }
+              onClick={() =>
+                changeViewMode(
+                  btn.key
+                )
+              }
+            >
+              {btn.label}
+            </button>
+          ))}
+        </div>
+
+        {viewMode === 'pads' && (
           <div
             style={{
               display: 'flex',
-              justifyContent:
-                'space-between',
-              alignItems: 'center',
-              marginBottom:
-                '1rem',
-              flexWrap: 'wrap',
-              gap: '1rem'
+              gap: '0.4rem'
             }}
           >
-            <span
-              style={{
-                fontSize:
-                  '0.65rem',
-                color: '#ffffff',
-                letterSpacing:
-                  '2px',
-                textTransform:
-                  'uppercase',
-                fontWeight: '800'
-              }}
-            >
-              // SATELLITE DATABASE
-              {' '}
-              ({totalWikiCount})
-            </span>
-
-            <input
-              type="text"
-              placeholder="Search name or NORAD ID..."
-              value={wikiSearch}
-              onChange={e => {
-                setWikiSearch(
-                  e.target.value
-                );
-                setWikiPage(0);
-              }}
-              style={{
-                background:
-                  '#050505',
-                border:
-                  '1px solid #333333',
-                padding:
-                  '0.55rem 0.8rem',
-                color: '#ffffff',
-                fontSize:
-                  '0.7rem',
-                fontFamily:
-                  'monospace',
-                width:
-                  '320px',
-                outline: 'none'
-              }}
-            />
-          </div>
-
-          <div
-            className="orbital-scroll"
-            style={{
-              maxHeight:
-                '420px',
-              overflowY:
-                'auto'
-            }}
-          >
-            <table
-              style={{
-                width: '100%',
-                borderCollapse:
-                  'collapse',
-                fontSize:
-                  '0.72rem',
-                fontFamily:
-                  'monospace',
-                color:
-                  '#cccccc'
-              }}
-            >
-              <thead>
-                <tr
-                  style={{
-                    borderBottom:
-                      '1px solid #333333',
-                    textAlign:
-                      'left',
-                    color:
-                      '#ffffff'
-                  }}
-                >
-                  <th
-                    style={{
-                      padding:
-                        '0.6rem'
-                    }}
-                  >
-                    NORAD ID
-                  </th>
-
-                  <th
-                    style={{
-                      padding:
-                        '0.6rem'
-                    }}
-                  >
-                    OBJECT NAME
-                  </th>
-
-                  <th
-                    style={{
-                      padding:
-                        '0.6rem'
-                    }}
-                  >
-                    ORGANIZATION
-                  </th>
-
-                  <th
-                    style={{
-                      padding:
-                        '0.6rem'
-                    }}
-                  >
-                    ALTITUDE
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {wikiData.map(
-                  item => (
-                    <tr
-                      key={item.id}
-                      style={{
-                        borderBottom:
-                          '1px solid #111111'
-                      }}
-                    >
-                      <td
-                        style={{
-                          padding:
-                            '0.6rem',
-                          color:
-                            '#ffffff'
-                        }}
-                      >
-                        {item.id}
-                      </td>
-
-                      <td
-                        style={{
-                          padding:
-                            '0.6rem',
-                          color:
-                            '#ffffff',
-                          fontWeight:
-                            'bold'
-                        }}
-                      >
-                        {item.name}
-                      </td>
-
-                      <td
-                        style={{
-                          padding:
-                            '0.6rem'
-                        }}
-                      >
-                        {item.organization ||
-                          'Unknown'}
-                      </td>
-
-                      <td
-                        style={{
-                          padding:
-                            '0.6rem'
-                        }}
-                      >
-                        {item.altitude !=
-                        null
-                          ? `${formatNumber(
-                              item.altitude,
-                              1
-                            )} km`
-                          : 'N/A'}
-                      </td>
-                    </tr>
-                  )
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div
-            style={{
-              display:
-                'flex',
-              justifyContent:
-                'space-between',
-              alignItems:
-                'center',
-              marginTop:
-                '1rem',
-              borderTop:
-                '1px solid #222222',
-              paddingTop:
-                '0.8rem'
-            }}
-          >
-            <span
-              style={{
-                fontSize:
-                  '0.62rem',
-                color:
-                  '#777777'
-              }}
-            >
-              PAGE{' '}
-              {wikiPage + 1}
-              {' '}
-              OF{' '}
-              {Math.max(
-                1,
-                maxPages
-              )}
-            </span>
-
-            <div
-              style={{
-                display:
-                  'flex',
-                gap:
-                  '0.5rem'
-              }}
-            >
+            {[
+              'all',
+              'major',
+              'minor'
+            ].map(filter => (
               <button
-                disabled={
-                  wikiPage === 0
+                key={filter}
+                className={
+                  `orbital-control ${
+                    padFilter === filter
+                      ? 'active'
+                      : ''
+                  }`
                 }
                 onClick={() =>
-                  setWikiPage(
-                    p =>
-                      Math.max(
-                        0,
-                        p - 1
-                      )
+                  setPadFilter(
+                    filter
                   )
                 }
                 style={{
                   padding:
-                    '0.4rem 0.8rem',
-                  background:
-                    wikiPage === 0
-                      ? '#050505'
-                      : '#ffffff',
-                  border:
-                    '1px solid #444444',
-                  color:
-                    wikiPage === 0
-                      ? '#555555'
-                      : '#000000',
-                  fontSize:
-                    '0.62rem',
-                  cursor:
-                    wikiPage === 0
-                      ? 'not-allowed'
-                      : 'pointer'
+                    '0.4rem 0.8rem'
                 }}
               >
-                PREV
+                {filter}
               </button>
+            ))}
+          </div>
+        )}
 
+        {viewMode === 'satellites' && (
+          <div
+            style={{
+              display: 'flex',
+              gap: '0.4rem',
+              flexWrap: 'wrap'
+            }}
+          >
+            {[
+              {
+                key: 'stations',
+                label: 'Stations'
+              },
+              {
+                key: 'starlink',
+                label: 'Starlink'
+              },
+              {
+                key: 'weather',
+                label: 'Weather'
+              },
+              {
+                key: 'active',
+                label: 'All Active'
+              }
+            ].map(filter => (
               <button
-                disabled={
-                  wikiPage + 1 >=
-                  maxPages
+                key={filter.key}
+                className={
+                  `orbital-control ${
+                    satFilter ===
+                    filter.key
+                      ? 'active'
+                      : ''
+                  }`
                 }
                 onClick={() =>
-                  setWikiPage(
-                    p => p + 1
+                  setSatFilter(
+                    filter.key
                   )
                 }
                 style={{
                   padding:
-                    '0.4rem 0.8rem',
-                  background:
-                    wikiPage + 1 >=
-                    maxPages
-                      ? '#050505'
-                      : '#ffffff',
-                  border:
-                    '1px solid #444444',
-                  color:
-                    wikiPage + 1 >=
-                    maxPages
-                      ? '#555555'
-                      : '#000000',
-                  fontSize:
-                    '0.62rem',
-                  cursor:
-                    wikiPage + 1 >=
-                    maxPages
-                      ? 'not-allowed'
-                      : 'pointer'
+                    '0.4rem 0.7rem'
                 }}
               >
-                NEXT
+                {filter.label}
               </button>
-            </div>
+            ))}
           </div>
-        </div>
-      )}
-
-      {/* LAUNCH PAD INFORMATION */}
+        )}
+      </div>
+      {/* =====================================================
+          LAUNCH PAD INSPECTOR
+          ===================================================== */}
 
       {viewMode === 'pads' &&
         selectedPad && (
           <div
             style={{
-              padding:
-                '1.25rem',
-              borderRadius:
-                '3px',
+              padding: '1.5rem',
+              borderRadius: '2px',
               border:
-                '1px solid #222222',
+                '1px solid rgba(255,255,255,0.14)',
               background:
-                '#050505'
+                'rgba(5,5,5,0.9)'
             }}
           >
+
             <div
               style={{
                 display:
@@ -1825,38 +3050,39 @@ export default function OrbitalGlobe({ requestedView }) {
                 justifyContent:
                   'space-between',
                 alignItems:
-                  'center',
-                gap:
-                  '1rem',
-                flexWrap:
-                  'wrap'
+                  'center'
               }}
             >
+
               <span
                 style={{
                   fontSize:
-                    '0.62rem',
+                    '0.65rem',
                   color:
                     '#ffffff',
                   letterSpacing:
                     '2px',
+                  textTransform:
+                    'uppercase',
                   fontWeight:
                     '800'
                 }}
               >
                 // LAUNCH FACILITY
+                TELEMETRY
               </span>
 
               <span
                 style={{
                   fontSize:
-                    '0.6rem',
+                    '0.65rem',
                   color:
                     '#ffffff'
                 }}
               >
-                OPERATIONAL
+                ● OPERATIONAL
               </span>
+
             </div>
 
             <div
@@ -1864,63 +3090,158 @@ export default function OrbitalGlobe({ requestedView }) {
                 display:
                   'grid',
                 gridTemplateColumns:
-                  'repeat(auto-fit,minmax(190px,1fr))',
+                  'repeat(auto-fit, minmax(200px, 1fr))',
                 gap:
                   '1rem',
                 marginTop:
                   '0.8rem'
               }}
             >
-              <InfoBox
-                title="FACILITY"
-                value={
-                  selectedPad.name
-                }
-              />
 
-              <InfoBox
-                title="AGENCY"
-                value={
-                  selectedPad.agency
-                }
-              />
+              <div>
 
-              <InfoBox
-                title="COUNTRY"
-                value={
-                  selectedPad.country
-                }
-              />
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a'
+                  }}
+                >
+                  FACILITY NAME
+                </p>
 
-              <InfoBox
-                title="COORDINATES"
-                value={`${selectedPad.lat.toFixed(
-                  4
-                )}°, ${selectedPad.lng.toFixed(
-                  4
-                )}°`}
-              />
+                <h3
+                  style={{
+                    margin:
+                      '0.2rem 0 0',
+                    fontSize:
+                      '1rem',
+                    color:
+                      '#ffffff'
+                  }}
+                >
+                  {selectedPad.name}
+                </h3>
+
+              </div>
+
+              <div>
+
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a'
+                  }}
+                >
+                  OPERATING AGENCY
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff',
+                    fontWeight:
+                      '700'
+                  }}
+                >
+                  {selectedPad.agency}
+                </p>
+
+              </div>
+
+              <div>
+
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a'
+                  }}
+                >
+                  COUNTRY / REGION
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff'
+                  }}
+                >
+                  {selectedPad.country}
+                </p>
+
+              </div>
+
+              <div>
+
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a'
+                  }}
+                >
+                  COORDINATES
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff'
+                  }}
+                >
+                  {selectedPad.lat.toFixed(4)}
+                  °,{' '}
+                  {selectedPad.lng.toFixed(4)}
+                  °
+                </p>
+
+              </div>
+
             </div>
+
           </div>
         )}
 
-      {/* SATELLITE INFORMATION */}
+      {/* =====================================================
+          SATELLITE INSPECTOR
+          ===================================================== */}
 
       {viewMode ===
         'satellites' &&
         selectedSat && (
           <div
             style={{
-              padding:
-                '1.25rem',
-              borderRadius:
-                '3px',
+              padding: '1.5rem',
+              borderRadius: '2px',
               border:
-                '1px solid #222222',
+                '1px solid rgba(255,255,255,0.16)',
               background:
-                '#050505'
+                'rgba(5,5,5,0.92)'
             }}
           >
+
             <div
               style={{
                 display:
@@ -1928,49 +3249,52 @@ export default function OrbitalGlobe({ requestedView }) {
                 justifyContent:
                   'space-between',
                 alignItems:
-                  'center',
-                gap:
-                  '1rem'
+                  'center'
               }}
             >
+
               <span
                 style={{
                   fontSize:
-                    '0.62rem',
+                    '0.65rem',
                   color:
                     '#ffffff',
                   letterSpacing:
                     '2px',
+                  textTransform:
+                    'uppercase',
                   fontWeight:
                     '800'
                 }}
               >
-                // LIVE SATELLITE TELEMETRY
+                // SATELLITE
+                ORBITAL INSPECTOR
               </span>
 
               <button
-                onClick={() =>
+                onClick={() => {
                   setSelectedSat(
                     null
-                  )
-                }
+                  );
+                  setHoveredSat(
+                    null
+                  );
+                }}
                 style={{
                   background:
                     'transparent',
-                  border:
-                    '1px solid #333333',
+                  border: 'none',
                   color:
-                    '#ffffff',
+                    '#a1a1aa',
                   cursor:
                     'pointer',
-                  padding:
-                    '0.3rem 0.6rem',
                   fontSize:
-                    '0.6rem'
+                    '0.7rem'
                 }}
               >
-                CLOSE
+                [CLOSE]
               </button>
+
             </div>
 
             <div
@@ -1978,190 +3302,400 @@ export default function OrbitalGlobe({ requestedView }) {
                 display:
                   'grid',
                 gridTemplateColumns:
-                  'repeat(auto-fit,minmax(190px,1fr))',
+                  'repeat(auto-fit, minmax(190px, 1fr))',
                 gap:
                   '1rem',
                 marginTop:
-                  '0.8rem'
+                  '1rem'
               }}
             >
-              <InfoBox
-                title="OBJECT"
-                value={
-                  selectedSat.name ||
-                  'UNKNOWN'
-                }
-              />
 
-              <InfoBox
-                title="NORAD ID"
-                value={
-                  selectedSat.id
-                }
-              />
+              {/* NAME */}
 
-              <InfoBox
-                title="LATITUDE"
-                value={`${formatNumber(
-                  selectedSat.lat,
-                  5
-                )}°`}
-              />
+              <div>
 
-              <InfoBox
-                title="LONGITUDE"
-                value={`${formatNumber(
-                  selectedSat.lng,
-                  5
-                )}°`}
-              />
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a'
+                  }}
+                >
+                  OBJECT NAME
+                </p>
 
-              <InfoBox
-                title="ALTITUDE"
-                value={`${formatNumber(
-                  selectedSat.altitudeKm,
-                  1
-                )} km`}
-              />
+                <h3
+                  style={{
+                    margin:
+                      '0.2rem 0 0',
+                    fontSize:
+                      '1rem',
+                    color:
+                      '#ffffff'
+                  }}
+                >
+                  {selectedSat.name ||
+                    'UNKNOWN'}
+                </h3>
 
-              <InfoBox
-                title="VELOCITY"
-                value={
-                  selectedSat.velocityLive
-                    ? `${formatNumber(
-                        selectedSat.velocityLive,
-                        3
-                      )} km/s`
-                    : 'N/A'
-                }
-              />
+              </div>
 
-              <InfoBox
-                title="INCLINATION"
-                value={
-                  selectedSat.inclination !=
-                  null
-                    ? `${formatNumber(
-                        selectedSat.inclination,
-                        3
-                      )}°`
-                    : 'N/A'
-                }
-              />
+              {/* NORAD */}
 
-              <InfoBox
-                title="MEAN MOTION"
-                value={
-                  selectedSat.mean_motion !=
-                  null
-                    ? `${formatNumber(
-                        selectedSat.mean_motion,
-                        5
-                      )} rev/day`
-                    : 'N/A'
-                }
-              />
+              <div>
 
-              <InfoBox
-                title="ORBITAL SOURCE"
-                value={
-                  selectedSat.orbital_source ||
-                  'TLE'
-                }
-              />
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a'
+                  }}
+                >
+                  NORAD ID
+                </p>
 
-              <InfoBox
-                title="TLE EPOCH"
-                value={
-                  selectedSat.orbital_epoch ||
-                  'N/A'
-                }
-              />
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff',
+                    fontWeight:
+                      '700'
+                  }}
+                >
+                  {selectedSat.id}
+                </p>
 
-              <InfoBox
-                title="ORGANIZATION"
-                value={
-                  selectedSat.organization ||
-                  'Unknown'
-                }
-              />
+              </div>
 
-              <InfoBox
-                title="LAST DATABASE UPDATE"
-                value={
-                  selectedSat.updated_at
-                    ? new Date(
-                        selectedSat.updated_at
-                      ).toLocaleString()
-                    : 'N/A'
-                }
-              />
+              {/* ORGANIZATION */}
+
+              <div>
+
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a'
+                  }}
+                >
+                  ORGANIZATION
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff',
+                    fontWeight:
+                      '700'
+                  }}
+                >
+                  {selectedSat.organization ||
+                    'N/A'}
+                </p>
+
+              </div>
+
+              {/* LATITUDE */}
+
+              <div>
+
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a'
+                  }}
+                >
+                  LIVE LATITUDE
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff'
+                  }}
+                >
+                  {Number.isFinite(
+                    selectedSat.lat
+                  )
+                    ? `${selectedSat.lat.toFixed(4)}°`
+                    : 'N/A'}
+                </p>
+
+              </div>
+
+              {/* LONGITUDE */}
+
+              <div>
+
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a'
+                  }}
+                >
+                  LIVE LONGITUDE
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff'
+                  }}
+                >
+                  {Number.isFinite(
+                    selectedSat.lng
+                  )
+                    ? `${selectedSat.lng.toFixed(4)}°`
+                    : 'N/A'}
+                </p>
+
+              </div>
+
+              {/* ALTITUDE */}
+
+              <div>
+
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a'
+                  }}
+                >
+                  ALTITUDE
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff'
+                  }}
+                >
+                  {Number.isFinite(
+                    selectedSat.altitudeKm
+                  )
+                    ? `${selectedSat.altitudeKm.toFixed(1)} km`
+                    : 'N/A'}
+                </p>
+
+              </div>
+
+              {/* VELOCITY */}
+
+              <div>
+
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a'
+                  }}
+                >
+                  VELOCITY
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff'
+                  }}
+                >
+                  {Number.isFinite(
+                    selectedSat.velocityKmS
+                  )
+                    ? `${selectedSat.velocityKmS.toFixed(2)} km/s`
+                    : selectedSat.velocity ||
+                      'N/A'}
+                </p>
+
+              </div>
+
+              {/* INCLINATION */}
+
+              <div>
+
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a'
+                  }}
+                >
+                  INCLINATION
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff'
+                  }}
+                >
+                  {Number.isFinite(
+                    Number(
+                      selectedSat.inclination
+                    )
+                  )
+                    ? `${Number(selectedSat.inclination).toFixed(2)}°`
+                    : 'N/A'}
+                </p>
+
+              </div>
+
+              {/* ORBIT STATUS */}
+
+              <div>
+
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a'
+                  }}
+                >
+                  POSITION SOURCE
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0',
+                    fontSize:
+                      '0.85rem',
+                    color:
+                      '#ffffff',
+                    fontWeight:
+                      '700'
+                  }}
+                >
+                  {selectedSat._hasLiveTLE
+                    ? 'LIVE TLE PROPAGATION'
+                    : 'DATABASE COORDINATES'}
+                </p>
+
+              </div>
+
             </div>
+
+            {/* ORBIT INFORMATION */}
 
             <div
               style={{
                 marginTop:
+                  '1.2rem',
+                paddingTop:
                   '1rem',
-                padding:
-                  '0.7rem',
-                border:
-                  '1px solid #222222',
-                fontFamily:
-                  'monospace',
-                fontSize:
-                  '0.62rem',
-                color:
-                  '#aaaaaa'
+                borderTop:
+                  '1px solid rgba(255,255,255,0.1)',
+                display:
+                  'flex',
+                flexWrap:
+                  'wrap',
+                gap:
+                  '1.2rem'
               }}
             >
-              ORBIT: REAL-TIME TLE
-              PROPAGATION
-              {' • '}
-              POSITION RECALCULATED
-              EVERY 2 SECONDS
+
+              <span
+                style={{
+                  fontSize:
+                    '0.65rem',
+                  color:
+                    '#a1a1aa',
+                  fontFamily:
+                    'monospace'
+                }}
+              >
+                ORBIT TRACK:{' '}
+                {orbitalPaths.length >
+                0
+                  ? `${orbitalPaths.length} SEGMENT(S)`
+                  : 'UNAVAILABLE'}
+              </span>
+
+              <span
+                style={{
+                  fontSize:
+                    '0.65rem',
+                  color:
+                    '#a1a1aa',
+                  fontFamily:
+                    'monospace'
+                }}
+              >
+                TLE:{' '}
+                {selectedSat.tle_line1 &&
+                selectedSat.tle_line2
+                  ? 'VALID'
+                  : 'MISSING'}
+              </span>
+
+              <span
+                style={{
+                  fontSize:
+                    '0.65rem',
+                  color:
+                    '#a1a1aa',
+                  fontFamily:
+                    'monospace'
+                }}
+              >
+                LIVE UPDATE:
+                1 SEC
+              </span>
+
             </div>
+
           </div>
         )}
-    </div>
-  );
-}
 
-function InfoBox({
-  title,
-  value
-}) {
-  return (
-    <div>
-      <p
-        style={{
-          margin: 0,
-          fontSize:
-            '0.58rem',
-          color:
-            '#666666',
-          letterSpacing:
-            '1px'
-        }}
-      >
-        {title}
-      </p>
-
-      <p
-        style={{
-          margin:
-            '0.25rem 0 0',
-          fontSize:
-            '0.82rem',
-          color:
-            '#ffffff',
-          fontFamily:
-            'monospace',
-          wordBreak:
-            'break-word'
-        }}
-      >
-        {value}
-      </p>
     </div>
   );
 }
