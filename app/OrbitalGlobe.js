@@ -258,70 +258,66 @@ const globalLaunchPads = [
 
 /*
 |--------------------------------------------------------------------------
-| CONSTANTS
-|--------------------------------------------------------------------------
-*/
-
-const EARTH_RADIUS_KM = 6371;
-
-const SUPABASE_BATCH_SIZE = 1000;
-
-const SATELLITE_UPDATE_INTERVAL = 1000;
-
-const ORBIT_SAMPLE_MINUTES = 2;
-
-const MAX_ORBIT_POINTS = 720;
-
-/*
-|--------------------------------------------------------------------------
 | HELPERS
 |--------------------------------------------------------------------------
 */
 
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
+const isFiniteNumber = (value) =>
+  typeof value === 'number' && Number.isFinite(value);
 
-function normalizeLongitude(lng) {
-  let value = Number(lng);
-
-  if (!Number.isFinite(value)) return 0;
-
-  while (value > 180) value -= 360;
-  while (value < -180) value += 360;
-
-  return value;
-}
-
-function safeNumber(value, fallback = null) {
+const toNumber = (value, fallback = null) => {
   const number = Number(value);
-
   return Number.isFinite(number) ? number : fallback;
-}
+};
 
-/*
-|--------------------------------------------------------------------------
-| TLE VALIDATION
-|--------------------------------------------------------------------------
-*/
+const normalizeLongitude = (lng) => {
+  let result = Number(lng);
 
-function hasValidTLE(sat) {
+  if (!Number.isFinite(result)) {
+    return 0;
+  }
+
+  while (result > 180) result -= 360;
+  while (result < -180) result += 360;
+
+  return result;
+};
+
+const normalizeLatitude = (lat) => {
+  const value = Number(lat);
+
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(-90, Math.min(90, value));
+};
+
+const getSatelliteId = (sat) => {
+  if (sat?.id !== undefined && sat?.id !== null) {
+    return String(sat.id);
+  }
+
+  if (sat?.norad_id !== undefined && sat?.norad_id !== null) {
+    return String(sat.norad_id);
+  }
+
+  return '';
+};
+
+const hasTle = (sat) => {
   return (
     typeof sat?.tle_line1 === 'string' &&
-    sat.tle_line1.trim().length > 10 &&
+    sat.tle_line1.trim().length > 0 &&
     typeof sat?.tle_line2 === 'string' &&
-    sat.tle_line2.trim().length > 10
+    sat.tle_line2.trim().length > 0
   );
-}
+};
 
-/*
-|--------------------------------------------------------------------------
-| BUILD SGP4 SATELLITE RECORD
-|--------------------------------------------------------------------------
-*/
-
-function buildSatrec(sat) {
-  if (!hasValidTLE(sat)) return null;
+const createSatrec = (sat) => {
+  if (!hasTle(sat)) {
+    return null;
+  }
 
   try {
     return satellite.twoline2satrec(
@@ -329,279 +325,230 @@ function buildSatrec(sat) {
       sat.tle_line2.trim()
     );
   } catch (error) {
-    console.warn(`Invalid TLE for ${sat.name || sat.id}`, error);
+    console.warn(
+      'Unable to parse TLE for satellite:',
+      sat?.name,
+      error
+    );
+
     return null;
   }
-}
+};
+
+const getEpochDate = (sat, satrec) => {
+  const candidates = [
+    sat?.orbital_epoch,
+    sat?.epoch,
+    satrec?.epochyr && satrec?.epochdays
+      ? (() => {
+          const year =
+            satrec.epochyr < 57
+              ? 2000 + satrec.epochyr
+              : 1900 + satrec.epochyr;
+
+          const date = new Date(Date.UTC(year, 0, 1));
+          date.setUTCDate(
+            date.getUTCDate() +
+              Math.floor(satrec.epochdays - 1)
+          );
+
+          const fraction =
+            satrec.epochdays -
+            Math.floor(satrec.epochdays);
+
+          date.setUTCMilliseconds(
+            fraction * 24 * 60 * 60 * 1000
+          );
+
+          return date.toISOString();
+        })()
+      : null,
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+
+    const date = new Date(candidate);
+
+    if (!Number.isNaN(date.getTime())) {
+      return date;
+    }
+  }
+
+  return null;
+};
 
 /*
 |--------------------------------------------------------------------------
-| PROPAGATE ONE SATELLITE TO CURRENT TIME
+| REAL TLE PROPAGATION
 |--------------------------------------------------------------------------
 */
 
-function propagateSatellite(sat, date = new Date()) {
-  if (!sat?.satrec) return null;
+const propagateSatellite = (sat, date = new Date()) => {
+  if (!sat?.satrec) {
+    return null;
+  }
 
   try {
-    const positionAndVelocity = satellite.propagate(
+    const propagated = satellite.propagate(
       sat.satrec,
       date
     );
 
     if (
-      !positionAndVelocity ||
-      !positionAndVelocity.position ||
-      !positionAndVelocity.velocity
+      !propagated ||
+      !propagated.position ||
+      !isFiniteNumber(propagated.position.x) ||
+      !isFiniteNumber(propagated.position.y) ||
+      !isFiniteNumber(propagated.position.z)
     ) {
       return null;
     }
-
-    const positionEci = positionAndVelocity.position;
-
-    const velocityEci = positionAndVelocity.velocity;
 
     const gmst = satellite.gstime(date);
 
     const geodetic = satellite.eciToGeodetic(
-      positionEci,
+      propagated.position,
       gmst
     );
 
-    const latitude =
+    const lat =
       satellite.degreesLat(geodetic.latitude);
 
-    const longitude =
-      satellite.degreesLong(geodetic.longitude);
+    const lng =
+      normalizeLongitude(
+        satellite.degreesLong(geodetic.longitude)
+      );
 
-    const altitudeKm = Number(geodetic.height);
+    const altitude =
+      Number.isFinite(geodetic.height)
+        ? geodetic.height / 6371
+        : 0.05;
 
-    const velocityVector = velocityEci;
+    const velocityVector =
+      propagated.velocity;
 
-    const velocityKmS = Math.sqrt(
-      velocityVector.x * velocityVector.x +
-      velocityVector.y * velocityVector.y +
-      velocityVector.z * velocityVector.z
-    );
+    let velocity = sat.velocity;
 
     if (
-      !Number.isFinite(latitude) ||
-      !Number.isFinite(longitude) ||
-      !Number.isFinite(altitudeKm)
+      velocityVector &&
+      isFiniteNumber(velocityVector.x) &&
+      isFiniteNumber(velocityVector.y) &&
+      isFiniteNumber(velocityVector.z)
     ) {
-      return null;
+      velocity =
+        Math.sqrt(
+          velocityVector.x ** 2 +
+            velocityVector.y ** 2 +
+            velocityVector.z ** 2
+        );
     }
 
     return {
       ...sat,
-      lat: latitude,
-      lng: normalizeLongitude(longitude),
-      altitudeKm,
-      altitude: Math.max(
-        0.001,
-        altitudeKm / EARTH_RADIUS_KM
+      lat: normalizeLatitude(lat),
+      lng,
+      globeAltitude: Math.max(
+        0.015,
+        Math.min(1.0, altitude)
       ),
-      velocityKmS,
-      velocity: velocityKmS,
-      positionEci,
-      velocityEci,
-      telemetryTime: date.toISOString(),
+      altitudeKm:
+        Number.isFinite(geodetic.height)
+          ? geodetic.height
+          : sat.altitudeKm,
+      velocity,
+      lastPropagatedAt: date.toISOString(),
     };
   } catch (error) {
     return null;
   }
-}
+};
 
 /*
 |--------------------------------------------------------------------------
-| SATELLITE ORBITAL PERIOD
+| ORBIT PATH GENERATOR
 |--------------------------------------------------------------------------
 */
 
-function getOrbitalPeriodMinutes(sat) {
-  const meanMotion = safeNumber(
-    sat?.mean_motion,
-    null
-  );
-
-  if (meanMotion && meanMotion > 0) {
-    return 1440 / meanMotion;
+const generateOrbitPath = (
+  sat,
+  date = new Date(),
+  samples = 180
+) => {
+  if (!sat?.satrec) {
+    return [];
   }
 
-  if (sat?.satrec?.no) {
-    const revolutionsPerMinute =
-      sat.satrec.no * 60 / (2 * Math.PI);
+  try {
+    const meanMotion =
+      Number(sat.satrec.no);
 
     if (
-      Number.isFinite(revolutionsPerMinute) &&
-      revolutionsPerMinute > 0
+      !Number.isFinite(meanMotion) ||
+      meanMotion <= 0
     ) {
-      return 1 / revolutionsPerMinute;
+      return [];
     }
-  }
 
-  return 90;
-}
+    const periodMinutes =
+      (2 * Math.PI) / meanMotion;
 
-/*
-|--------------------------------------------------------------------------
-| GENERATE REAL ORBIT PATH FROM SGP4
-|--------------------------------------------------------------------------
-*/
+    const totalMinutes =
+      Math.min(
+        Math.max(periodMinutes, 20),
+        24 * 60
+      );
 
-function generateOrbitPath(sat, centerDate = new Date()) {
-  if (!sat?.satrec) return [];
+    const points = [];
 
-  const periodMinutes = clamp(
-    getOrbitalPeriodMinutes(sat),
-    20,
-    1440
-  );
+    for (let i = 0; i <= samples; i += 1) {
+      const offsetMinutes =
+        (i / samples) * totalMinutes;
 
-  const halfPeriod = periodMinutes / 2;
+      const pointDate = new Date(
+        date.getTime() +
+          offsetMinutes * 60 * 1000
+      );
 
-  const stepMinutes = Math.max(
-    ORBIT_SAMPLE_MINUTES,
-    periodMinutes / MAX_ORBIT_POINTS
-  );
+      const propagated =
+        propagateSatellite(
+          sat,
+          pointDate
+        );
 
-  const points = [];
+      if (!propagated) {
+        continue;
+      }
 
-  for (
-    let offset = -halfPeriod;
-    offset <= halfPeriod;
-    offset += stepMinutes
-  ) {
-    const sampleDate = new Date(
-      centerDate.getTime() +
-        offset * 60 * 1000
-    );
-
-    const propagated = propagateSatellite(
-      sat,
-      sampleDate
-    );
-
-    if (!propagated) continue;
-
-    points.push({
-      lat: propagated.lat,
-      lng: propagated.lng,
-      altitude: Math.max(
-        0.003,
-        propagated.altitude * 1.01
-      ),
-    });
-  }
-
-  return points;
-}
-
-/*
-|--------------------------------------------------------------------------
-| DATABASE SATELLITE FORMATTER
-|--------------------------------------------------------------------------
-*/
-
-function formatDatabaseSatellite(row) {
-  const satrec = buildSatrec(row);
-
-  const base = {
-    ...row,
-
-    id: row.id,
-
-    name: row.name || 'UNKNOWN OBJECT',
-
-    organization:
-      row.organization || 'UNKNOWN',
-
-    tle_line1: row.tle_line1 || null,
-
-    tle_line2: row.tle_line2 || null,
-
-    satrec,
-
-    databaseLat: safeNumber(row.lat, null),
-
-    databaseLng: safeNumber(row.lng, null),
-
-    databaseAltitude: safeNumber(
-      row.altitude,
-      null
-    ),
-
-    databaseVelocity: safeNumber(
-      row.velocity,
-      null
-    ),
-
-    trackable: Boolean(satrec),
-  };
-
-  if (satrec) {
-    const current = propagateSatellite(
-      base,
-      new Date()
-    );
-
-    if (current) {
-      return current;
+      points.push({
+        lat: propagated.lat,
+        lng: propagated.lng,
+        altitude:
+          Math.max(
+            0.02,
+            Math.min(
+              0.35,
+              propagated.globeAltitude + 0.025
+            )
+          ),
+      });
     }
+
+    return points;
+  } catch (error) {
+    console.warn(
+      'Orbit path generation failed:',
+      error
+    );
+
+    return [];
   }
-
-  /*
-   * TLE unavailable/invalid:
-   * keep the database coordinates as a fallback.
-   */
-  return {
-    ...base,
-
-    lat:
-      safeNumber(row.lat, 0),
-
-    lng:
-      normalizeLongitude(
-        safeNumber(row.lng, 0)
-      ),
-
-    altitudeKm:
-      safeNumber(row.altitude, 0),
-
-    altitude:
-      Math.max(
-        0.001,
-        safeNumber(row.altitude, 1000) /
-          EARTH_RADIUS_KM
-      ),
-
-    velocityKmS:
-      safeNumber(row.velocity, 0),
-
-    velocity:
-      safeNumber(row.velocity, 0),
-
-    telemetryTime:
-      row.updated_at || null,
-  };
-}
-
-/*
-|--------------------------------------------------------------------------
-| COMPONENT
-|--------------------------------------------------------------------------
-*/
+};
 
 export default function OrbitalGlobe({
   requestedView,
 }) {
   const globeRef = useRef(null);
-
-  const animationRef = useRef(null);
-
-  const lastTelemetryUpdateRef = useRef(0);
-
-  const satCacheRef = useRef({});
 
   const [viewMode, setViewMode] =
     useState('pads');
@@ -624,16 +571,6 @@ export default function OrbitalGlobe({
   const [satellites, setSatellites] =
     useState([]);
 
-  const [loadingSats, setLoadingSats] =
-    useState(false);
-
-  const [loadingMessage, setLoadingMessage] =
-    useState('');
-
-  /*
-   * Wiki state
-   */
-
   const [wikiData, setWikiData] =
     useState([]);
 
@@ -646,11 +583,27 @@ export default function OrbitalGlobe({
   const [totalWikiCount, setTotalWikiCount] =
     useState(0);
 
+  const [loadingSats, setLoadingSats] =
+    useState(false);
+
+  const [lastUpdated, setLastUpdated] =
+    useState(null);
+
+  const [currentTime, setCurrentTime] =
+    useState(new Date());
+
+  const satCacheRef =
+    useRef({});
+
+  const lastTelemetryUpdateRef =
+    useRef(0);
+
+  const selectedSatIdRef =
+    useRef(null);
+
   const pageSize = 50;
 
-  /*
-   * Requested external view
-   */
+  const SATELLITE_UPDATE_INTERVAL = 1000;
 
   useEffect(() => {
     if (requestedView?.mode) {
@@ -658,208 +611,182 @@ export default function OrbitalGlobe({
     }
   }, [requestedView]);
 
+  useEffect(() => {
+    selectedSatIdRef.current =
+      selectedSat?.id ?? null;
+  }, [selectedSat]);
+
+  const filteredPads = useMemo(
+    () =>
+      globalLaunchPads.filter(
+        (pad) =>
+          padFilter === 'all' ||
+          pad.type === padFilter
+      ),
+    [padFilter]
+  );
+
   /*
-   * Filter launch pads
+   * Prepare a database record for the globe.
    */
+  const formatSatellite = useCallback(
+    (sat) => {
+      const satrec = createSatrec(sat);
 
-  const filteredPads = useMemo(() => {
-    return globalLaunchPads.filter(
-      (pad) =>
-        padFilter === 'all' ||
-        pad.type === padFilter
-    );
-  }, [padFilter]);
+      const base = {
+        ...sat,
+        satrec,
+        name:
+          sat.name ||
+          `NORAD ${getSatelliteId(sat)}`,
+        organization:
+          sat.organization || 'Unknown',
+        color: '#ffffff',
+        radius: 0.38,
+        globeAltitude: 0.03,
+        altitudeKm: toNumber(
+          sat.altitude,
+          null
+        ),
+        velocity: toNumber(
+          sat.velocity,
+          null
+        ),
+      };
 
-  /*
-   * Satellite filters
-   */
+      const propagated =
+        satrec
+          ? propagateSatellite(
+              base,
+              new Date()
+            )
+          : null;
 
-  const getSatelliteFilter = useCallback(
-    (filter) => {
-      if (filter === 'stations') {
-        return (query) =>
-          query.or(
-            'name.ilike.%ISS%,name.ilike.%CSS%,name.ilike.%TIANGONG%,name.ilike.%STATION%'
-          );
+      if (propagated) {
+        return propagated;
       }
 
-      if (filter === 'starlink') {
-        return (query) =>
-          query.ilike(
-            'name',
-            '%STARLINK%'
-          );
-      }
-
-      if (filter === 'weather') {
-        return (query) =>
-          query.or(
-            'name.ilike.%NOAA%,name.ilike.%GOES%,name.ilike.%METEOR%,name.ilike.%METOP%,name.ilike.%JPSS%'
-          );
-      }
-
-      /*
-       * There is NO active column in the user's
-       * database schema.
-       *
-       * Therefore "active" means:
-       * records containing a usable TLE.
-       */
-      if (filter === 'active') {
-        return (query) =>
-          query
-            .not('tle_line1', 'is', null)
-            .not('tle_line2', 'is', null);
-      }
-
-      return (query) => query;
+      return {
+        ...base,
+        lat: normalizeLatitude(
+          toNumber(sat.lat, 0)
+        ),
+        lng: normalizeLongitude(
+          toNumber(sat.lng, 0)
+        ),
+      };
     },
     []
   );
 
   /*
-   * Fetch ALL matching rows in Supabase batches.
+   * Load satellites from Supabase.
    *
-   * This avoids the previous 1000/1500 artificial
-   * limit that caused ALL ACTIVE to appear empty
-   * or incomplete.
+   * IMPORTANT:
+   * All Active intentionally does NOT use the old
+   * 1,500-row cap.
    */
+  useEffect(() => {
+    if (viewMode === 'wiki') {
+      return undefined;
+    }
 
-  const fetchAllSatelliteRows =
-    useCallback(
-      async (filter) => {
-        const rows = [];
+    let cancelled = false;
 
-        let from = 0;
+    const fetchSupabaseSatellites =
+      async () => {
+        const cacheKey = satFilter;
 
-        const filterBuilder =
-          getSatelliteFilter(filter);
+        if (satCacheRef.current[cacheKey]) {
+          setSatellites(
+            satCacheRef.current[cacheKey]
+          );
+          return;
+        }
 
-        while (true) {
-          let query = supabase
-            .from('satellites')
-            .select('*')
-            .order('id', {
-              ascending: true,
-            })
-            .range(
-              from,
-              from + SUPABASE_BATCH_SIZE - 1
-            );
+        setLoadingSats(true);
 
-          query = filterBuilder(query);
+        try {
+          let query =
+            supabase
+              .from('satellites')
+              .select('*');
 
-          const { data, error } =
-            await query;
+          if (satFilter === 'stations') {
+            query =
+              query.ilike(
+                'name',
+                '%ISS%'
+              );
+          } else if (
+            satFilter === 'starlink'
+          ) {
+            query =
+              query.ilike(
+                'name',
+                '%STARLINK%'
+              );
+          } else if (
+            satFilter === 'weather'
+          ) {
+            query =
+              query.or(
+                'name.ilike.%NOAA%,name.ilike.%GOES%'
+              );
+          }
+
+          const {
+            data,
+            error,
+          } = await query;
 
           if (error) {
             throw error;
           }
 
-          if (!data || data.length === 0) {
-            break;
+          if (cancelled) {
+            return;
           }
 
-          rows.push(...data);
+          const formatted =
+            (data || [])
+              .map(formatSatellite)
+              .filter(
+                (sat) =>
+                  Number.isFinite(
+                    sat.lat
+                  ) &&
+                  Number.isFinite(
+                    sat.lng
+                  )
+              );
 
-          setLoadingMessage(
-            `LOADED ${rows.length.toLocaleString()} OBJECTS...`
+          satCacheRef.current[
+            cacheKey
+          ] = formatted;
+
+          setSatellites(formatted);
+
+          setLastUpdated(
+            new Date()
+          );
+        } catch (error) {
+          console.error(
+            'Supabase satellite fetch error:',
+            error
           );
 
-          if (
-            data.length <
-            SUPABASE_BATCH_SIZE
-          ) {
-            break;
+          if (!cancelled) {
+            setSatellites([]);
           }
-
-          from += SUPABASE_BATCH_SIZE;
+        } finally {
+          if (!cancelled) {
+            setLoadingSats(false);
+          }
         }
+      };
 
-        return rows;
-      },
-      [getSatelliteFilter]
-    );
-
-  /*
-   * Fetch satellites for globe
-   */
-
-  useEffect(() => {
-    if (viewMode === 'wiki') return;
-
-    let cancelled = false;
-
-    async function loadSatellites() {
-      const cache =
-        satCacheRef.current[satFilter];
-
-      if (cache) {
-        setSatellites(cache);
-        return;
-      }
-
-      setLoadingSats(true);
-
-      setLoadingMessage(
-        'QUERYING SUPABASE DATABASE...'
-      );
-
-      try {
-        const rows =
-          await fetchAllSatelliteRows(
-            satFilter
-          );
-
-        if (cancelled) return;
-
-        const formatted =
-          rows.map(
-            formatDatabaseSatellite
-          );
-
-        satCacheRef.current[satFilter] =
-          formatted;
-
-        setSatellites(formatted);
-
-        /*
-         * If the currently selected satellite
-         * isn't present in the newly selected
-         * filter, clear it.
-         */
-        setSelectedSat((current) => {
-          if (!current) return null;
-
-          const stillExists =
-            formatted.some(
-              (sat) =>
-                String(sat.id) ===
-                String(current.id)
-            );
-
-          return stillExists
-            ? current
-            : null;
-        });
-      } catch (error) {
-        console.error(
-          'Supabase satellite fetch error:',
-          error
-        );
-
-        if (!cancelled) {
-          setSatellites([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingSats(false);
-          setLoadingMessage('');
-        }
-      }
-    }
-
-    loadSatellites();
+    fetchSupabaseSatellites();
 
     return () => {
       cancelled = true;
@@ -867,8 +794,141 @@ export default function OrbitalGlobe({
   }, [
     satFilter,
     viewMode,
-    fetchAllSatelliteRows,
+    formatSatellite,
   ]);
+
+  /*
+   * Wiki / database search.
+   */
+  useEffect(() => {
+    if (viewMode !== 'wiki') {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const fetchWikiCatalog =
+      async () => {
+        setLoadingSats(true);
+
+        try {
+          const from =
+            wikiPage * pageSize;
+
+          const to =
+            from + pageSize - 1;
+
+          let query =
+            supabase
+              .from('satellites')
+              .select(
+                '*',
+                {
+                  count: 'exact',
+                }
+              );
+
+          const trimmedSearch =
+            wikiSearch.trim();
+
+          if (trimmedSearch) {
+            if (
+              /^\d+$/.test(
+                trimmedSearch
+              )
+            ) {
+              query =
+                query.or(
+                  `name.ilike.%${trimmedSearch}%,id.eq.${trimmedSearch}`
+                );
+            } else {
+              query =
+                query.ilike(
+                  'name',
+                  `%${trimmedSearch}%`
+                );
+            }
+          }
+
+          const {
+            data,
+            count,
+            error,
+          } =
+            await query
+              .order(
+                'id',
+                {
+                  ascending: true,
+                }
+              )
+              .range(
+                from,
+                to
+              );
+
+          if (error) {
+            throw error;
+          }
+
+          if (cancelled) {
+            return;
+          }
+
+          setWikiData(
+            data || []
+          );
+
+          setTotalWikiCount(
+            count || 0
+          );
+        } catch (error) {
+          console.error(
+            'Wiki fetch error:',
+            error
+          );
+
+          if (!cancelled) {
+            setWikiData([]);
+            setTotalWikiCount(0);
+          }
+        } finally {
+          if (!cancelled) {
+            setLoadingSats(false);
+          }
+        }
+      };
+
+    const timer =
+      setTimeout(
+        fetchWikiCatalog,
+        300
+      );
+
+    return () =>
+      clearTimeout(timer);
+  }, [
+    wikiSearch,
+    wikiPage,
+    viewMode,
+  ]);
+
+  /*
+   * Keep a clock for live telemetry display.
+   */
+  useEffect(() => {
+    const timer =
+      setInterval(
+        () =>
+          setCurrentTime(
+            new Date()
+          ),
+        1000
+      );
+
+    return () =>
+      clearInterval(timer);
+  }, []);
 
   /*
    * REAL-TIME TLE PROPAGATION
@@ -889,7 +949,9 @@ export default function OrbitalGlobe({
 
     let cancelled = false;
 
-    function updatePositions(timestamp) {
+    function updatePositions(
+      timestamp
+    ) {
       if (cancelled) return;
 
       if (
@@ -900,267 +962,179 @@ export default function OrbitalGlobe({
         lastTelemetryUpdateRef.current =
           timestamp;
 
-        const now = new Date();
+        const now =
+          new Date();
 
-        setSatellites((previous) =>
-          previous.map((sat) => {
-            if (!sat.satrec) {
-              return sat;
-            }
+        setSatellites(
+          (previous) =>
+            previous.map(
+              (sat) => {
+                if (!sat.satrec) {
+                  return sat;
+                }
 
-            const updated =
-              propagateSatellite(
-                sat,
-                now
-              );
+                const updated =
+                  propagateSatellite(
+                    sat,
+                    now
+                  );
 
-            return updated || sat;
-          })
+                return (
+                  updated || sat
+                );
+              }
+            )
         );
 
-        setSelectedSat((current) => {
-          if (!current) return null;
-
-          if (!current.satrec) {
-            return current;
-          }
-
-          const updated =
-            propagateSatellite(
-              current,
-              now
-            );
-
-          return updated || current;
-        });
+        setLastUpdated(
+          now
+        );
       }
 
-      animationRef.current =
-        requestAnimationFrame(
-          updatePositions
-        );
+      requestAnimationFrame(
+        updatePositions
+      );
     }
 
-    animationRef.current =
+    const animationFrame =
       requestAnimationFrame(
         updatePositions
       );
 
     return () => {
       cancelled = true;
-
-      if (animationRef.current) {
-        cancelAnimationFrame(
-          animationRef.current
-        );
-      }
+      cancelAnimationFrame(
+        animationFrame
+      );
     };
-  }, [viewMode, satellites.length]);
+  }, [
+    viewMode,
+    satellites.length,
+  ]);
 
   /*
-   * Real orbital path for selected satellite.
+   * Recalculate selected satellite position
+   * separately so the inspector stays live.
    */
-
-  const orbitalPaths = useMemo(() => {
+  useEffect(() => {
     if (
       viewMode !== 'satellites' ||
       !selectedSat?.satrec
     ) {
-      return [];
+      return undefined;
     }
 
-    const path = generateOrbitPath(
-      selectedSat,
-      new Date()
-    );
+    const timer =
+      setInterval(() => {
+        const updated =
+          propagateSatellite(
+            selectedSat,
+            new Date()
+          );
 
-    if (path.length < 2) {
-      return [];
-    }
+        if (updated) {
+          setSelectedSat(
+            (current) => ({
+              ...current,
+              ...updated,
+            })
+          );
+        }
+      }, 1000);
 
-    return [path];
+    return () =>
+      clearInterval(timer);
   }, [
     viewMode,
-    selectedSat,
-    selectedSat?.lat,
-    selectedSat?.lng,
+    selectedSat?.id,
+    selectedSat?.satrec,
   ]);
 
   /*
-   * Clean satellite rendering.
-   *
-   * NO blue/green colors.
+   * Clean white satellite markers.
    */
+  const renderSatellites =
+    useMemo(() => {
+      return satellites.map(
+        (sat) => {
+          const isFocused =
+            hoveredSat?.id ===
+              sat.id ||
+            selectedSat?.id ===
+              sat.id;
 
-  const renderSatellites = useMemo(() => {
-    return satellites.map((sat) => {
-      const selected =
-        String(selectedSat?.id) ===
-        String(sat.id);
+          const isDimmed =
+            Boolean(
+              hoveredSat ||
+                selectedSat
+            ) && !isFocused;
 
-      const hovered =
-        String(hoveredSat?.id) ===
-        String(sat.id);
-
-      return {
-        ...sat,
-
-        displayColor:
-          selected || hovered
-            ? '#ffffff'
-            : 'rgba(255,255,255,0.82)',
-
-        displayRadius:
-          selected
-            ? 0.42
-            : hovered
-              ? 0.34
-              : 0.20,
-
-        displayAltitude:
-          Math.max(
-            0.001,
-            Number(sat.altitude) || 0.001
-          ),
-      };
-    });
-  }, [
-    satellites,
-    selectedSat,
-    hoveredSat,
-  ]);
-
-  /*
-   * Wiki pagination
-   */
-
-  useEffect(() => {
-    if (viewMode !== 'wiki') return;
-
-    let cancelled = false;
-
-    async function fetchWikiCatalog() {
-      setLoadingSats(true);
-
-      try {
-        const from =
-          wikiPage * pageSize;
-
-        const to =
-          from + pageSize - 1;
-
-        let query = supabase
-          .from('satellites')
-          .select('*', {
-            count: 'exact',
-          });
-
-        const trimmed =
-          wikiSearch.trim();
-
-        if (trimmed) {
-          if (/^\d+$/.test(trimmed)) {
-            query = query.or(
-              `name.ilike.%${trimmed}%,id.eq.${trimmed}`
-            );
-          } else {
-            query = query.ilike(
-              'name',
-              `%${trimmed}%`
-            );
-          }
+          return {
+            ...sat,
+            color:
+              isDimmed
+                ? 'rgba(255,255,255,0.16)'
+                : '#ffffff',
+            radius:
+              isFocused
+                ? 0.62
+                : 0.38,
+            displayAltitude:
+              Math.max(
+                0.015,
+                Math.min(
+                  0.8,
+                  sat.globeAltitude ||
+                    0.03
+                )
+              ),
+          };
         }
-
-        const {
-          data,
-          count,
-          error,
-        } = await query
-          .order('id', {
-            ascending: true,
-          })
-          .range(from, to);
-
-        if (error) throw error;
-
-        if (cancelled) return;
-
-        setWikiData(data || []);
-
-        setTotalWikiCount(
-          count || 0
-        );
-      } catch (error) {
-        console.error(
-          'Wiki fetch error:',
-          error
-        );
-      } finally {
-        if (!cancelled) {
-          setLoadingSats(false);
-        }
-      }
-    }
-
-    const timer = setTimeout(
-      fetchWikiCatalog,
-      300
-    );
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [
-    wikiSearch,
-    wikiPage,
-    viewMode,
-  ]);
-
-  const maxPages = Math.ceil(
-    totalWikiCount / pageSize
-  );
-
-  /*
-   * Point click handler
-   */
-
-  const handlePointClick = useCallback(
-    (point) => {
-      if (!globeRef.current) return;
-
-      if (viewMode === 'pads') {
-        setSelectedPad(point);
-
-        globeRef.current.pointOfView(
-          {
-            lat: point.lat,
-            lng: point.lng,
-            altitude: 1.35,
-          },
-          900
-        );
-
-        return;
-      }
-
-      setSelectedSat(point);
-
-      globeRef.current.pointOfView(
-        {
-          lat: point.lat,
-          lng: point.lng,
-          altitude: 1.65,
-        },
-        900
       );
-    },
-    [viewMode]
-  );
+    }, [
+      satellites,
+      hoveredSat,
+      selectedSat,
+    ]);
 
   /*
-   * The JSX continues in PART 2.
+   * Actual orbital path from the selected
+   * satellite's TLE.
    */
+  const orbitalPaths =
+    useMemo(() => {
+      if (
+        viewMode !==
+          'satellites' ||
+        !selectedSat?.satrec
+      ) {
+        return [];
+      }
+
+      const points =
+        generateOrbitPath(
+          selectedSat,
+          currentTime,
+          180
+        );
+
+      return points.length > 1
+        ? [points]
+        : [];
+    }, [
+      selectedSat,
+      currentTime,
+      viewMode,
+    ]);
+
+  const maxPages =
+    Math.max(
+      1,
+      Math.ceil(
+        totalWikiCount /
+          pageSize
+      )
+    );
 
   return (
     <div
@@ -1173,7 +1147,6 @@ export default function OrbitalGlobe({
         margin: '0 auto',
       }}
     >
-
       <style>{`
         @keyframes spaceScroll {
           0% {
@@ -1191,101 +1164,33 @@ export default function OrbitalGlobe({
           background-image:
             radial-gradient(
               1px 1px at 20px 30px,
-              rgba(255,255,255,0.9),
-              transparent
+              rgba(255,255,255,0.75),
+              rgba(0,0,0,0)
+            ),
+            radial-gradient(
+              1px 1px at 40px 70px,
+              rgba(255,255,255,0.5),
+              rgba(0,0,0,0)
             ),
             radial-gradient(
               1px 1px at 90px 40px,
-              rgba(255,255,255,0.75),
-              transparent
+              rgba(255,255,255,0.7),
+              rgba(0,0,0,0)
             ),
             radial-gradient(
               1px 1px at 160px 120px,
-              rgba(255,255,255,0.8),
-              transparent
-            ),
-            radial-gradient(
-              1px 1px at 280px 220px,
-              rgba(255,255,255,0.6),
-              transparent
+              rgba(255,255,255,0.55),
+              rgba(0,0,0,0)
             );
 
           background-repeat: repeat;
-
           background-size: 350px 350px;
-
           animation:
             spaceScroll 35s linear infinite;
         }
-
-        .orbital-scrollbar::-webkit-scrollbar {
-          width: 5px;
-        }
-
-        .orbital-scrollbar::-webkit-scrollbar-track {
-          background: rgba(255,255,255,0.03);
-        }
-
-        .orbital-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255,255,255,0.25);
-        }
-      `}</style>
-  return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1.5rem',
-        width: '100%',
-        maxWidth: '1400px',
-        margin: '0 auto'
-      }}
-    >
-      <style>{`
-        @keyframes spaceScroll {
-          0% { background-position: 0 0; }
-          100% { background-position: -1000px 500px; }
-        }
-
-        .moving-space-bg {
-          background-color: #020617;
-          background-image:
-            radial-gradient(1px 1px at 20px 30px, #ffffff, transparent),
-            radial-gradient(1px 1px at 40px 70px, #ffffff, transparent),
-            radial-gradient(1px 1px at 90px 40px, #ffffff, transparent),
-            radial-gradient(1px 1px at 160px 120px, #ffffff, transparent),
-            radial-gradient(1px 1px at 220px 190px, #ffffff, transparent),
-            radial-gradient(1px 1px at 300px 80px, #ffffff, transparent);
-          background-repeat: repeat;
-          background-size: 350px 350px;
-          animation: spaceScroll 40s linear infinite;
-        }
-
-        .orbital-scroll::-webkit-scrollbar {
-          width: 6px;
-        }
-
-        .orbital-scroll::-webkit-scrollbar-track {
-          background: #020617;
-        }
-
-        .orbital-scroll::-webkit-scrollbar-thumb {
-          background: rgba(255,255,255,0.25);
-          border-radius: 10px;
-        }
-
-        .orbital-button {
-          transition: all 0.15s ease;
-        }
-
-        .orbital-button:hover {
-          background: rgba(255,255,255,0.12) !important;
-        }
       `}</style>
 
-      {/* =========================================================
-          DISPLAY CONTROLS
-      ========================================================= */}
+      {/* VIEW / FILTER CONTROLS */}
 
       <div
         style={{
@@ -1293,15 +1198,15 @@ export default function OrbitalGlobe({
           gap: '1rem',
           flexWrap: 'wrap',
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
         }}
       >
         <div
           style={{
             display: 'flex',
-            gap: '0.7rem',
+            gap: '0.8rem',
             alignItems: 'center',
-            flexWrap: 'wrap'
+            flexWrap: 'wrap',
           }}
         >
           <span
@@ -1310,50 +1215,66 @@ export default function OrbitalGlobe({
               color: '#a1a1aa',
               letterSpacing: '2px',
               textTransform: 'uppercase',
-              fontWeight: '700'
+              fontWeight: '700',
             }}
           >
             // DISPLAY MODE:
           </span>
 
           {[
-            { key: 'pads', label: 'Launch Pads' },
+            {
+              key: 'pads',
+              label: 'Launch Pads',
+            },
             {
               key: 'satellites',
-              label: `Live Satellites (${satellites.length})`
+              label: `Live Globe Satellites (${satellites.length})`,
             },
             {
               key: 'wiki',
-              label: 'Satellite Database'
-            }
-          ].map(btn => (
+              label: 'Satellite Database',
+            },
+          ].map((btn) => (
             <button
               key={btn.key}
-              className="orbital-button"
               onClick={() => {
-                setViewMode(btn.key);
-                setSelectedSat(null);
-                setHoveredSat(null);
+                setViewMode(
+                  btn.key
+                );
+                setSelectedSat(
+                  null
+                );
               }}
               style={{
-                padding: '0.5rem 1rem',
+                padding:
+                  '0.5rem 1rem',
                 background:
-                  viewMode === btn.key
+                  viewMode ===
+                  btn.key
                     ? '#ffffff'
-                    : 'rgba(255,255,255,0.04)',
+                    : 'rgba(255,255,255,0.05)',
                 border:
-                  viewMode === btn.key
-                    ? '1px solid #ffffff'
-                    : '1px solid rgba(255,255,255,0.18)',
+                  `1px solid ${
+                    viewMode ===
+                    btn.key
+                      ? '#ffffff'
+                      : 'rgba(255,255,255,0.15)'
+                  }`,
                 color:
-                  viewMode === btn.key
-                    ? '#020617'
+                  viewMode ===
+                  btn.key
+                    ? '#000000'
                     : '#ffffff',
-                fontSize: '0.7rem',
-                fontWeight: '700',
-                letterSpacing: '1px',
-                textTransform: 'uppercase',
-                cursor: 'pointer'
+                fontSize:
+                  '0.7rem',
+                fontWeight:
+                  '700',
+                letterSpacing:
+                  '1px',
+                textTransform:
+                  'uppercase',
+                cursor:
+                  'pointer',
               }}
             >
               {btn.label}
@@ -1361,109 +1282,154 @@ export default function OrbitalGlobe({
           ))}
         </div>
 
-        {/* LAUNCH PAD FILTERS */}
-        {viewMode === 'pads' && (
-          <div style={{ display: 'flex', gap: '0.4rem' }}>
-            {['all', 'major', 'minor'].map(filter => (
+        {viewMode ===
+          'pads' && (
+          <div
+            style={{
+              display: 'flex',
+              gap: '0.4rem',
+            }}
+          >
+            {[
+              'all',
+              'major',
+              'minor',
+            ].map((f) => (
               <button
-                key={filter}
-                className="orbital-button"
-                onClick={() => setPadFilter(filter)}
+                key={f}
+                onClick={() =>
+                  setPadFilter(f)
+                }
                 style={{
-                  padding: '0.4rem 0.8rem',
+                  padding:
+                    '0.4rem 0.8rem',
                   background:
-                    padFilter === filter
-                      ? 'rgba(255,255,255,0.12)'
+                    padFilter ===
+                    f
+                      ? '#ffffff'
                       : 'transparent',
-                  border: '1px solid rgba(255,255,255,0.25)',
-                  color: '#ffffff',
-                  fontSize: '0.6rem',
-                  textTransform: 'uppercase',
-                  cursor: 'pointer'
+                  border:
+                    '1px solid rgba(255,255,255,0.45)',
+                  color:
+                    padFilter ===
+                    f
+                      ? '#000000'
+                      : '#ffffff',
+                  fontSize:
+                    '0.6rem',
+                  textTransform:
+                    'uppercase',
+                  cursor:
+                    'pointer',
                 }}
               >
-                {filter}
+                {f}
               </button>
             ))}
           </div>
         )}
 
-        {/* SATELLITE FILTERS */}
-        {viewMode === 'satellites' && (
+        {viewMode ===
+          'satellites' && (
           <div
             style={{
               display: 'flex',
               gap: '0.4rem',
-              flexWrap: 'wrap'
+              flexWrap: 'wrap',
             }}
           >
             {[
-              { key: 'stations', label: 'Stations' },
-              { key: 'starlink', label: 'Starlink' },
-              { key: 'weather', label: 'Weather' },
-              { key: 'active', label: 'All Active' }
-            ].map(filter => (
+              {
+                key: 'stations',
+                label: 'Stations',
+              },
+              {
+                key: 'starlink',
+                label: 'Starlink',
+              },
+              {
+                key: 'weather',
+                label: 'Weather',
+              },
+              {
+                key: 'active',
+                label: 'All Active',
+              },
+            ].map((f) => (
               <button
-                key={filter.key}
-                className="orbital-button"
-                onClick={() => {
-                  setSatFilter(filter.key);
-                  setSelectedSat(null);
-                }}
+                key={f.key}
+                onClick={() =>
+                  setSatFilter(
+                    f.key
+                  )
+                }
                 style={{
-                  padding: '0.4rem 0.7rem',
+                  padding:
+                    '0.4rem 0.7rem',
                   background:
-                    satFilter === filter.key
-                      ? 'rgba(255,255,255,0.12)'
+                    satFilter ===
+                    f.key
+                      ? '#ffffff'
                       : 'transparent',
-                  border: '1px solid rgba(255,255,255,0.22)',
-                  color: '#ffffff',
-                  fontSize: '0.6rem',
-                  textTransform: 'uppercase',
-                  cursor: 'pointer'
+                  border:
+                    '1px solid rgba(255,255,255,0.45)',
+                  color:
+                    satFilter ===
+                    f.key
+                      ? '#000000'
+                      : '#ffffff',
+                  fontSize:
+                    '0.6rem',
+                  textTransform:
+                    'uppercase',
+                  cursor:
+                    'pointer',
                 }}
               >
-                {filter.label}
+                {f.label}
               </button>
             ))}
           </div>
         )}
       </div>
 
-      {/* =========================================================
-          GLOBE
-      ========================================================= */}
+      {/* GLOBE */}
 
-      {viewMode !== 'wiki' ? (
+      {viewMode !==
+      'wiki' ? (
         <div
           className="moving-space-bg"
           style={{
-            position: 'relative',
+            position:
+              'relative',
             width: '100%',
             height: '550px',
             borderRadius: '2px',
-            overflow: 'hidden',
-            border: '1px solid rgba(255,255,255,0.15)'
+            overflow:
+              'hidden',
+            border:
+              '1px solid rgba(255,255,255,0.18)',
           }}
         >
           <div
             style={{
               width: '100%',
               height: '100%',
-              position: 'absolute',
-              inset: 0
+              position:
+                'absolute',
+              top: 0,
+              left: 0,
             }}
           >
             <ReactGlobe
               ref={globeRef}
-
               globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
               bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-
               backgroundColor="rgba(0,0,0,0)"
 
               pointsData={
-                viewMode === 'pads'
+                viewMode ===
+                'pads'
                   ? filteredPads
                   : renderSatellites
               }
@@ -1471,1117 +1437,1502 @@ export default function OrbitalGlobe({
               pointLat="lat"
               pointLng="lng"
 
-              /*
-               * Launch pads sit directly on the surface.
-               * Satellites use their REAL altitude converted
-               * by the propagation code from Part 1.
-               */
               pointAltitude={
-                viewMode === 'pads'
-                  ? 0.015
-                  : d => d.globeAltitude || 0.02
+                viewMode ===
+                'pads'
+                  ? 0.012
+                  : 'displayAltitude'
               }
 
-              /*
-               * CLEAN WHITE MARKERS
-               */
-              pointColor={() => '#ffffff'}
+              pointColor={
+                () =>
+                  '#ffffff'
+              }
 
-              /*
-               * Small markers prevent the huge stretched/
-               * oversized satellite appearance.
-               */
               pointRadius={
-                viewMode === 'pads'
-                  ? 0.65
-                  : d => {
-                      if (selectedSat?.id === d.id) return 0.9;
-                      if (hoveredSat?.id === d.id) return 0.8;
-                      return 0.35;
-                    }
+                viewMode ===
+                'pads'
+                  ? (
+                      d
+                    ) =>
+                      d.type ===
+                      'major'
+                        ? 0.75
+                        : 0.5
+                  : (
+                      d
+                    ) =>
+                      d.radius ||
+                      0.38
               }
 
-              pointResolution={8}
+              pointsMerge={
+                true
+              }
 
-              /*
-               * REAL ORBIT PATH
-               *
-               * orbitPathData is calculated from the satellite's
-               * TLE in Part 1. It is NOT the old fake sine-wave
-               * orbit.
-               */
               pathsData={
-                viewMode === 'satellites' && selectedSat
-                  ? selectedOrbitPath
+                viewMode ===
+                'satellites'
+                  ? orbitalPaths
                   : []
               }
 
-              pathPoints="points"
-              pathPointLat="lat"
-              pathPointLng="lng"
-              pathPointAlt="altitude"
-
-              pathColor={() => 'rgba(255,255,255,0.75)'}
-              pathStroke={1.2}
-
-              pathDashLength={0.025}
-              pathDashGap={0.012}
-              pathDashAnimateTime={5000}
-
-              /*
-               * Selection ring
-               */
-              ringsData={
-                viewMode === 'satellites' && selectedSat
-                  ? [selectedSat]
-                  : viewMode === 'pads' && selectedPad
-                    ? [selectedPad]
-                    : []
+              pathColor={() =>
+                'rgba(255,255,255,0.8)'
               }
 
-              ringColor={() => '#ffffff'}
-              ringMaxRadius={2.5}
-              ringPropagationSpeed={1.5}
-              ringRepeatPeriod={1000}
+              pathDashLength={
+                0.035
+              }
 
-              /*
-               * Click satellite / pad
-               */
-              onPointClick={d => {
-                if (viewMode === 'pads') {
-                  setSelectedPad(d);
+              pathDashGap={
+                0.02
+              }
 
-                  if (globeRef.current) {
+              pathDashAnimateTime={
+                3500
+              }
+
+              pathStroke={1.2}
+
+              ringsData={
+                viewMode ===
+                  'satellites' &&
+                selectedSat
+                  ? [
+                      selectedSat,
+                    ]
+                  : viewMode ===
+                      'pads' &&
+                    selectedPad
+                  ? [
+                      selectedPad,
+                    ]
+                  : []
+              }
+
+              ringColor={() =>
+                'rgba(255,255,255,0.9)'
+              }
+
+              ringMaxRadius={
+                viewMode ===
+                'pads'
+                  ? 2.5
+                  : 3.5
+              }
+
+              ringPropagationSpeed={
+                1.5
+              }
+
+              ringRepeatPeriod={
+                900
+              }
+
+              onGlobeClick={() => {
+                if (
+                  viewMode ===
+                  'satellites'
+                ) {
+                  setSelectedSat(
+                    null
+                  );
+                }
+              }}
+
+              onPointClick={(d) => {
+                if (
+                  viewMode ===
+                  'pads'
+                ) {
+                  setSelectedPad(
+                    d
+                  );
+
+                  if (
+                    globeRef.current
+                  ) {
                     globeRef.current.pointOfView(
                       {
                         lat: d.lat,
                         lng: d.lng,
-                        altitude: 1.35
+                        altitude:
+                          1.35,
                       },
-                      900
+                      1000
                     );
                   }
                 } else {
-                  setSelectedSat(d);
+                  setSelectedSat(
+                    d
+                  );
 
-                  if (globeRef.current) {
+                  if (
+                    globeRef.current
+                  ) {
                     globeRef.current.pointOfView(
                       {
                         lat: d.lat,
                         lng: d.lng,
-                        altitude: 1.7
+                        altitude:
+                          1.7,
                       },
-                      900
+                      1000
                     );
                   }
                 }
               }}
 
-              onPointHover={d => {
-                if (viewMode === 'satellites') {
-                  setHoveredSat(d || null);
+              onPointHover={(d) => {
+                if (
+                  viewMode ===
+                  'satellites'
+                ) {
+                  setHoveredSat(
+                    d ||
+                      null
+                  );
                 }
               }}
 
-              /*
-               * Clicking empty globe clears satellite selection.
-               */
-              onGlobeClick={() => {
-                if (viewMode === 'satellites') {
-                  setSelectedSat(null);
-                  setHoveredSat(null);
-                }
-              }}
-
-              /*
-               * CLEAN TELEMETRY LABEL
-               */
-              pointLabel={d => {
-                if (viewMode === 'pads') {
-                  return `
-                    <div style="
-                      background:rgba(2,6,23,0.96);
-                      border:1px solid rgba(255,255,255,0.5);
-                      padding:10px 12px;
-                      color:#fff;
-                      font-family:monospace;
-                      font-size:11px;
-                      min-width:180px;
-                    ">
-                      <div style="
-                        font-weight:700;
-                        font-size:12px;
-                        margin-bottom:5px;
-                      ">
-                        ${d.name || 'LAUNCH PAD'}
-                      </div>
-
-                      <div>
-                        ${d.country || ''}
-                      </div>
-
-                      <div style="margin-top:4px;color:#aaa;">
-                        LAT ${Number(d.lat).toFixed(4)}°
-                        <br/>
-                        LNG ${Number(d.lng).toFixed(4)}°
-                      </div>
-                    </div>
-                  `;
-                }
-
-                return `
-                  <div style="
-                    background:rgba(2,6,23,0.97);
-                    border:1px solid rgba(255,255,255,0.55);
-                    padding:10px 12px;
+              pointLabel={(d) => `
+                <div style="
+                  background:rgba(0,0,0,0.94);
+                  padding:10px 12px;
+                  border:1px solid rgba(255,255,255,0.65);
+                  font-family:monospace;
+                  font-size:11px;
+                  color:#fff;
+                  pointer-events:none;
+                  max-width:280px;
+                ">
+                  <b style="
                     color:#fff;
-                    font-family:monospace;
-                    font-size:11px;
-                    min-width:190px;
+                    font-size:12px;
                   ">
-                    <div style="
-                      font-weight:700;
-                      font-size:12px;
-                      margin-bottom:6px;
-                    ">
-                      ${d.name || 'UNKNOWN SATELLITE'}
-                    </div>
-
-                    <div style="color:#aaa;">
-                      NORAD: ${d.id ?? 'N/A'}
-                    </div>
-
-                    <div style="margin-top:4px;">
-                      LAT:
-                      ${
-                        Number.isFinite(Number(d.lat))
-                          ? Number(d.lat).toFixed(4) + '°'
-                          : 'N/A'
-                      }
-                    </div>
-
-                    <div>
-                      LNG:
-                      ${
-                        Number.isFinite(Number(d.lng))
-                          ? Number(d.lng).toFixed(4) + '°'
-                          : 'N/A'
-                      }
-                    </div>
-
-                    <div>
-                      ALT:
-                      ${
-                        Number.isFinite(Number(d.altitude))
-                          ? Number(d.altitude).toFixed(1) + ' km'
-                          : 'N/A'
-                      }
-                    </div>
-
-                    <div>
-                      VELOCITY:
-                      ${
-                        Number.isFinite(Number(d.velocity))
-                          ? Number(d.velocity).toFixed(2) + ' km/s'
-                          : 'N/A'
-                      }
-                    </div>
-
-                    <div style="margin-top:5px;color:#888;">
-                      LIVE TLE PROPAGATION
-                    </div>
-                  </div>
-                `;
-              }}
+                    ${d.name || 'UNKNOWN'}
+                  </b>
+                  <br/>
+                  ${
+                    viewMode ===
+                    'pads'
+                      ? `
+                        Agency:
+                        ${d.agency || 'N/A'}
+                        <br/>
+                        Coordinates:
+                        ${Number(d.lat).toFixed(4)}°,
+                        ${Number(d.lng).toFixed(4)}°
+                      `
+                      : `
+                        NORAD:
+                        ${getSatelliteId(d) || 'N/A'}
+                        <br/>
+                        Lat:
+                        ${Number(d.lat).toFixed(4)}°
+                        <br/>
+                        Lng:
+                        ${Number(d.lng).toFixed(4)}°
+                        <br/>
+                        Alt:
+                        ${
+                          Number.isFinite(
+                            d.altitudeKm
+                          )
+                            ? `${d.altitudeKm.toFixed(1)} km`
+                            : 'N/A'
+                        }
+                      `
+                  }
+                </div>
+              `}
             />
           </div>
-
-          {/* =====================================================
-              LIVE STATUS
-          ===================================================== */}
-
-          {viewMode === 'satellites' && (
-            <div
-              style={{
-                position: 'absolute',
-                left: '1rem',
-                bottom: '1rem',
-                background: 'rgba(2,6,23,0.88)',
-                border: '1px solid rgba(255,255,255,0.18)',
-                padding: '0.55rem 0.8rem',
-                zIndex: 10,
-                fontFamily: 'monospace'
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '0.6rem',
-                  color: '#ffffff',
-                  letterSpacing: '1px'
-                }}
-              >
-                ● LIVE ORBITAL PROPAGATION
-              </div>
-
-              <div
-                style={{
-                  marginTop: '3px',
-                  fontSize: '0.55rem',
-                  color: '#71717a'
-                }}
-              >
-                TLE → SGP4 → LAT/LNG/ALT
-              </div>
-            </div>
-          )}
-
-          {/* =====================================================
-              LOADING
-          ===================================================== */}
 
           {loadingSats && (
             <div
               style={{
-                position: 'absolute',
+                position:
+                  'absolute',
                 top: '1rem',
                 right: '1rem',
-                background: 'rgba(2,6,23,0.92)',
-                padding: '0.5rem 0.8rem',
-                border: '1px solid rgba(255,255,255,0.25)',
-                zIndex: 10
+                background:
+                  'rgba(0,0,0,0.88)',
+                padding:
+                  '0.4rem 0.8rem',
+                border:
+                  '1px solid rgba(255,255,255,0.55)',
+                zIndex: 10,
               }}
             >
               <span
                 style={{
-                  fontSize: '0.6rem',
-                  color: '#ffffff',
-                  letterSpacing: '1px'
+                  fontSize:
+                    '0.65rem',
+                  color:
+                    '#ffffff',
+                  letterSpacing:
+                    '1px',
                 }}
               >
-                LOADING ORBITAL DATA...
+                QUERYING SUPABASE...
               </span>
             </div>
           )}
 
-          {/* =====================================================
-              SATELLITE COUNT
-          ===================================================== */}
-
-          {viewMode === 'satellites' && (
+          {viewMode ===
+            'satellites' && (
             <div
               style={{
-                position: 'absolute',
-                top: '1rem',
-                left: '1rem',
-                background: 'rgba(2,6,23,0.88)',
-                border: '1px solid rgba(255,255,255,0.18)',
-                padding: '0.5rem 0.75rem',
-                zIndex: 10
+                position:
+                  'absolute',
+                bottom:
+                  '0.75rem',
+                left:
+                  '0.75rem',
+                background:
+                  'rgba(0,0,0,0.75)',
+                padding:
+                  '0.35rem 0.65rem',
+                border:
+                  '1px solid rgba(255,255,255,0.18)',
+                zIndex: 5,
+                fontFamily:
+                  'monospace',
               }}
             >
-              <div
+              <span
                 style={{
-                  fontSize: '0.55rem',
-                  color: '#71717a',
-                  letterSpacing: '1px'
+                  fontSize:
+                    '0.58rem',
+                  color:
+                    '#ffffff',
                 }}
               >
+                {satellites.length}
+                {' '}
                 OBJECTS
-              </div>
-
-              <div
-                style={{
-                  fontFamily: 'monospace',
-                  color: '#ffffff',
-                  fontSize: '0.9rem',
-                  fontWeight: '700'
-                }}
-              >
-                {satellites.length.toLocaleString()}
-              </div>
+                {' • '}
+                LIVE TLE
+                {' • '}
+                {currentTime.toISOString()}
+              </span>
             </div>
           )}
         </div>
       ) : (
-
-        /* =========================================================
-           SATELLITE DATABASE / WIKI
-        ========================================================= */
-
+        /* WIKI */
         <div
           style={{
-            padding: '1.5rem',
-            borderRadius: '2px',
-            border: '1px solid rgba(255,255,255,0.15)',
-            background: '#000000'
+            padding:
+              '1.5rem',
+            borderRadius:
+              '2px',
+            border:
+              '1px solid rgba(255,255,255,0.18)',
+            background:
+              '#000000',
           }}
         >
           <div
             style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '1rem',
-              flexWrap: 'wrap',
-              gap: '1rem'
+              display:
+                'flex',
+              justifyContent:
+                'space-between',
+              alignItems:
+                'center',
+              marginBottom:
+                '1rem',
+              flexWrap:
+                'wrap',
+              gap: '1rem',
             }}
           >
             <span
               style={{
-                fontSize: '0.7rem',
-                color: '#ffffff',
-                letterSpacing: '2px',
-                textTransform: 'uppercase',
-                fontWeight: '800'
+                fontSize:
+                  '0.7rem',
+                color:
+                  '#ffffff',
+                letterSpacing:
+                  '2px',
+                textTransform:
+                  'uppercase',
+                fontWeight:
+                  '800',
               }}
             >
-              // SATELLITE DATABASE — {totalWikiCount.toLocaleString()} MATCHES
+              // SATELLITE DATABASE
+              {' '}
+              (TOTAL MATCHES:
+              {' '}
+              {totalWikiCount})
             </span>
 
             <input
               type="text"
-              placeholder="Search name or NORAD ID..."
-              value={wikiSearch}
-              onChange={e => {
-                setWikiSearch(e.target.value);
-                setWikiPage(0);
+              placeholder="Search by name or NORAD ID across all records..."
+              value={
+                wikiSearch
+              }
+              onChange={(e) => {
+                setWikiSearch(
+                  e.target.value
+                );
+                setWikiPage(
+                  0
+                );
               }}
               style={{
-                background: '#050505',
-                border: '1px solid rgba(255,255,255,0.2)',
-                padding: '0.55rem 1rem',
-                color: '#fff',
-                fontSize: '0.75rem',
-                fontFamily: 'monospace',
-                width: '320px',
-                outline: 'none'
+                background:
+                  'rgba(0,0,0,0.8)',
+                border:
+                  '1px solid rgba(255,255,255,0.3)',
+                padding:
+                  '0.5rem 1rem',
+                color:
+                  '#fff',
+                fontSize:
+                  '0.75rem',
+                fontFamily:
+                  'monospace',
+                width:
+                  '320px',
+                outline:
+                  'none',
               }}
             />
           </div>
 
           <div
-            className="orbital-scroll"
             style={{
-              maxHeight: '420px',
-              overflowY: 'auto'
+              maxHeight:
+                '420px',
+              overflowY:
+                'auto',
             }}
           >
             <table
               style={{
-                width: '100%',
-                borderCollapse: 'collapse',
-                fontSize: '0.72rem',
-                fontFamily: 'monospace',
-                color: '#d1d5db'
+                width:
+                  '100%',
+                borderCollapse:
+                  'collapse',
+                fontSize:
+                  '0.75rem',
+                fontFamily:
+                  'monospace',
+                color:
+                  '#d1d5db',
+                background:
+                  'transparent',
               }}
             >
               <thead>
                 <tr
                   style={{
                     borderBottom:
-                      '1px solid rgba(255,255,255,0.2)',
-                    textAlign: 'left',
-                    color: '#ffffff',
-                    background: '#050505'
+                      '1px solid rgba(255,255,255,0.25)',
+                    textAlign:
+                      'left',
+                    color:
+                      '#ffffff',
+                    background:
+                      'rgba(255,255,255,0.03)',
                   }}
                 >
-                  <th style={{ padding: '0.6rem' }}>
+                  <th
+                    style={{
+                      padding:
+                        '0.6rem',
+                    }}
+                  >
                     NORAD ID
                   </th>
 
-                  <th style={{ padding: '0.6rem' }}>
+                  <th
+                    style={{
+                      padding:
+                        '0.6rem',
+                    }}
+                  >
                     OBJECT NAME
                   </th>
 
-                  <th style={{ padding: '0.6rem' }}>
+                  <th
+                    style={{
+                      padding:
+                        '0.6rem',
+                    }}
+                  >
                     ORGANIZATION
                   </th>
 
-                  <th style={{ padding: '0.6rem' }}>
-                    LAT
-                  </th>
-
-                  <th style={{ padding: '0.6rem' }}>
-                    LNG
-                  </th>
-
-                  <th style={{ padding: '0.6rem' }}>
-                    ALT
+                  <th
+                    style={{
+                      padding:
+                        '0.6rem',
+                    }}
+                  >
+                    STATUS
                   </th>
                 </tr>
               </thead>
 
               <tbody>
-                {wikiData.map(item => (
-                  <tr
-                    key={item.id}
-                    style={{
-                      borderBottom:
-                        '1px solid rgba(255,255,255,0.06)'
-                    }}
-                  >
-                    <td
+                {wikiData.map(
+                  (item) => (
+                    <tr
+                      key={
+                        item.id
+                      }
                       style={{
-                        padding: '0.6rem',
-                        color: '#ffffff'
+                        borderBottom:
+                          '1px solid rgba(255,255,255,0.05)',
+                        background:
+                          'transparent',
                       }}
                     >
-                      {item.id}
-                    </td>
+                      <td
+                        style={{
+                          padding:
+                            '0.6rem',
+                          color:
+                            '#ffffff',
+                        }}
+                      >
+                        {item.id}
+                      </td>
 
-                    <td
-                      style={{
-                        padding: '0.6rem',
-                        color: '#ffffff',
-                        fontWeight: 'bold'
-                      }}
-                    >
-                      {item.name}
-                    </td>
+                      <td
+                        style={{
+                          padding:
+                            '0.6rem',
+                          color:
+                            '#fff',
+                          fontWeight:
+                            'bold',
+                        }}
+                      >
+                        {item.name}
+                      </td>
 
-                    <td style={{ padding: '0.6rem' }}>
-                      {item.organization || 'Unknown'}
-                    </td>
+                      <td
+                        style={{
+                          padding:
+                            '0.6rem',
+                        }}
+                      >
+                        {item.organization ||
+                          'Unknown'}
+                      </td>
 
-                    <td style={{ padding: '0.6rem' }}>
-                      {Number.isFinite(Number(item.lat))
-                        ? Number(item.lat).toFixed(4)
-                        : '—'}
-                    </td>
-
-                    <td style={{ padding: '0.6rem' }}>
-                      {Number.isFinite(Number(item.lng))
-                        ? Number(item.lng).toFixed(4)
-                        : '—'}
-                    </td>
-
-                    <td style={{ padding: '0.6rem' }}>
-                      {Number.isFinite(Number(item.altitude))
-                        ? `${Number(item.altitude).toFixed(1)} km`
-                        : '—'}
-                    </td>
-                  </tr>
-                ))}
+                      <td
+                        style={{
+                          padding:
+                            '0.6rem',
+                          color:
+                            '#ffffff',
+                        }}
+                      >
+                        ACTIVE
+                      </td>
+                    </tr>
+                  )
+                )}
               </tbody>
             </table>
-
-            {wikiData.length === 0 && !loadingSats && (
-              <div
-                style={{
-                  padding: '2rem',
-                  textAlign: 'center',
-                  color: '#71717a',
-                  fontFamily: 'monospace',
-                  fontSize: '0.7rem'
-                }}
-              >
-                NO RECORDS FOUND
-              </div>
-            )}
           </div>
-
-          {/* =====================================================
-              PAGINATION
-          ===================================================== */}
+          {/* PAGINATION */}
 
           <div
             style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginTop: '1rem',
+              display:
+                'flex',
+              justifyContent:
+                'space-between',
+              alignItems:
+                'center',
+              marginTop:
+                '1rem',
               borderTop:
-                '1px solid rgba(255,255,255,0.12)',
-              paddingTop: '0.8rem'
+                '1px solid rgba(255,255,255,0.15)',
+              paddingTop:
+                '0.8rem',
+              background:
+                'transparent',
             }}
           >
             <span
               style={{
-                fontSize: '0.65rem',
-                color: '#71717a',
-                fontFamily: 'monospace'
+                fontSize:
+                  '0.65rem',
+                color:
+                  '#a1a1aa',
               }}
             >
-              PAGE {wikiPage + 1} OF {Math.max(1, maxPages)}
+              PAGE{' '}
+              {wikiPage +
+                1}{' '}
+              OF{' '}
+              {maxPages}
             </span>
 
             <div
               style={{
-                display: 'flex',
-                gap: '0.5rem'
+                display:
+                  'flex',
+                gap:
+                  '0.5rem',
               }}
             >
               <button
-                className="orbital-button"
-                disabled={wikiPage === 0}
-                onClick={() =>
-                  setWikiPage(p => Math.max(0, p - 1))
-                }
-                style={{
-                  padding: '0.4rem 0.8rem',
-                  background:
-                    wikiPage === 0
-                      ? 'rgba(255,255,255,0.02)'
-                      : 'rgba(255,255,255,0.08)',
-                  border:
-                    '1px solid rgba(255,255,255,0.2)',
-                  color:
-                    wikiPage === 0
-                      ? '#52525b'
-                      : '#ffffff',
-                  fontSize: '0.65rem',
-                  cursor:
-                    wikiPage === 0
-                      ? 'not-allowed'
-                      : 'pointer'
-                }}
-              >
-                PREV
-              </button>
-
-              <button
-                className="orbital-button"
                 disabled={
-                  wikiPage + 1 >= maxPages
+                  wikiPage ===
+                  0
                 }
                 onClick={() =>
-                  setWikiPage(p => p + 1)
+                  setWikiPage(
+                    (p) =>
+                      Math.max(
+                        0,
+                        p - 1
+                      )
+                  )
                 }
                 style={{
-                  padding: '0.4rem 0.8rem',
+                  padding:
+                    '0.4rem 0.8rem',
                   background:
-                    wikiPage + 1 >= maxPages
+                    wikiPage ===
+                    0
                       ? 'rgba(255,255,255,0.02)'
-                      : 'rgba(255,255,255,0.08)',
+                      : 'rgba(255,255,255,0.12)',
                   border:
-                    '1px solid rgba(255,255,255,0.2)',
+                    '1px solid rgba(255,255,255,0.3)',
                   color:
-                    wikiPage + 1 >= maxPages
+                    wikiPage ===
+                    0
                       ? '#52525b'
                       : '#ffffff',
-                  fontSize: '0.65rem',
+                  fontSize:
+                    '0.65rem',
                   cursor:
-                    wikiPage + 1 >= maxPages
+                    wikiPage ===
+                    0
                       ? 'not-allowed'
-                      : 'pointer'
+                      : 'pointer',
                 }}
               >
-                NEXT
+                PREV PAGE
+              </button>
+
+              <button
+                disabled={
+                  wikiPage +
+                    1 >=
+                  maxPages
+                }
+                onClick={() =>
+                  setWikiPage(
+                    (p) =>
+                      p + 1
+                  )
+                }
+                style={{
+                  padding:
+                    '0.4rem 0.8rem',
+                  background:
+                    wikiPage +
+                      1 >=
+                    maxPages
+                      ? 'rgba(255,255,255,0.02)'
+                      : 'rgba(255,255,255,0.12)',
+                  border:
+                    '1px solid rgba(255,255,255,0.3)',
+                  color:
+                    wikiPage +
+                      1 >=
+                    maxPages
+                      ? '#52525b'
+                      : '#ffffff',
+                  fontSize:
+                    '0.65rem',
+                  cursor:
+                    wikiPage +
+                      1 >=
+                    maxPages
+                      ? 'not-allowed'
+                      : 'pointer',
+                }}
+              >
+                NEXT PAGE
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* =========================================================
-          LAUNCH PAD INSPECTOR
-      ========================================================= */}
+      {/* LAUNCH PAD INSPECTOR */}
 
-      {viewMode === 'pads' && selectedPad && (
-        <div
-          style={{
-            padding: '1.5rem',
-            borderRadius: '2px',
-            border:
-              '1px solid rgba(255,255,255,0.15)',
-            background:
-              'rgba(10,15,25,0.88)'
-          }}
-        >
+      {viewMode ===
+        'pads' &&
+        selectedPad && (
           <div
+            className="glass-card"
             style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
+              padding:
+                '1.5rem',
+              borderRadius:
+                '2px',
+              border:
+                '1px solid rgba(255,255,255,0.18)',
+              background:
+                'rgba(10,15,25,0.88)',
             }}
           >
-            <span
+            <div
               style={{
-                fontSize: '0.65rem',
-                color: '#ffffff',
-                letterSpacing: '2px',
-                textTransform: 'uppercase',
-                fontWeight: '800'
+                display:
+                  'flex',
+                justifyContent:
+                  'space-between',
+                alignItems:
+                  'center',
               }}
             >
-              // LAUNCH FACILITY
-            </span>
-
-            <span
-              style={{
-                fontSize: '0.65rem',
-                color: '#ffffff'
-              }}
-            >
-              ● OPERATIONAL
-            </span>
-          </div>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns:
-                'repeat(auto-fit,minmax(200px,1fr))',
-              gap: '1rem',
-              marginTop: '0.8rem'
-            }}
-          >
-            <div>
-              <p
+              <span
                 style={{
-                  margin: 0,
-                  fontSize: '0.6rem',
-                  color: '#71717a'
+                  fontSize:
+                    '0.65rem',
+                  color:
+                    '#ffffff',
+                  letterSpacing:
+                    '2px',
+                  textTransform:
+                    'uppercase',
+                  fontWeight:
+                    '800',
                 }}
               >
-                FACILITY
-              </p>
-
-              <h3
-                style={{
-                  margin: '0.2rem 0 0',
-                  fontSize: '1rem',
-                  color: '#ffffff'
-                }}
-              >
-                {selectedPad.name}
-              </h3>
-            </div>
-
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.6rem',
-                  color: '#71717a'
-                }}
-              >
-                AGENCY
-              </p>
-
-              <p
-                style={{
-                  margin: '0.2rem 0 0',
-                  fontSize: '0.9rem',
-                  color: '#ffffff',
-                  fontWeight: '700'
-                }}
-              >
-                {selectedPad.agency}
-              </p>
-            </div>
-
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.6rem',
-                  color: '#71717a'
-                }}
-              >
-                COUNTRY / REGION
-              </p>
-
-              <p
-                style={{
-                  margin: '0.2rem 0 0',
-                  fontSize: '0.9rem',
-                  color: '#ffffff'
-                }}
-              >
-                {selectedPad.country}
-              </p>
-            </div>
-
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.6rem',
-                  color: '#71717a'
-                }}
-              >
-                EXACT COORDINATES
-              </p>
-
-              <p
-                style={{
-                  margin: '0.2rem 0 0',
-                  fontSize: '0.9rem',
-                  color: '#ffffff',
-                  fontFamily: 'monospace'
-                }}
-              >
-                {Number(selectedPad.lat).toFixed(5)}°,
+                // ACTIVE LAUNCH FACILITY
                 {' '}
-                {Number(selectedPad.lng).toFixed(5)}°
-              </p>
+                TELEMETRY
+              </span>
+
+              <span
+                style={{
+                  fontSize:
+                    '0.65rem',
+                  color:
+                    '#ffffff',
+                }}
+              >
+                STATUS:
+                {' '}
+                OPERATIONAL
+              </span>
+            </div>
+
+            <div
+              style={{
+                display:
+                  'grid',
+                gridTemplateColumns:
+                  'repeat(auto-fit,minmax(200px,1fr))',
+                gap:
+                  '1rem',
+                marginTop:
+                  '0.8rem',
+              }}
+            >
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a',
+                  }}
+                >
+                  FACILITY NAME
+                </p>
+
+                <h3
+                  style={{
+                    margin:
+                      '0.2rem 0 0 0',
+                    fontSize:
+                      '1rem',
+                    color:
+                      '#ffffff',
+                  }}
+                >
+                  {selectedPad.name}
+                </h3>
+              </div>
+
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a',
+                  }}
+                >
+                  OPERATING AGENCY
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff',
+                    fontWeight:
+                      '700',
+                  }}
+                >
+                  {selectedPad.agency}
+                </p>
+              </div>
+
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a',
+                  }}
+                >
+                  COUNTRY / REGION
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff',
+                  }}
+                >
+                  {selectedPad.country}
+                </p>
+              </div>
+
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a',
+                  }}
+                >
+                  COORDINATES
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff',
+                  }}
+                >
+                  {selectedPad.lat.toFixed(
+                    4
+                  )}
+                  °,
+                  {' '}
+                  {selectedPad.lng.toFixed(
+                    4
+                  )}
+                  °
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* =========================================================
-          SATELLITE INSPECTOR
-      ========================================================= */}
+      {/* SATELLITE INSPECTOR */}
 
-      {viewMode === 'satellites' && selectedSat && (
+      {viewMode ===
+        'satellites' &&
+        selectedSat && (
+          <div
+            className="glass-card"
+            style={{
+              padding:
+                '1.5rem',
+              borderRadius:
+                '2px',
+              border:
+                '1px solid rgba(255,255,255,0.18)',
+              background:
+                'rgba(10,15,25,0.88)',
+            }}
+          >
+            <div
+              style={{
+                display:
+                  'flex',
+                justifyContent:
+                  'space-between',
+                alignItems:
+                  'center',
+              }}
+            >
+              <span
+                style={{
+                  fontSize:
+                    '0.65rem',
+                  color:
+                    '#ffffff',
+                  letterSpacing:
+                    '2px',
+                  textTransform:
+                    'uppercase',
+                  fontWeight:
+                    '800',
+                }}
+              >
+                // SATELLITE ORBITAL
+                {' '}
+                INSPECTOR
+              </span>
+
+              <button
+                onClick={() =>
+                  setSelectedSat(
+                    null
+                  )
+                }
+                style={{
+                  background:
+                    'transparent',
+                  border:
+                    'none',
+                  color:
+                    '#a1a1aa',
+                  cursor:
+                    'pointer',
+                  fontSize:
+                    '0.7rem',
+                }}
+              >
+                [CLOSE]
+              </button>
+            </div>
+
+            <div
+              style={{
+                display:
+                  'grid',
+                gridTemplateColumns:
+                  'repeat(auto-fit,minmax(180px,1fr))',
+                gap:
+                  '1rem',
+                marginTop:
+                  '0.8rem',
+              }}
+            >
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a',
+                  }}
+                >
+                  OBJECT NAME
+                </p>
+
+                <h3
+                  style={{
+                    margin:
+                      '0.2rem 0 0 0',
+                    fontSize:
+                      '1rem',
+                    color:
+                      '#ffffff',
+                  }}
+                >
+                  {selectedSat.name}
+                </h3>
+              </div>
+
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a',
+                  }}
+                >
+                  ORGANIZATION
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff',
+                    fontWeight:
+                      '700',
+                  }}
+                >
+                  {selectedSat.organization ||
+                    'N/A'}
+                </p>
+              </div>
+
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a',
+                  }}
+                >
+                  NORAD ID
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff',
+                    fontWeight:
+                      '700',
+                  }}
+                >
+                  {getSatelliteId(
+                    selectedSat
+                  ) ||
+                    'N/A'}
+                </p>
+              </div>
+
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a',
+                  }}
+                >
+                  STATUS
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff',
+                    fontWeight:
+                      '700',
+                  }}
+                >
+                  LIVE
+                </p>
+              </div>
+
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a',
+                  }}
+                >
+                  LATITUDE
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff',
+                  }}
+                >
+                  {Number.isFinite(
+                    selectedSat.lat
+                  )
+                    ? selectedSat.lat.toFixed(
+                        4
+                      )
+                    : 'N/A'}
+                  °
+                </p>
+              </div>
+
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a',
+                  }}
+                >
+                  LONGITUDE
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff',
+                  }}
+                >
+                  {Number.isFinite(
+                    selectedSat.lng
+                  )
+                    ? selectedSat.lng.toFixed(
+                        4
+                      )
+                    : 'N/A'}
+                  °
+                </p>
+              </div>
+
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a',
+                  }}
+                >
+                  ALTITUDE
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff',
+                  }}
+                >
+                  {Number.isFinite(
+                    selectedSat.altitudeKm
+                  )
+                    ? `${selectedSat.altitudeKm.toFixed(
+                        1
+                      )} km`
+                    : 'N/A'}
+                </p>
+              </div>
+
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a',
+                  }}
+                >
+                  VELOCITY
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff',
+                  }}
+                >
+                  {Number.isFinite(
+                    selectedSat.velocity
+                  )
+                    ? `${selectedSat.velocity.toFixed(
+                        3
+                      )} km/s`
+                    : 'N/A'}
+                </p>
+              </div>
+
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a',
+                  }}
+                >
+                  INCLINATION
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff',
+                  }}
+                >
+                  {Number.isFinite(
+                    Number(
+                      selectedSat.inclination
+                    )
+                  )
+                    ? `${Number(
+                        selectedSat.inclination
+                      ).toFixed(
+                        4
+                      )}°`
+                    : 'N/A'}
+                </p>
+              </div>
+
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a',
+                  }}
+                >
+                  MEAN MOTION
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff',
+                  }}
+                >
+                  {Number.isFinite(
+                    Number(
+                      selectedSat.mean_motion
+                    )
+                  )
+                    ? Number(
+                        selectedSat.mean_motion
+                      ).toFixed(
+                        8
+                      )
+                    : 'N/A'}
+                  {' '}
+                  rev/day
+                </p>
+              </div>
+
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a',
+                  }}
+                >
+                  ECCENTRICITY
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff',
+                  }}
+                >
+                  {Number.isFinite(
+                    Number(
+                      selectedSat.eccentricity
+                    )
+                  )
+                    ? Number(
+                        selectedSat.eccentricity
+                      ).toFixed(
+                        8
+                      )
+                    : 'N/A'}
+                </p>
+              </div>
+
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a',
+                  }}
+                >
+                  RAAN
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff',
+                  }}
+                >
+                  {Number.isFinite(
+                    Number(
+                      selectedSat.raan
+                    )
+                  )
+                    ? `${Number(
+                        selectedSat.raan
+                      ).toFixed(
+                        4
+                      )}°`
+                    : 'N/A'}
+                </p>
+              </div>
+
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a',
+                  }}
+                >
+                  ARG. PERIGEE
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0 0',
+                    fontSize:
+                      '0.9rem',
+                    color:
+                      '#ffffff',
+                  }}
+                >
+                  {Number.isFinite(
+                    Number(
+                      selectedSat.arg_perigee
+                    )
+                  )
+                    ? `${Number(
+                        selectedSat.arg_perigee
+                      ).toFixed(
+                        4
+                      )}°`
+                    : 'N/A'}
+                </p>
+              </div>
+
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      '0.65rem',
+                    color:
+                      '#71717a',
+                  }}
+                >
+                  LAST PROPAGATED
+                </p>
+
+                <p
+                  style={{
+                    margin:
+                      '0.2rem 0 0 0',
+                    fontSize:
+                      '0.75rem',
+                    color:
+                      '#ffffff',
+                    fontFamily:
+                      'monospace',
+                  }}
+                >
+                  {selectedSat.lastPropagatedAt
+                    ? new Date(
+                        selectedSat.lastPropagatedAt
+                      ).toLocaleTimeString()
+                    : 'N/A'}
+                </p>
+              </div>
+            </div>
+
+            {/* ORBIT STATUS */}
+
+            <div
+              style={{
+                marginTop:
+                  '1.2rem',
+                paddingTop:
+                  '0.8rem',
+                borderTop:
+                  '1px solid rgba(255,255,255,0.1)',
+                display:
+                  'flex',
+                justifyContent:
+                  'space-between',
+                flexWrap:
+                  'wrap',
+                gap:
+                  '0.5rem',
+              }}
+            >
+              <span
+                style={{
+                  fontSize:
+                    '0.6rem',
+                  color:
+                    '#ffffff',
+                  fontFamily:
+                    'monospace',
+                }}
+              >
+                ● TLE / SGP4
+                {' '}
+                PROPAGATION ACTIVE
+              </span>
+
+              <span
+                style={{
+                  fontSize:
+                    '0.6rem',
+                  color:
+                    '#71717a',
+                  fontFamily:
+                    'monospace',
+                }}
+              >
+                ORBIT PATH:
+                {' '}
+                {orbitalPaths.length >
+                0
+                  ? 'AVAILABLE'
+                  : 'UNAVAILABLE'}
+              </span>
+            </div>
+          </div>
+        )}
+
+      {/* GLOBAL UPDATE STATUS */}
+
+      {viewMode ===
+        'satellites' && (
         <div
           style={{
-            padding: '1.5rem',
-            borderRadius: '2px',
+            display:
+              'flex',
+            justifyContent:
+              'space-between',
+            alignItems:
+              'center',
+            flexWrap:
+              'wrap',
+            gap:
+              '0.5rem',
+            padding:
+              '0.65rem 0.8rem',
             border:
-              '1px solid rgba(255,255,255,0.15)',
+              '1px solid rgba(255,255,255,0.1)',
             background:
-              'rgba(10,15,25,0.88)'
+              'rgba(0,0,0,0.35)',
           }}
         >
-          <div
+          <span
             style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
+              fontSize:
+                '0.6rem',
+              color:
+                '#ffffff',
+              fontFamily:
+                'monospace',
             }}
           >
-            <span
-              style={{
-                fontSize: '0.65rem',
-                color: '#ffffff',
-                letterSpacing: '2px',
-                textTransform: 'uppercase',
-                fontWeight: '800'
-              }}
-            >
-              // ORBITAL INSPECTOR
-            </span>
+            LIVE SATELLITE TELEMETRY
+          </span>
 
-            <button
-              onClick={() => setSelectedSat(null)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#a1a1aa',
-                cursor: 'pointer',
-                fontSize: '0.7rem'
-              }}
-            >
-              [CLOSE]
-            </button>
-          </div>
-
-          <div
+          <span
             style={{
-              display: 'grid',
-              gridTemplateColumns:
-                'repeat(auto-fit,minmax(180px,1fr))',
-              gap: '1rem',
-              marginTop: '1rem'
+              fontSize:
+                '0.6rem',
+              color:
+                '#71717a',
+              fontFamily:
+                'monospace',
             }}
           >
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.6rem',
-                  color: '#71717a'
-                }}
-              >
-                OBJECT NAME
-              </p>
-
-              <h3
-                style={{
-                  margin: '0.2rem 0 0',
-                  fontSize: '1rem',
-                  color: '#ffffff'
-                }}
-              >
-                {selectedSat.name}
-              </h3>
-            </div>
-
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.6rem',
-                  color: '#71717a'
-                }}
-              >
-                NORAD ID
-              </p>
-
-              <p
-                style={{
-                  margin: '0.2rem 0 0',
-                  fontSize: '0.9rem',
-                  color: '#ffffff',
-                  fontFamily: 'monospace',
-                  fontWeight: '700'
-                }}
-              >
-                {selectedSat.id}
-              </p>
-            </div>
-
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.6rem',
-                  color: '#71717a'
-                }}
-              >
-                ORGANIZATION
-              </p>
-
-              <p
-                style={{
-                  margin: '0.2rem 0 0',
-                  fontSize: '0.9rem',
-                  color: '#ffffff',
-                  fontWeight: '700'
-                }}
-              >
-                {selectedSat.organization || 'N/A'}
-              </p>
-            </div>
-
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.6rem',
-                  color: '#71717a'
-                }}
-              >
-                LATITUDE
-              </p>
-
-              <p
-                style={{
-                  margin: '0.2rem 0 0',
-                  fontSize: '0.9rem',
-                  color: '#ffffff',
-                  fontFamily: 'monospace'
-                }}
-              >
-                {Number.isFinite(Number(selectedSat.lat))
-                  ? Number(selectedSat.lat).toFixed(4) + '°'
-                  : 'N/A'}
-              </p>
-            </div>
-
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.6rem',
-                  color: '#71717a'
-                }}
-              >
-                LONGITUDE
-              </p>
-
-              <p
-                style={{
-                  margin: '0.2rem 0 0',
-                  fontSize: '0.9rem',
-                  color: '#ffffff',
-                  fontFamily: 'monospace'
-                }}
-              >
-                {Number.isFinite(Number(selectedSat.lng))
-                  ? Number(selectedSat.lng).toFixed(4) + '°'
-                  : 'N/A'}
-              </p>
-            </div>
-
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.6rem',
-                  color: '#71717a'
-                }}
-              >
-                ALTITUDE
-              </p>
-
-              <p
-                style={{
-                  margin: '0.2rem 0 0',
-                  fontSize: '0.9rem',
-                  color: '#ffffff',
-                  fontFamily: 'monospace'
-                }}
-              >
-                {Number.isFinite(Number(selectedSat.altitude))
-                  ? Number(selectedSat.altitude).toFixed(1) + ' km'
-                  : 'N/A'}
-              </p>
-            </div>
-
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.6rem',
-                  color: '#71717a'
-                }}
-              >
-                VELOCITY
-              </p>
-
-              <p
-                style={{
-                  margin: '0.2rem 0 0',
-                  fontSize: '0.9rem',
-                  color: '#ffffff',
-                  fontFamily: 'monospace'
-                }}
-              >
-                {Number.isFinite(Number(selectedSat.velocity))
-                  ? Number(selectedSat.velocity).toFixed(2) + ' km/s'
-                  : 'N/A'}
-              </p>
-            </div>
-
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.6rem',
-                  color: '#71717a'
-                }}
-              >
-                INCLINATION
-              </p>
-
-              <p
-                style={{
-                  margin: '0.2rem 0 0',
-                  fontSize: '0.9rem',
-                  color: '#ffffff',
-                  fontFamily: 'monospace'
-                }}
-              >
-                {Number.isFinite(
-                  Number(selectedSat.inclination)
-                )
-                  ? Number(selectedSat.inclination).toFixed(3) + '°'
-                  : 'N/A'}
-              </p>
-            </div>
-
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.6rem',
-                  color: '#71717a'
-                }}
-              >
-                ORBIT SOURCE
-              </p>
-
-              <p
-                style={{
-                  margin: '0.2rem 0 0',
-                  fontSize: '0.85rem',
-                  color: '#ffffff',
-                  fontFamily: 'monospace'
-                }}
-              >
-                {selectedSat.orbital_source || 'TLE'}
-              </p>
-            </div>
-
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.6rem',
-                  color: '#71717a'
-                }}
-              >
-                TLE EPOCH
-              </p>
-
-              <p
-                style={{
-                  margin: '0.2rem 0 0',
-                  fontSize: '0.75rem',
-                  color: '#ffffff',
-                  fontFamily: 'monospace'
-                }}
-              >
-                {selectedSat.tleEpochDisplay || 'N/A'}
-              </p>
-            </div>
-
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.6rem',
-                  color: '#71717a'
-                }}
-              >
-                LAST DATABASE UPDATE
-              </p>
-
-              <p
-                style={{
-                  margin: '0.2rem 0 0',
-                  fontSize: '0.75rem',
-                  color: '#ffffff',
-                  fontFamily: 'monospace'
-                }}
-              >
-                {selectedSat.updated_at
-                  ? new Date(
-                      selectedSat.updated_at
-                    ).toLocaleString()
-                  : 'N/A'}
-              </p>
-            </div>
-          </div>
-
-          {/* LIVE POSITION INDICATOR */}
-
-          <div
-            style={{
-              marginTop: '1.2rem',
-              paddingTop: '0.8rem',
-              borderTop:
-                '1px solid rgba(255,255,255,0.1)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '0.5rem'
-            }}
-          >
-            <span
-              style={{
-                fontSize: '0.6rem',
-                color: '#ffffff',
-                fontFamily: 'monospace'
-              }}
-            >
-              ● POSITION PROPAGATED FROM TLE
-            </span>
-
-            <span
-              style={{
-                fontSize: '0.6rem',
-                color: '#71717a',
-                fontFamily: 'monospace'
-              }}
-            >
-              UPDATES CONTINUOUSLY
-            </span>
-          </div>
+            UPDATED:
+            {' '}
+            {lastUpdated
+              ? lastUpdated.toLocaleTimeString()
+              : 'WAITING'}
+          </span>
         </div>
       )}
     </div>
