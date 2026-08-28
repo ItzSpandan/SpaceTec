@@ -248,9 +248,9 @@ const globalLaunchPads = [
 ];
 
 const EARTH_RADIUS_KM = 6371;
-const EARTH_GM = 398600.4418; // km^3 / s^2
+const EARTH_GM = 398600.4418;
 const SUPABASE_BATCH_SIZE = 1000;
-const SATELLITE_UPDATE_INTERVAL = 1000; // 1s live telemetry update
+const SATELLITE_UPDATE_INTERVAL = 1000;
 const SATELLITE_POINT_TRANSITION = 0;
 const ORBIT_SAMPLE_MINUTES = 2;
 const MAX_ORBIT_POINTS = 720;
@@ -490,6 +490,7 @@ export default function OrbitalGlobe({ requestedView }) {
   const [viewMode, setViewMode] = useState('pads');
   const [padFilter, setPadFilter] = useState('all');
   const [satFilter, setSatFilter] = useState('stations');
+  const [satLimit, setSatLimit] = useState(1000); // Default 1K, max 16K+
   const [selectedPad, setSelectedPad] = useState(globalLaunchPads[0]);
   const [selectedSat, setSelectedSat] = useState(null);
   const [hoveredSat, setHoveredSat] = useState(null);
@@ -654,7 +655,7 @@ export default function OrbitalGlobe({ requestedView }) {
     };
   }, [satFilter, viewMode, fetchAllSatelliteRows, filterSatelliteRows]);
 
-  // Real-time orbital propagation loop
+  // Real-time telemetry propagation loop
   useEffect(() => {
     if (viewMode !== 'satellites' || satellites.length === 0) {
       return undefined;
@@ -706,9 +707,16 @@ export default function OrbitalGlobe({ requestedView }) {
 
   const orbitalPaths = viewMode === 'satellites' && selectedSat ? selectedOrbitPath : [];
 
+  // Density limited list of satellites for rendering
+  const activeSatsToDisplay = useMemo(() => {
+    if (satFilter === 'active' && satLimit > 0) {
+      return satellites.slice(0, satLimit);
+    }
+    return satellites;
+  }, [satellites, satFilter, satLimit]);
+
   // Dim on Hover & Hide Others on Click
   const renderSatellites = useMemo(() => {
-    // When a satellite is selected, hide all other satellites
     if (selectedSat) {
       const activeObj =
         satellites.find(s => String(s.id) === String(selectedSat.id)) || selectedSat;
@@ -726,8 +734,7 @@ export default function OrbitalGlobe({ requestedView }) {
       ];
     }
 
-    // When no satellite is selected: handle hover dimming
-    return satellites.map(sat => {
+    return activeSatsToDisplay.map(sat => {
       const isHovered = hoveredSat && String(hoveredSat.id) === String(sat.id);
 
       let displayColor = 'rgba(255,255,255,0.85)';
@@ -738,7 +745,7 @@ export default function OrbitalGlobe({ requestedView }) {
           displayColor = '#ffffff';
           displayRadius = 0.50;
         } else {
-          displayColor = 'rgba(255,255,255,0.12)'; // dim others!
+          displayColor = 'rgba(255,255,255,0.12)';
           displayRadius = 0.12;
         }
       }
@@ -752,7 +759,7 @@ export default function OrbitalGlobe({ requestedView }) {
         displayAltitude: Math.max(0.002, altKm / EARTH_RADIUS_KM),
       };
     });
-  }, [satellites, selectedSat, hoveredSat]);
+  }, [activeSatsToDisplay, selectedSat, hoveredSat, satellites]);
 
   useEffect(() => {
     if (viewMode !== 'wiki') return;
@@ -813,23 +820,20 @@ export default function OrbitalGlobe({ requestedView }) {
       }}
     >
       <style>{`
-        @keyframes spaceScroll {
-          0% { background-position: 0 0; }
-          100% { background-position: -1000px 500px; }
-        }
-
-        .moving-space-bg {
-          background-color: #020617;
-          background-image:
-            radial-gradient(1px 1px at 20px 30px, #ffffff, transparent),
-            radial-gradient(1px 1px at 40px 70px, #ffffff, transparent),
-            radial-gradient(1px 1px at 90px 40px, #ffffff, transparent),
-            radial-gradient(1px 1px at 160px 120px, #ffffff, transparent),
-            radial-gradient(1px 1px at 220px 190px, #ffffff, transparent),
-            radial-gradient(1px 1px at 300px 80px, #ffffff, transparent);
-          background-repeat: repeat;
-          background-size: 350px 350px;
-          animation: spaceScroll 40s linear infinite;
+        /* Realistic Deep Space Starfield & Atmosphere */
+        .realistic-starfield {
+          background-color: #000000;
+          background-image: 
+            radial-gradient(1.5px 1.5px at 40px 60px, rgba(255,255,255,0.9), transparent),
+            radial-gradient(1px 1px at 120px 180px, rgba(255,255,255,0.7), transparent),
+            radial-gradient(2px 2px at 200px 90px, rgba(255,255,255,0.95), transparent),
+            radial-gradient(1px 1px at 280px 240px, rgba(255,255,255,0.6), transparent),
+            radial-gradient(1.5px 1.5px at 360px 140px, rgba(200,220,255,0.85), transparent),
+            radial-gradient(1px 1px at 450px 300px, rgba(255,255,255,0.65), transparent),
+            radial-gradient(2px 2px at 520px 50px, rgba(255,240,200,0.8), transparent),
+            radial-gradient(1px 1px at 600px 220px, rgba(255,255,255,0.7), transparent),
+            radial-gradient(1.5px 1.5px at 700px 110px, rgba(255,255,255,0.9), transparent);
+          background-size: 800px 400px;
         }
 
         .orbital-scroll::-webkit-scrollbar {
@@ -852,6 +856,47 @@ export default function OrbitalGlobe({ requestedView }) {
         .orbital-button:hover {
           background: rgba(255,255,255,0.12) !important;
         }
+
+        .density-slider {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 100%;
+          height: 4px;
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 2px;
+          outline: none;
+        }
+
+        .density-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          background: #38bdf8;
+          cursor: pointer;
+          border: 1px solid #ffffff;
+          box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
+        }
+
+        .density-preset-btn {
+          padding: 2px 6px;
+          font-size: 0.55rem;
+          font-family: monospace;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          color: #a1a1aa;
+          cursor: pointer;
+          border-radius: 2px;
+          transition: all 0.15s;
+        }
+
+        .density-preset-btn.active, .density-preset-btn:hover {
+          background: #38bdf8;
+          border-color: #38bdf8;
+          color: #000000;
+          font-weight: bold;
+        }
       `}</style>
 
       <div
@@ -873,7 +918,7 @@ export default function OrbitalGlobe({ requestedView }) {
         >
           {[
             { key: 'pads', label: 'Launch Pads' },
-            { key: 'satellites', label: `Live Satellites (${satellites.length})` },
+            { key: 'satellites', label: `Live Satellites (${renderSatellites.length})` },
             { key: 'wiki', label: 'Satellite Database' },
           ].map(btn => (
             <button
@@ -961,14 +1006,15 @@ export default function OrbitalGlobe({ requestedView }) {
 
       {viewMode !== 'wiki' ? (
         <div
-          className="moving-space-bg"
+          className="realistic-starfield"
           style={{
             position: 'relative',
             width: '100%',
-            height: '550px',
+            height: '580px',
             borderRadius: '2px',
             overflow: 'hidden',
             border: '1px solid rgba(255,255,255,0.15)',
+            boxShadow: 'inset 0 0 100px rgba(0,0,0,0.95)',
           }}
         >
           <div style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}>
@@ -976,6 +1022,10 @@ export default function OrbitalGlobe({ requestedView }) {
               ref={globeRef}
               globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
               bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+              backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
+              showAtmosphere={true}
+              atmosphereColor="#38bdf8"
+              atmosphereAltitude={0.15}
               backgroundColor="rgba(0,0,0,0)"
               pointsData={viewMode === 'pads' ? filteredPads : renderSatellites}
               pointLat="lat"
@@ -1099,6 +1149,62 @@ export default function OrbitalGlobe({ requestedView }) {
             />
           </div>
 
+          {/* Density Limit Controller Sidebar (Visible in All Active & Satellites view) */}
+          {viewMode === 'satellites' && satFilter === 'active' && !selectedSat && (
+            <div
+              style={{
+                position: 'absolute',
+                left: '1rem',
+                top: '5rem',
+                background: 'rgba(2,6,23,0.90)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                padding: '0.75rem 1rem',
+                borderRadius: '4px',
+                zIndex: 15,
+                fontFamily: 'monospace',
+                width: '185px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                <span style={{ fontSize: '0.65rem', color: '#a1a1aa', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                  VISIBLE SATS
+                </span>
+                <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 'bold' }}>
+                  {satLimit >= 16000 ? '16K+ (MAX)' : `${satLimit.toLocaleString()}`}
+                </span>
+              </div>
+
+              <input
+                type="range"
+                min="500"
+                max="16000"
+                step="500"
+                value={satLimit}
+                onChange={e => setSatLimit(Number(e.target.value))}
+                className="density-slider"
+                style={{ width: '100%', marginBottom: '0.6rem' }}
+              />
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+                {[500, 1000, 2500, 5000, 10000, 16000].map(val => (
+                  <button
+                    key={val}
+                    onClick={() => setSatLimit(val)}
+                    className={`density-preset-btn ${satLimit === val ? 'active' : ''}`}
+                  >
+                    {val >= 1000 ? `${val / 1000}k` : val}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ marginTop: '6px', fontSize: '0.5rem', color: '#71717a', textAlign: 'center' }}>
+                DATABASE: {satellites.length.toLocaleString()} LOADED
+              </div>
+            </div>
+          )}
+
           {viewMode === 'satellites' && (
             <div
               style={{
@@ -1116,7 +1222,7 @@ export default function OrbitalGlobe({ requestedView }) {
                 ● LIVE ORBITAL PROPAGATION
               </div>
               <div style={{ marginTop: '3px', fontSize: '0.55rem', color: '#71717a' }}>
-                TLE → SGP4 → LAT/LNG/ALT (1s Live Feed)
+                REALTIME SGP4 (1s Continuous Update)
               </div>
             </div>
           )}
@@ -1152,10 +1258,10 @@ export default function OrbitalGlobe({ requestedView }) {
               }}
             >
               <div style={{ fontSize: '0.55rem', color: '#71717a', letterSpacing: '1px' }}>
-                OBJECTS
+                ACTIVE ON GLOBE
               </div>
               <div style={{ fontFamily: 'monospace', color: '#ffffff', fontSize: '0.9rem', fontWeight: '700' }}>
-                {satellites.length.toLocaleString()}
+                {renderSatellites.length.toLocaleString()}
               </div>
             </div>
           )}
