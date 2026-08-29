@@ -19,14 +19,9 @@ export const OBJECT_TYPES = [
   'BLACK HOLES',
 ];
 
-// 3D render hint per object — tells CelestialViewer.js how to represent the
-// object when no external model/texture is available.
-//   'rocky'      -> procedural rocky sphere
-//   'gas-giant'  -> banded gas-giant sphere
-//   'ringed'     -> gas-giant sphere + ring geometry
-//   'ice'        -> pale icy sphere
-//   'irregular'  -> lumpy non-spherical procedural mesh (asteroids/comets)
-//   'accretion'  -> black-hole style disc + event-horizon visualization
+// Legacy render hint per object — unused now that the database is
+// information-only (no 3D viewer). Left in place on the data objects
+// below to avoid a large diff; harmless if untouched.
 //   'none'       -> no meaningful 3D representation (nebulae/galaxies/clusters)
 
 export const CELESTIAL_OBJECTS = [
