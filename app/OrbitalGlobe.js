@@ -106,21 +106,66 @@ function getTleLines(row) {
   };
 }
 
-function hasValidTLE(sat) {
-  const { line1, line2 } = getTleLines(sat);
-  return Boolean(line1 && line2 && line1.length >= 50 && line2.length >= 50);
+// Rebuild an OMM object from either the stored `omm` blob or the
+// flat columns sync-satellites.js writes (eccentricity, mean_motion, etc).
+function buildOmmFromRow(row) {
+  if (row?.omm && typeof row.omm === 'object') return row.omm;
+
+  const hasCore =
+    row?.mean_motion != null &&
+    row?.eccentricity != null &&
+    row?.inclination != null &&
+    row?.epoch;
+
+  if (!hasCore) return null;
+
+  return {
+    OBJECT_NAME: row.name,
+    OBJECT_ID: row.object_id,
+    EPOCH: row.epoch,
+    MEAN_MOTION: Number(row.mean_motion),
+    ECCENTRICITY: Number(row.eccentricity),
+    INCLINATION: Number(row.inclination),
+    RA_OF_ASC_NODE: Number(row.raan),
+    ARG_OF_PERICENTER: Number(row.arg_perigee),
+    MEAN_ANOMALY: Number(row.mean_anomaly),
+    EPHEMERIS_TYPE: Number(row.ephemeris_type ?? 0),
+    CLASSIFICATION_TYPE: row.classification_type || 'U',
+    NORAD_CAT_ID: Number(row.id ?? row.norad_id),
+    ELEMENT_SET_NO: Number(row.element_set_no ?? 999),
+    REV_AT_EPOCH: Number(row.rev_at_epoch ?? 0),
+    BSTAR: Number(row.bstar ?? 0),
+    MEAN_MOTION_DOT: Number(row.mean_motion_dot ?? 0),
+    MEAN_MOTION_DDOT: Number(row.mean_motion_ddot ?? 0),
+  };
 }
 
 function buildSatrec(sat) {
+  // Prefer legacy TLE line strings if some rows still have them.
   const { line1, line2 } = getTleLines(sat);
-  if (!line1 || !line2) return null;
+  if (line1 && line2) {
+    try {
+      const satrec = satellite.twoline2satrec(line1, line2);
+      return satrec && satrec.error === 0 ? satrec : (satrec || null);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  // Otherwise reconstruct from OMM (what sync-satellites.js now writes).
+  const omm = buildOmmFromRow(sat);
+  if (!omm) return null;
 
   try {
-    const satrec = satellite.twoline2satrec(line1, line2);
+    const satrec = satellite.json2satrec(omm);
     return satrec && satrec.error === 0 ? satrec : (satrec || null);
   } catch (error) {
     return null;
   }
+}
+
+function hasValidTLE(sat) {
+  return Boolean(buildSatrec(sat));
 }
 
 // True NORAD SGP4 Propagation
