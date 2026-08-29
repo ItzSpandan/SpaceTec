@@ -824,7 +824,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                   <button 
                     onClick={() => {
                       setShowDatabaseDropdown(false);
-                      alert('Rocket Database feature coming soon!');
+                      window.location.href = '/rocket-database';
                     }} 
                     style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
