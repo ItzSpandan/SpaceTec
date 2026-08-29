@@ -38,7 +38,7 @@ export const CELESTIAL_OBJECTS = [
     domain: 'SOLAR SYSTEM',
     catalog: null,
     description: 'The smallest and innermost planet of the Solar System, with a heavily cratered surface similar to the Moon.',
-    render: { kind: 'rocky', baseColor: '#9c9186', roughColor: '#6b6259' },
+    render: { kind: 'rocky', baseColor: '#9c9186', roughColor: '#6b6259', craters: true },
     data: {
       diameterKm: 4879,
       massKg: '3.30 × 10^23',
@@ -178,7 +178,7 @@ export const CELESTIAL_OBJECTS = [
     domain: 'SOLAR SYSTEM',
     catalog: null,
     description: 'An ice giant with a pale cyan color from atmospheric methane, notable for rotating on its side.',
-    render: { kind: 'ice', baseColor: '#a9d8d6' },
+    render: { kind: 'ice', baseColor: '#a9d8d6', roughColor: '#7fb8b5' },
     data: {
       diameterKm: 50724,
       massKg: '8.68 × 10^25',
@@ -201,7 +201,7 @@ export const CELESTIAL_OBJECTS = [
     domain: 'SOLAR SYSTEM',
     catalog: null,
     description: 'The most distant known planet in the Solar System, an ice giant with the fastest winds recorded.',
-    render: { kind: 'ice', baseColor: '#3f5fd9' },
+    render: { kind: 'ice', baseColor: '#3f5fd9', roughColor: '#2a3fa8' },
     data: {
       diameterKm: 49244,
       massKg: '1.02 × 10^26',
@@ -224,7 +224,7 @@ export const CELESTIAL_OBJECTS = [
     domain: 'SOLAR SYSTEM',
     catalog: '134340',
     description: 'The largest known dwarf planet in the Solar System, located in the Kuiper Belt.',
-    render: { kind: 'ice', baseColor: '#c9b8a0' },
+    render: { kind: 'ice', baseColor: '#c9b8a0', roughColor: '#9c8a6e', craters: true },
     data: {
       diameterKm: 2377,
       massKg: '1.30 × 10^22',
@@ -247,7 +247,7 @@ export const CELESTIAL_OBJECTS = [
     domain: 'SOLAR SYSTEM',
     catalog: null,
     description: "Earth's only natural satellite and the fifth-largest moon in the Solar System.",
-    render: { kind: 'rocky', baseColor: '#a8a8a8', roughColor: '#6f6f6f' },
+    render: { kind: 'rocky', baseColor: '#a8a8a8', roughColor: '#6f6f6f', craters: true },
     data: {
       diameterKm: 3474,
       massKg: '7.35 × 10^22',
@@ -270,7 +270,7 @@ export const CELESTIAL_OBJECTS = [
     domain: 'SOLAR SYSTEM',
     catalog: null,
     description: "One of Jupiter's Galilean moons, with a smooth icy surface concealing a subsurface liquid-water ocean.",
-    render: { kind: 'ice', baseColor: '#d8c9a8' },
+    render: { kind: 'ice', baseColor: '#d8c9a8', roughColor: '#a89870' },
     data: {
       diameterKm: 3122,
       massKg: '4.80 × 10^22',
@@ -353,7 +353,7 @@ export const CELESTIAL_OBJECTS = [
     domain: 'DEEP SPACE',
     catalog: 'KOI-7016.01',
     description: 'A super-Earth exoplanet orbiting within the habitable zone of a Sun-like star.',
-    render: { kind: 'rocky', baseColor: '#5a7d5a' },
+    render: { kind: 'rocky', baseColor: '#5a7d5a', roughColor: '#3f5f42' },
     data: {
       hostStar: 'Kepler-452',
       discoveryYear: 2015,
@@ -373,7 +373,7 @@ export const CELESTIAL_OBJECTS = [
     domain: 'DEEP SPACE',
     catalog: null,
     description: "An Earth-sized exoplanet orbiting Proxima Centauri, the closest known star to the Sun.",
-    render: { kind: 'rocky', baseColor: '#8a5a4a' },
+    render: { kind: 'rocky', baseColor: '#8a5a4a', roughColor: '#6b4438' },
     data: {
       hostStar: 'Proxima Centauri',
       discoveryYear: 2016,
