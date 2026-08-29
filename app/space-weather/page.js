@@ -4,8 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const POLL_INTERVAL_MS = 60 * 1000;
-const HEADER_HOLD_MS = 700;
-const HEADER_LABEL_MS = 2200;
+const ENTER_DELAY_MS = 2000;
 
 // --- formatting helpers -----------------------------------------------
 
@@ -114,47 +113,19 @@ function Sparkline({ data, color = '#38bdf8', useLog = false }) {
   );
 }
 
-// --- header text morph ---------------------------------------------------
-
-function HeaderBrand() {
-  const [phase, setPhase] = useState('brand');
-
-  useEffect(() => {
-    const toLabel = setTimeout(() => setPhase('label'), HEADER_HOLD_MS);
-    const toBrand = setTimeout(() => setPhase('brand'), HEADER_HOLD_MS + HEADER_LABEL_MS);
-    return () => {
-      clearTimeout(toLabel);
-      clearTimeout(toBrand);
-    };
-  }, []);
-
-  const text = phase === 'brand' ? 'SPACETEC' : 'SPACE WEATHER CENTER';
-
-  return (
-    <div className="sw-brand-shell">
-      <AnimatePresence mode="wait">
-        <motion.span
-          key={phase}
-          className="sw-brand-text"
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0, letterSpacing: phase === 'brand' ? '8px' : '3px' }}
-          exit={{ opacity: 0, y: -4 }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        >
-          {text}
-        </motion.span>
-      </AnimatePresence>
-    </div>
-  );
-}
-
 // --- page -----------------------------------------------------------------
 
 export default function SpaceWeatherPage() {
+  const [entered, setEntered] = useState(false);
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('ACQUIRING'); // ACQUIRING | LIVE | DELAYED
   const [lastUpdate, setLastUpdate] = useState(null);
   const mounted = useRef(true);
+
+  useEffect(() => {
+    const enterTimer = setTimeout(() => setEntered(true), ENTER_DELAY_MS);
+    return () => clearTimeout(enterTimer);
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -204,17 +175,78 @@ export default function SpaceWeatherPage() {
       <div className="sw-stars" />
 
       <header className="sw-header">
-        <button type="button" className="sw-back" onClick={() => { window.location.href = '/'; }}>
-          ← SPACETEC
-        </button>
-
-        <HeaderBrand />
+        <div className="sw-brand-slot">
+          {entered && (
+            <button type="button" className="sw-brand-link" onClick={() => { window.location.href = '/'; }}>
+              <motion.span
+                layoutId="sw-brand"
+                transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+                className="sw-brand-text"
+              >
+                SPACETEC
+              </motion.span>
+            </button>
+          )}
+        </div>
 
         <div className="sw-header-status">
           <span className={`sw-dot ${status.toLowerCase()}`} />
           {status === 'LIVE' ? 'LIVE FEED' : status === 'ACQUIRING' ? 'ACQUIRING' : 'DATA DELAYED'}
         </div>
       </header>
+
+      {/* ENTRY TRANSITION: SPACETEC starts big & centered, holds, then shrinks into the header */}
+      <AnimatePresence>
+        {!entered && (
+          <motion.div
+            key="sw-intro"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9999,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: '#000000',
+              padding: '2rem',
+            }}
+          >
+            <motion.h1
+              layoutId="sw-brand"
+              transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+              style={{
+                fontSize: 'calc(3.5rem + 4vw)',
+                fontWeight: '900',
+                margin: 0,
+                textTransform: 'uppercase',
+                color: '#ffffff',
+                letterSpacing: '0.22em',
+              }}
+            >
+              SPACETEC
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              style={{
+                fontSize: '0.8rem',
+                letterSpacing: '8px',
+                color: '#ffffff',
+                textTransform: 'uppercase',
+                marginTop: '1.5rem',
+                fontWeight: '700',
+              }}
+            >
+              CONNECTING TO SPACE WEATHER NETWORK...
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="sw-content">
         <section className="sw-hero">
@@ -413,26 +445,17 @@ export default function SpaceWeatherPage() {
           background: #000000;
         }
 
-        .sw-back {
+        .sw-brand-slot {
+          display: flex;
+          align-items: center;
+          min-width: 180px;
+        }
+
+        .sw-brand-link {
           border: 0;
           background: transparent;
           cursor: pointer;
-          color: #64748b;
-          font: 600 0.62rem/1 monospace;
-          letter-spacing: 1.5px;
-          min-width: 110px;
-          text-align: left;
-        }
-
-        .sw-back:hover {
-          color: #fff;
-        }
-
-        .sw-brand-shell {
-          flex: 1;
-          display: flex;
-          justify-content: center;
-          overflow: hidden;
+          padding: 0;
         }
 
         .sw-brand-text {
@@ -440,6 +463,7 @@ export default function SpaceWeatherPage() {
           color: #ffffff;
           font-weight: 900;
           font-size: 1.25rem;
+          letter-spacing: 8px;
           text-transform: uppercase;
           white-space: nowrap;
         }
@@ -708,7 +732,7 @@ export default function SpaceWeatherPage() {
         }
 
         @media (max-width: 640px) {
-          .sw-back,
+          .sw-brand-slot,
           .sw-header-status {
             min-width: 0;
             font-size: 0.5rem;
@@ -716,6 +740,7 @@ export default function SpaceWeatherPage() {
 
           .sw-brand-text {
             font-size: 0.85rem;
+            letter-spacing: 4px;
           }
         }
       `}</style>
