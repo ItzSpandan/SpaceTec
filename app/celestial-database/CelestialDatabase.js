@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CELESTIAL_OBJECTS, OBJECT_TYPES } from './celestialData';
 import { computeStats, searchObjects, filterObjects, getDetailFields } from './celestialUtils';
+import CelestialBackground from './CelestialBackground';
 
 const ENTER_DELAY_MS = 2000;
 
@@ -49,7 +50,7 @@ function DetailView({ object, onBack }) {
       <div className="cd-detail-grid">
         <div className="cd-detail-viewer">
           {has3D ? (
-            <CelestialViewer render={object.render} label={object.name} />
+            <CelestialViewer render={object.render} label={object.name} seed={object.id} />
           ) : (
             <div className="cd-viewer-fallback">
               <span>NO 3D MODEL FOR THIS OBJECT TYPE</span>
@@ -115,7 +116,7 @@ export default function CelestialDatabase() {
 
   return (
     <main className="cd-page">
-      <div className="cd-stars" />
+      <CelestialBackground />
 
       <header className="cd-header">
         <div className="cd-brand-slot">
@@ -160,7 +161,7 @@ export default function CelestialDatabase() {
               animate={{ scale: 1, letterSpacing: '0.22em' }}
             >
               <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff' }}>
-                CELESTIAL DATABASE
+                SPACETEC
               </h1>
             </motion.div>
             <motion.p
@@ -239,18 +240,6 @@ export default function CelestialDatabase() {
           background: #000000;
           color: #fff;
           font-family: 'Space Grotesk', sans-serif;
-        }
-
-        .cd-stars {
-          position: fixed;
-          inset: 0;
-          pointer-events: none;
-          opacity: 0.3;
-          z-index: 0;
-          background-image: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0 1px, transparent 1.2px),
-            radial-gradient(circle, rgba(255, 255, 255, 0.5) 0 1px, transparent 1.2px);
-          background-size: 97px 97px, 157px 157px;
-          background-position: 10px 20px, 50px 70px;
         }
 
         .cd-header {
