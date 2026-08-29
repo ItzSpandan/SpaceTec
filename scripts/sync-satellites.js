@@ -60,7 +60,10 @@ async function runSync() {
       }
 
       // ---------------------------------------------------------
-      // REAL ORBITAL ELEMENTS FROM CELESTRAK (full OMM)
+      // FULL OMM FROM CELESTRAK (used only in-memory, to build satrec
+      // and to compute the sync-time snapshot position below — we do
+      // NOT try to store this whole object, since there's no `omm`
+      // column in the table)
       // ---------------------------------------------------------
 
       const omm = {
@@ -83,19 +86,13 @@ async function runSync() {
         MEAN_MOTION_DDOT: Number(sat.MEAN_MOTION_DDOT || 0)
       };
 
-      // ---------------------------------------------------------
-      // CREATE SGP4 SATELLITE RECORD
-      // ---------------------------------------------------------
-
       const satrec = satellite.json2satrec(omm);
 
       // ---------------------------------------------------------
-      // BUILD THE DB RECORD
-      //
-      // IMPORTANT: we store the full OMM (as `omm`) PLUS the flat
-      // columns, so the frontend can rebuild `satrec` itself with
-      // satellite.json2satrec(row.omm) and re-propagate live,
-      // instead of only ever showing this sync's snapshot position.
+      // DB RECORD — only columns that actually exist in your table.
+      // These flat orbital-element columns are enough for the
+      // frontend to rebuild an OMM object and re-propagate live
+      // with satellite.json2satrec(reconstructedOmm).
       // ---------------------------------------------------------
 
       const record = {
@@ -103,7 +100,6 @@ async function runSync() {
         name: nameStr,
         organization: org,
 
-        // Flat columns (handy for querying/filtering in Supabase)
         inclination: omm.INCLINATION,
         mean_motion: omm.MEAN_MOTION,
         eccentricity: omm.ECCENTRICITY,
@@ -114,24 +110,16 @@ async function runSync() {
         mean_motion_ddot: omm.MEAN_MOTION_DDOT,
         bstar: omm.BSTAR,
         epoch: omm.EPOCH,
-        object_id: omm.OBJECT_ID,
-        ephemeris_type: omm.EPHEMERIS_TYPE,
-        classification_type: omm.CLASSIFICATION_TYPE,
-        element_set_no: omm.ELEMENT_SET_NO,
-        rev_at_epoch: omm.REV_AT_EPOCH,
-
-        // Full OMM blob — the reliable round-trip source for the frontend
-        omm: omm,
 
         orbital_epoch: omm.EPOCH,
-        orbital_source: 'CelesTrak',
-        synced_at: now.toISOString()
+        orbital_source: 'CelesTrak'
       };
 
       // ---------------------------------------------------------
-      // CALCULATE POSITION/VELOCITY AT SYNC TIME
-      // (this is just a snapshot for display before the frontend's
-      // own live propagation kicks in — not the source of truth)
+      // POSITION/VELOCITY SNAPSHOT AT SYNC TIME
+      // (just a starting point for display — the frontend re-derives
+      // its own live satrec from the columns above and propagates
+      // every second from there)
       // ---------------------------------------------------------
 
       if (satrec && satrec.error === 0) {
@@ -163,9 +151,8 @@ async function runSync() {
             record.altitude = Number(altitude.toFixed(3));
           }
 
-          // FIX: store as a plain number, not "7.812 km/s".
-          // A string with units made Number(row.velocity) return NaN
-          // on the frontend, silently discarding the real velocity.
+          // FIX: numeric, not "7.812 km/s" — a string broke
+          // Number(row.velocity) on the frontend (returned NaN).
           if (Number.isFinite(velocity)) {
             record.velocity = Number(velocity.toFixed(3));
           }
@@ -195,10 +182,7 @@ async function runSync() {
 
   console.log(`Syncing ${formattedSats.length} satellites to Supabase...`);
 
-  // Keep batches small enough to stay well under Supabase/PostgREST's
-  // default request body size limit, especially now that each row
-  // carries the extra `omm` JSON blob.
-  const chunkSize = 200;
+  const chunkSize = 500;
   const maxRetries = 3;
 
   for (let i = 0; i < formattedSats.length; i += chunkSize) {
@@ -231,7 +215,6 @@ async function runSync() {
             `Supabase error at index ${i} (attempt ${attempt}, status ${response.status}):`,
             errText
           );
-          // Back off a little before retrying, in case it's a transient/rate issue.
           await new Promise(r => setTimeout(r, 1000 * attempt));
         }
       } catch (err) {
