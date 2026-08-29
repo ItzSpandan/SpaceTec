@@ -1,6 +1,5 @@
 // Utility/calculation functions for the Celestial Database.
-// No React, no Three.js here — just data shaping so CelestialDatabase.js
-// and CelestialViewer.js both stay focused on their own jobs.
+// No React here — just data shaping for CelestialDatabase.js.
 
 import { CELESTIAL_OBJECTS } from './celestialData';
 
