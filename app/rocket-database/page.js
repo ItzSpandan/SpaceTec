@@ -13,6 +13,7 @@ function fmt(value, unit = '') {
 
 export default function RocketDatabasePage() {
   const [entered, setEntered] = useState(false);
+  const [showIntro, setShowIntro] = useState(false);
   const [rockets, setRockets] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,11 +21,23 @@ export default function RocketDatabasePage() {
   const [ordering, setOrdering] = useState('-total_launch_count');
   const [page, setPage] = useState(0);
   const [expandedRocket, setExpandedRocket] = useState(null);
+  const [loadError, setLoadError] = useState(null);
   const mounted = useRef(true);
 
   useEffect(() => {
-    const enterTimer = setTimeout(() => setEntered(true), ENTER_DELAY_MS);
-    return () => clearTimeout(enterTimer);
+    // Let the docked header brand paint first so framer-motion has a known
+    // "small, top-left" layout to grow from, then swap to the big centered
+    // version, hold, then swap back — a genuine grow-from-corner / shrink-
+    // back-to-corner cycle using the shared layoutId.
+    const growTimer = setTimeout(() => setShowIntro(true), 120);
+    const shrinkTimer = setTimeout(() => {
+      setShowIntro(false);
+      setEntered(true);
+    }, 120 + ENTER_DELAY_MS);
+    return () => {
+      clearTimeout(growTimer);
+      clearTimeout(shrinkTimer);
+    };
   }, []);
 
   useEffect(() => {
@@ -44,11 +57,13 @@ export default function RocketDatabasePage() {
       if (!mounted.current) return;
       setRockets(json.results || []);
       setTotalCount(json.count || 0);
+      setLoadError(json.error ? (json.upstreamStatus ? `Upstream error (HTTP ${json.upstreamStatus})` : 'Upstream error') : null);
     } catch (err) {
       console.error('Rocket database load failed:', err);
       if (!mounted.current) return;
       setRockets([]);
       setTotalCount(0);
+      setLoadError('Network error');
     } finally {
       if (mounted.current) setIsLoading(false);
     }
@@ -88,20 +103,23 @@ export default function RocketDatabasePage() {
       <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 3 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
           <div style={{ minWidth: '180px' }}>
-            {entered && (
-              <button className="brand-link" onClick={() => { window.location.href = '/'; }}>
-                <motion.span
-                  layoutId="spacetec-brand"
-                  style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}
-                >
-                  SPACETEC
-                </motion.span>
-              </button>
-            )}
+            <button
+              className="brand-link"
+              onClick={() => { if (entered) window.location.href = '/'; }}
+              style={{ pointerEvents: entered ? 'auto' : 'none' }}
+            >
+              <motion.span
+                layoutId="spacetec-brand"
+                transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+                style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}
+              >
+                SPACETEC
+              </motion.span>
+            </button>
           </div>
           <button
             onClick={() => { window.location.href = '/'; }}
-            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '0.8rem 1.5rem', cursor: 'pointer', fontSize: '0.75rem', letterSpacing: '2px', fontWeight: '700', textTransform: 'uppercase' }}
+            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '0.8rem 1.5rem', cursor: 'pointer', fontSize: '0.75rem', letterSpacing: '2px', fontWeight: '700', textTransform: 'uppercase', opacity: entered ? 1 : 0, transition: 'opacity 0.6s ease', pointerEvents: entered ? 'auto' : 'none' }}
           >
             [← BACK TO MAIN]
           </button>
@@ -158,7 +176,12 @@ export default function RocketDatabasePage() {
               ) : rockets.length === 0 ? (
                 <tr>
                   <td colSpan="5" style={{ padding: '2rem 1rem', color: '#d4d4d8', textAlign: 'center' }}>
-                    NO ROCKETS FOUND
+                    <div>NO ROCKETS FOUND</div>
+                    {loadError && (
+                      <div style={{ marginTop: '0.5rem', fontSize: '0.65rem', color: '#71717a', fontStyle: 'italic' }}>
+                        {loadError} — try again shortly.
+                      </div>
+                    )}
                   </td>
                 </tr>
               ) : (
@@ -311,27 +334,32 @@ export default function RocketDatabasePage() {
         )}
       </AnimatePresence>
 
-      {/* ENTRY TRANSITION: SPACETEC starts big & centered, holds, then shrinks into the corner */}
+      {/* ENTRY TRANSITION: SPACETEC grows from the header corner to big & centered, holds, then shrinks back */}
       <AnimatePresence>
-        {!entered && (
+        {showIntro && (
           <motion.div
             key="rdb-intro"
-            initial={{ opacity: 1 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             style={{ position: 'fixed', inset: 0, zIndex: 999999, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000', padding: '2rem' }}
           >
-            <motion.h1
+            <motion.div
               layoutId="spacetec-brand"
-              style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}
+              transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ scale: 0.9, letterSpacing: '0.12em' }}
+              animate={{ scale: 1, letterSpacing: '0.22em' }}
             >
-              SPACETEC
-            </motion.h1>
+              <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff' }}>
+                SPACETEC
+              </h1>
+            </motion.div>
             <motion.p
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              style={{ fontSize: 'calc(0.7rem + 0.3vw)', letterSpacing: '12px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '500' }}
             >
               CONNECTING TO ROCKET DATABASE...
             </motion.p>
