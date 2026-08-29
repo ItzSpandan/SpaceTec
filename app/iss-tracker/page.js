@@ -30,6 +30,13 @@ function fmt(value, digits = 2) {
   return Number(value).toFixed(digits);
 }
 
+function projectToPercent(lat, lon) {
+  return {
+    x: ((lon + 180) / 360) * 100,
+    y: ((90 - lat) / 180) * 100,
+  };
+}
+
 function latLngLabel(lat, lon) {
   if (lat == null || lon == null) return '--';
 
@@ -229,6 +236,11 @@ export default function ISSTrackerPage() {
   const [showOrbit, setShowOrbit] =
     useState(true);
 
+  const [view, setView] = useState('3d');
+
+  const [globeReady, setGlobeReady] =
+    useState(false);
+
   const [observer, setObserver] =
     useState(null);
 
@@ -334,38 +346,88 @@ export default function ISSTrackerPage() {
   }, [satrec]);
 
   /*
+   * Safely move the camera. Guards against
+   * calling into react-globe.gl before its
+   * internal scene/controls exist yet -
+   * previously an uncaught error here (e.g.
+   * globe.controls() briefly undefined) could
+   * abort the click handler before setFollow(true)
+   * ever ran, which is why FOLLOW ISS looked dead.
+   */
+  const moveCamera = useCallback(
+    (lat, lng, altitude, duration = 1000) => {
+      const globe = globeRef.current;
+
+      if (
+        !globe ||
+        lat == null ||
+        lng == null
+      ) {
+        return;
+      }
+
+      try {
+        const controls =
+          globe.controls?.();
+
+        if (controls) {
+          controls.autoRotate = false;
+        }
+
+        globe.pointOfView(
+          {
+            lat: Number(lat),
+            lng: Number(lng),
+            altitude,
+          },
+          duration
+        );
+      } catch (error) {
+        // Scene not fully ready yet - retry
+        // on the next frame instead of failing
+        // silently.
+        requestAnimationFrame(() =>
+          moveCamera(
+            lat,
+            lng,
+            altitude,
+            duration
+          )
+        );
+      }
+    },
+    []
+  );
+
+  /*
    * FOLLOW CAMERA
    *
-   * The important fix:
    * The camera is updated every time the
-   * live ISS coordinates change.
-   *
+   * live ISS coordinates change, and also
+   * immediately when FOLLOW is switched on
+   * (since `follow` itself is a dependency).
    * The ISS telemetry changes every second,
-   * so FOLLOW ISS now continuously keeps
-   * the camera centered on the ISS.
+   * so FOLLOW ISS continuously keeps the
+   * camera centered on the ISS.
    */
   useEffect(() => {
-    if (
-      !follow ||
-      !state ||
-      !globeRef.current
-    ) {
+    if (!follow || !state || view !== '3d') {
       return;
     }
 
-    const globe = globeRef.current;
-
-    globe.controls().autoRotate = false;
-
-    globe.pointOfView(
-      {
-        lat: Number(state.lat),
-        lng: Number(state.lon),
-        altitude: 0.75,
-      },
+    moveCamera(
+      state.lat,
+      state.lon,
+      0.75,
       700
     );
-  }, [follow, state]);
+  }, [follow, state, view, moveCamera]);
+
+  useEffect(() => {
+    if (view !== '3d') {
+      setFollow(false);
+    }
+  }, [view]);
 
   useEffect(() => {
     if (
@@ -421,32 +483,6 @@ export default function ISSTrackerPage() {
   };
 
   /*
-   * Move camera directly to the current
-   * ISS position.
-   */
-  const goToISS = () => {
-    if (
-      !state ||
-      !globeRef.current
-    ) {
-      return;
-    }
-
-    const globe = globeRef.current;
-
-    globe.controls().autoRotate = false;
-
-    globe.pointOfView(
-      {
-        lat: Number(state.lat),
-        lng: Number(state.lon),
-        altitude: 0.75,
-      },
-      1500
-    );
-  };
-
-  /*
    * Return to the original globe view.
    */
   const resetView = () => {
@@ -456,18 +492,7 @@ export default function ISSTrackerPage() {
       return;
     }
 
-    const globe = globeRef.current;
-
-    globe.controls().autoRotate = false;
-
-    globe.pointOfView(
-      {
-        lat: 15,
-        lng: 70,
-        altitude: 2.3,
-      },
-      1200
-    );
+    moveCamera(15, 70, 2.3, 1200);
   };
 
   const orbitSegments = useMemo(() => {
@@ -508,6 +533,26 @@ export default function ISSTrackerPage() {
       })
     );
   }, [orbitSegments]);
+
+  const map2DTracks = useMemo(() => {
+    return orbitSegments.map(
+      (segment) =>
+        segment
+          .map((p) =>
+            projectToPercent(p.lat, p.lng)
+          )
+          .map((p) => `${p.x},${p.y}`)
+          .join(' ')
+    );
+  }, [orbitSegments]);
+
+  const issMapPos = useMemo(() => {
+    if (!state) return null;
+    return projectToPercent(
+      state.lat,
+      state.lon
+    );
+  }, [state]);
 
   const formatTime = (date) =>
     date
@@ -586,6 +631,19 @@ export default function ISSTrackerPage() {
             </b>
           </div>
 
+          <button
+            type="button"
+            className="view-toggle"
+            onClick={() =>
+              setView((v) =>
+                v === '3d' ? '2d' : '3d'
+              )
+            }
+          >
+            SWITCH TO {view === '3d' ? '2D' : '3D'}
+          </button>
+
+          {view === '3d' && (
           <div className="globe-shell">
             <ReactGlobe
               ref={globeRef}
@@ -623,14 +681,29 @@ export default function ISSTrackerPage() {
                 0.045
               }
               pointRadius={() =>
-                0.18
+                0.55
               }
               pointColor={() =>
-                '#ffffff'
+                '#ff3b30'
               }
+              pointResolution={16}
               pointLabel={() =>
                 '<b>ISS // NORAD 25544</b>'
               }
+              ringsData={
+                state
+                  ? [state]
+                  : []
+              }
+              ringLat="lat"
+              ringLng="lon"
+              ringAltitude={0.045}
+              ringColor={() => (t) =>
+                `rgba(255, 59, 48, ${1 - t})`
+              }
+              ringMaxRadius={4.5}
+              ringPropagationSpeed={2.5}
+              ringRepeatPeriod={900}
               pathsData={
                 showOrbit
                   ? pathData
@@ -648,23 +721,68 @@ export default function ISSTrackerPage() {
               pathDashGap={0.008}
               pathDashAnimateTime={2600}
               onGlobeReady={() => {
-                if (!globeRef.current)
-                  return;
-
-                globeRef.current
-                  .controls()
-                  .autoRotate = false;
-
-                globeRef.current.pointOfView(
-                  {
-                    lat: 15,
-                    lng: 70,
-                    altitude: 2.3,
-                  }
-                );
+                setGlobeReady(true);
+                moveCamera(15, 70, 2.3, 0);
               }}
             />
           </div>
+          )}
+
+          {view === '2d' && (
+            <div className="map-2d">
+              <svg
+                className="map-2d-svg"
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+              >
+                {showOrbit &&
+                  map2DTracks.map(
+                    (points, i) => (
+                      <polyline
+                        key={i}
+                        points={points}
+                        fill="none"
+                        stroke="#3b82f6"
+                        strokeWidth="0.3"
+                        strokeDasharray="0.8,0.6"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    )
+                  )}
+
+                {issMapPos && (
+                  <>
+                    <circle
+                      className="map-iss-pulse"
+                      cx={issMapPos.x}
+                      cy={issMapPos.y}
+                      r="1.4"
+                    />
+                    <circle
+                      cx={issMapPos.x}
+                      cy={issMapPos.y}
+                      r="0.9"
+                      fill="#ff3b30"
+                      stroke="#fff"
+                      strokeWidth="0.15"
+                    />
+                  </>
+                )}
+              </svg>
+
+              {issMapPos && (
+                <div
+                  className="map-iss-label"
+                  style={{
+                    left: `${issMapPos.x}%`,
+                    top: `${issMapPos.y}%`,
+                  }}
+                >
+                  ISS
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="visual-label bottom-left">
             <span>
@@ -816,26 +934,18 @@ export default function ISSTrackerPage() {
 
             <button
               type="button"
+              disabled={
+                view !== '3d' ||
+                !state ||
+                !globeReady
+              }
               className={
                 follow
                   ? 'active'
                   : ''
               }
               onClick={() => {
-                if (follow) {
-                  setFollow(false);
-                  return;
-                }
-
-                if (
-                  !state ||
-                  !globeRef.current
-                ) {
-                  return;
-                }
-
-                goToISS();
-                setFollow(true);
+                setFollow((was) => !was);
               }}
             >
               FOLLOW ISS
@@ -843,6 +953,9 @@ export default function ISSTrackerPage() {
 
             <button
               type="button"
+              disabled={
+                view !== '3d' || !globeReady
+              }
               onClick={resetView}
             >
               RESET VIEW
@@ -1160,6 +1273,101 @@ export default function ISSTrackerPage() {
         .bottom-left {
           bottom: 25px;
           left: 32px;
+        }
+
+        .view-toggle {
+          position: absolute;
+          top: 24px;
+          right: 32px;
+          z-index: 6;
+
+          min-height: 36px;
+          padding: 0 14px;
+
+          border: 1px solid
+            rgba(255, 255, 255, 0.16);
+
+          background: rgba(0, 0, 0, 0.6);
+          backdrop-filter: blur(4px);
+
+          color: #e2e8f0;
+          cursor: pointer;
+
+          font: 700 0.6rem/1 monospace;
+          letter-spacing: 1.5px;
+
+          transition:
+            border-color 160ms ease,
+            background 160ms ease;
+        }
+
+        .view-toggle:hover {
+          border-color:
+            rgba(59, 130, 246, 0.65);
+          background: rgba(0, 0, 0, 0.85);
+        }
+
+        .map-2d {
+          position: absolute;
+          inset: 0;
+
+          background-color: #000;
+          background-image: url('https://unpkg.com/three-globe/example/img/earth-night.jpg');
+          background-size: 100% 100%;
+          background-position: center;
+        }
+
+        .map-2d-svg {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+        }
+
+        .map-iss-pulse {
+          fill: rgba(255, 59, 48, 0.35);
+          animation: map-pulse 1.8s ease-out
+            infinite;
+          transform-origin: center;
+        }
+
+        @keyframes map-pulse {
+          0% {
+            r: 0.9;
+            opacity: 0.9;
+          }
+          100% {
+            r: 3.2;
+            opacity: 0;
+          }
+        }
+
+        .map-iss-label {
+          position: absolute;
+          transform: translate(8px, -18px);
+
+          color: #ff6b61;
+
+          font: 700 0.6rem/1 monospace;
+          letter-spacing: 1px;
+
+          pointer-events: none;
+
+          text-shadow:
+            0 0 4px #000,
+            0 0 4px #000;
+        }
+
+        .controls button:disabled,
+        .location-button:disabled {
+          opacity: 0.35;
+          cursor: not-allowed;
+        }
+
+        .controls button:disabled:hover {
+          border-color:
+            rgba(255, 255, 255, 0.11);
+          background: #000000;
         }
 
         /* TRUE BLACK SIDEBAR */
@@ -1636,6 +1844,14 @@ export default function ISSTrackerPage() {
 
           .bottom-left {
             bottom: 18px;
+          }
+
+          .view-toggle {
+            top: 18px;
+            right: 18px;
+            padding: 0 10px;
+            min-height: 30px;
+            font-size: 0.52rem;
           }
         }
       `}</style>
