@@ -860,15 +860,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                   <button 
                     onClick={() => {
                       setShowDatabaseDropdown(false);
-                      alert('Celestial Database feature coming soon!');
-                    }} 
-                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
-                  >
-                    Celestial Database
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setShowDatabaseDropdown(false);
                       scrollToSection('launches');
                     }} 
                     style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
