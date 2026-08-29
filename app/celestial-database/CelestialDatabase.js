@@ -1,20 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CELESTIAL_OBJECTS, OBJECT_TYPES } from './celestialData';
 import { computeStats, searchObjects, filterObjects, getDetailFields } from './celestialUtils';
 import CelestialBackground from './CelestialBackground';
 
 const ENTER_DELAY_MS = 2000;
-
-// The 3D viewer (and Three.js itself) is only pulled in once a detail view
-// actually mounts it — never on the listing grid.
-const CelestialViewer = dynamic(() => import('./CelestialViewer'), {
-  ssr: false,
-  loading: () => <div className="cd-viewer-loading">LOADING 3D MODEL...</div>,
-});
 
 function ObjectCard({ object, onSelect }) {
   return (
@@ -35,7 +27,6 @@ function ObjectCard({ object, onSelect }) {
 
 function DetailView({ object, onBack }) {
   const fields = useMemo(() => getDetailFields(object), [object]);
-  const has3D = object.render && object.render.kind !== 'none';
 
   return (
     <section className="cd-detail">
@@ -47,40 +38,27 @@ function DetailView({ object, onBack }) {
         <p>{object.description}</p>
       </div>
 
-      <div className="cd-detail-grid">
-        <div className="cd-detail-viewer">
-          {has3D ? (
-            <CelestialViewer render={object.render} label={object.name} seed={object.id} />
-          ) : (
-            <div className="cd-viewer-fallback">
-              <span>NO 3D MODEL FOR THIS OBJECT TYPE</span>
-              <p>{object.name} is represented here through scientific data only — a conventional 3D model would misrepresent this kind of object.</p>
+      <div className="cd-detail-data">
+        <span className="cd-kicker">KEY SCIENTIFIC DATA</span>
+        <div className="cd-field-list">
+          {fields.map((f) => (
+            <div className="cd-field-row" key={f.key}>
+              <span>{f.label}</span>
+              <b>{f.display}</b>
             </div>
-          )}
+          ))}
         </div>
 
-        <div className="cd-detail-data">
-          <span className="cd-kicker">KEY SCIENTIFIC DATA</span>
-          <div className="cd-field-list">
-            {fields.map((f) => (
-              <div className="cd-field-row" key={f.key}>
-                <span>{f.label}</span>
-                <b>{f.display}</b>
-              </div>
-            ))}
-          </div>
-
-          {object.related?.length > 0 && (
-            <>
-              <span className="cd-kicker" style={{ marginTop: '28px' }}>RELATED</span>
-              <div className="cd-related-list">
-                {object.related.map((r) => (
-                  <a key={r.label} href={r.href} className="cd-related-link">{r.label}</a>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+        {object.related?.length > 0 && (
+          <>
+            <span className="cd-kicker" style={{ marginTop: '28px' }}>RELATED</span>
+            <div className="cd-related-list">
+              {object.related.map((r) => (
+                <a key={r.label} href={r.href} className="cd-related-link">{r.label}</a>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </section>
   );
@@ -316,12 +294,7 @@ export default function CelestialDatabase() {
         .cd-detail-head h1 { margin: 10px 0 14px; color: #f8fafc; font: 800 2.6rem/1 'Space Grotesk', sans-serif; letter-spacing: -1px; }
         .cd-detail-head p { max-width: 720px; color: #a1a1aa; font-size: 0.9rem; line-height: 1.6; }
 
-        .cd-detail-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 40px; }
-
-        .cd-detail-viewer { border: 1px solid rgba(255, 255, 255, 0.08); height: 420px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        .cd-viewer-canvas { width: 100%; height: 100%; }
-        .cd-viewer-loading, .cd-viewer-fallback { color: #52525b; font: 700 0.68rem/1.6 monospace; letter-spacing: 1.5px; text-align: center; padding: 30px; }
-        .cd-viewer-fallback p { color: #71717a; font: 400 0.72rem/1.6 'Space Grotesk', sans-serif; letter-spacing: 0.2px; text-transform: none; margin-top: 10px; }
+        .cd-detail-data { max-width: 640px; }
 
         .cd-field-list { border-top: 1px solid rgba(255, 255, 255, 0.08); }
         .cd-field-row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); font: 600 0.65rem/1.3 monospace; letter-spacing: 1px; color: #64748b; }
@@ -333,7 +306,6 @@ export default function CelestialDatabase() {
 
         @media (max-width: 1024px) {
           .cd-grid { grid-template-columns: repeat(2, 1fr); }
-          .cd-detail-grid { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 640px) {
