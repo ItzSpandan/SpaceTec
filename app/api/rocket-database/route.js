@@ -75,6 +75,11 @@ export async function GET(request) {
     const url = new URL(BASE_URL);
     url.searchParams.set('limit', String(PAGE_SIZE));
     url.searchParams.set('offset', String(page * PAGE_SIZE));
+    // "normal" mode (the default) omits length, diameter, launch_mass,
+    // leo/gto capacity, maiden_flight, and description — the upstream API
+    // only includes those in "detailed" mode, which is why the modal was
+    // showing "DATA UNAVAILABLE" for nearly every spec.
+    url.searchParams.set('mode', 'detailed');
     if (includeOrdering) url.searchParams.set('ordering', ordering);
     if (search) url.searchParams.set('search', search);
     return url.toString();
