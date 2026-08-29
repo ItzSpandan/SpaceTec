@@ -117,14 +117,26 @@ function Sparkline({ data, color = '#38bdf8', useLog = false }) {
 
 export default function SpaceWeatherPage() {
   const [entered, setEntered] = useState(false);
+  const [showIntro, setShowIntro] = useState(false);
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('ACQUIRING'); // ACQUIRING | LIVE | DELAYED
   const [lastUpdate, setLastUpdate] = useState(null);
   const mounted = useRef(true);
 
   useEffect(() => {
-    const enterTimer = setTimeout(() => setEntered(true), ENTER_DELAY_MS);
-    return () => clearTimeout(enterTimer);
+    // Let the docked header brand paint first so framer-motion has a known
+    // "small, top-left" layout to grow from, then swap to the big centered
+    // version, hold, then swap back — a genuine grow-from-corner / shrink-
+    // back-to-corner cycle using the shared layoutId.
+    const growTimer = setTimeout(() => setShowIntro(true), 120);
+    const shrinkTimer = setTimeout(() => {
+      setShowIntro(false);
+      setEntered(true);
+    }, 120 + ENTER_DELAY_MS);
+    return () => {
+      clearTimeout(growTimer);
+      clearTimeout(shrinkTimer);
+    };
   }, []);
 
   const load = useCallback(async () => {
@@ -176,31 +188,35 @@ export default function SpaceWeatherPage() {
 
       <header className="sw-header">
         <div className="sw-brand-slot">
-          {entered && (
-            <button type="button" className="sw-brand-link" onClick={() => { window.location.href = '/'; }}>
-              <motion.span
-                layoutId="sw-brand"
-                transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
-                className="sw-brand-text"
-              >
-                SPACETEC
-              </motion.span>
-            </button>
-          )}
+          <button
+            type="button"
+            className="sw-brand-link"
+            onClick={() => { if (entered) window.location.href = '/'; }}
+            style={{ pointerEvents: entered ? 'auto' : 'none' }}
+          >
+            <motion.span
+              layoutId="sw-brand"
+              transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+              className="sw-brand-text"
+            >
+              SPACETEC
+            </motion.span>
+          </button>
         </div>
 
-        <div className="sw-header-status">
+        <div className="sw-header-status" style={{ opacity: entered ? 1 : 0, transition: 'opacity 0.6s ease' }}>
           <span className={`sw-dot ${status.toLowerCase()}`} />
           {status === 'LIVE' ? 'LIVE FEED' : status === 'ACQUIRING' ? 'ACQUIRING' : 'DATA DELAYED'}
         </div>
       </header>
 
-      {/* ENTRY TRANSITION: SPACETEC starts big & centered, holds, then shrinks into the header */}
+      {/* ENTRY TRANSITION: SPACETEC grows from the header corner to big & centered, holds, then shrinks back */}
       <AnimatePresence>
-        {!entered && (
+        {showIntro && (
           <motion.div
             key="sw-intro"
-            initial={{ opacity: 1 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             style={{
@@ -215,31 +231,35 @@ export default function SpaceWeatherPage() {
               padding: '2rem',
             }}
           >
-            <motion.h1
+            <motion.div
               layoutId="sw-brand"
               transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
-              style={{
-                fontSize: 'calc(3.5rem + 4vw)',
-                fontWeight: '900',
-                margin: 0,
-                textTransform: 'uppercase',
-                color: '#ffffff',
-                letterSpacing: '0.22em',
-              }}
+              initial={{ scale: 0.9, letterSpacing: '0.12em' }}
+              animate={{ scale: 1, letterSpacing: '0.22em' }}
             >
-              SPACETEC
-            </motion.h1>
+              <h1
+                style={{
+                  fontSize: 'calc(3.5rem + 4vw)',
+                  fontWeight: '900',
+                  margin: 0,
+                  textTransform: 'uppercase',
+                  color: '#ffffff',
+                }}
+              >
+                SPACETEC
+              </h1>
+            </motion.div>
             <motion.p
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
               style={{
-                fontSize: '0.8rem',
-                letterSpacing: '8px',
+                fontSize: 'calc(0.7rem + 0.3vw)',
+                letterSpacing: '12px',
                 color: '#ffffff',
                 textTransform: 'uppercase',
                 marginTop: '1.5rem',
-                fontWeight: '700',
+                fontWeight: '500',
               }}
             >
               CONNECTING TO SPACE WEATHER NETWORK...
