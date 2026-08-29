@@ -37,6 +37,33 @@ function normalizeRocket(raw) {
   };
 }
 
+// Fetch with a timeout, returning both the parsed body and enough context to
+// debug a failure (status + a snippet of the response) instead of a black box.
+async function fetchWithTimeout(url, timeoutMs = 9000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      next: { revalidate: 300 },
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'SpaceTecRocketDatabase/1.0 (+https://github.com/ItzSpandan/SpaceTec)',
+      },
+    });
+    const text = await res.text();
+    let json = null;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      // upstream didn't return JSON (e.g. an HTML error page) — leave json null
+    }
+    return { ok: res.ok, status: res.status, json, snippet: text.slice(0, 300) };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const search = (searchParams.get('search') || '').trim();
@@ -44,23 +71,39 @@ export async function GET(request) {
   const orderingParam = searchParams.get('ordering') || '-total_launch_count';
   const ordering = ALLOWED_ORDERING.has(orderingParam) ? orderingParam : '-total_launch_count';
 
-  const url = new URL(BASE_URL);
-  url.searchParams.set('limit', String(PAGE_SIZE));
-  url.searchParams.set('offset', String(page * PAGE_SIZE));
-  url.searchParams.set('ordering', ordering);
-  if (search) url.searchParams.set('search', search);
+  const buildUrl = (includeOrdering) => {
+    const url = new URL(BASE_URL);
+    url.searchParams.set('limit', String(PAGE_SIZE));
+    url.searchParams.set('offset', String(page * PAGE_SIZE));
+    if (includeOrdering) url.searchParams.set('ordering', ordering);
+    if (search) url.searchParams.set('search', search);
+    return url.toString();
+  };
 
   try {
-    const res = await fetch(url.toString(), { next: { revalidate: 300 } });
-    if (!res.ok) throw new Error(`Launch Library responded ${res.status}`);
-    const data = await res.json();
+    // Try with ordering first; if the upstream API rejects that param for any
+    // reason, retry once without it rather than failing the whole request.
+    let attempt = await fetchWithTimeout(buildUrl(true));
+    if (!attempt.ok) {
+      console.error('Rocket database: ordered request failed', attempt.status, attempt.snippet);
+      attempt = await fetchWithTimeout(buildUrl(false));
+    }
 
+    if (!attempt.ok || !attempt.json) {
+      console.error('Rocket database: upstream request failed', attempt.status, attempt.snippet);
+      return NextResponse.json(
+        { count: 0, results: [], error: true, upstreamStatus: attempt.status, upstreamSnippet: attempt.snippet },
+        { status: 200 }
+      );
+    }
+
+    const data = attempt.json;
     return NextResponse.json({
       count: data.count ?? 0,
       results: Array.isArray(data.results) ? data.results.map(normalizeRocket) : [],
     });
   } catch (err) {
     console.error('Rocket database fetch failed:', err);
-    return NextResponse.json({ count: 0, results: [], error: true }, { status: 200 });
+    return NextResponse.json({ count: 0, results: [], error: true, message: String(err) }, { status: 200 });
   }
 }
