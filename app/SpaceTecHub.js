@@ -77,7 +77,12 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
   
   // Dropdown & Menu States
   const [showTelemetryDropdown, setShowTelemetryDropdown] = useState(false);
+  const [showDatabaseDropdown, setShowDatabaseDropdown] = useState(false);
   const [showHamburgerMenu, setShowHamburgerMenu] = useState(false);
+
+  // Live Space Intelligence strip (section directly below the hero)
+  const [liveSatelliteCount, setLiveSatelliteCount] = useState(null);
+  const [issLivePos, setIssLivePos] = useState(null);
 
   const canvasRef = useRef(null);
 
@@ -304,6 +309,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
       section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     setShowTelemetryDropdown(false);
+    setShowDatabaseDropdown(false);
     setShowHamburgerMenu(false);
   };
 
@@ -313,6 +319,71 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
     }, 7000);
     return () => clearInterval(bgTimer);
   }, [spaceBackgrounds.length]);
+
+  // --- LIVE SPACE INTELLIGENCE STRIP DATA (self-contained, doesn't touch anything else) ---
+
+  // Total tracked satellites, for the "LIVE SATELLITES" block.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { count, error } = await supabase
+          .from('satellites')
+          .select('*', { count: 'exact', head: true });
+        if (!error && !cancelled) setLiveSatelliteCount(count || 0);
+      } catch (error) {
+        console.error('Live satellite count fetch error:', error);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Live ISS lat/lon, for the "ISS LOCATION" block - same TLE feed and
+  // propagation approach as the dedicated ISS Tracker page.
+  useEffect(() => {
+    let cancelled = false;
+    let satrec = null;
+    let tickTimer = null;
+
+    const tick = async () => {
+      if (!satrec || cancelled) return;
+      try {
+        const { propagate, gstime, eciToGeodetic, degreesLat, degreesLong } = await import('satellite.js');
+        const pv = propagate(satrec, new Date());
+        if (!pv.position) return;
+        const gmst = gstime(new Date());
+        const geo = eciToGeodetic(pv.position, gmst);
+        if (!cancelled) {
+          setIssLivePos({ lat: degreesLat(geo.latitude), lon: degreesLong(geo.longitude) });
+        }
+      } catch (error) {
+        console.error('ISS live position error:', error);
+      }
+    };
+
+    const acquire = async () => {
+      try {
+        const res = await fetch('/api/iss-tle', { cache: 'no-store' });
+        if (!res.ok) throw new Error('ISS orbital feed unavailable');
+        const data = await res.json();
+        const { twoline2satrec } = await import('satellite.js');
+        satrec = twoline2satrec(data.line1, data.line2);
+        tick();
+      } catch (error) {
+        console.error('ISS TLE fetch error:', error);
+      }
+    };
+
+    acquire();
+    tickTimer = setInterval(tick, 5000);
+    const refreshTimer = setInterval(acquire, 2 * 60 * 60 * 1000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(tickTimer);
+      clearInterval(refreshTimer);
+    };
+  }, []);
 
   useEffect(() => {
     const batchTimer = setInterval(() => {
@@ -644,6 +715,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                 className="nav-link" 
                 onClick={() => {
                   setShowTelemetryDropdown(!showTelemetryDropdown);
+                  setShowDatabaseDropdown(false);
                   setShowHamburgerMenu(false);
                 }}
                 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
@@ -662,7 +734,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                     padding: '0.8rem 0',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '0.5rem',
                     zIndex: 200,
                     border: '1px solid rgba(255,255,255,0.2)'
                   }}
@@ -670,40 +741,21 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                   <button 
                     onClick={() => {
                       setShowTelemetryDropdown(false);
-                      handleOpenSatelliteWiki();
-                    }} 
-                    style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
-                  >
-                    Satellite Database
-                  </button>
-                  <button 
-                    onClick={() => scrollToSection('launches')} 
-                    style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
-                  >
-                    Rocket Launch Telemetry
-                  </button>
-                  <button 
-                    onClick={() => {
                       setGlobeViewMode((current) => ({ mode: 'satellites', requestId: current.requestId + 1 }));
                       scrollToSection('orbital-map');
                     }} 
-                    style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
                     Live Satellite Tracking
-                  </button>                  <button 
-                    onClick={() => scrollToSection('orbital-map')} 
-                    style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
-                  >
-                    Launch Pad Telemetry
                   </button>
                   <button 
                     onClick={() => {
                       setShowTelemetryDropdown(false);
-                      handleOpenAllLaunchpads();
+                      scrollToSection('orbital-map');
                     }} 
                     style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
-                    Launchpad Directory
+                    Launchpad Location
                   </button>
                 </div>
               )}
@@ -731,13 +783,103 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
 
             <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
 
-            {/* 3-Bar Menu Shortcut */}
+            {/* Database Dropdown Menu */}
+            <div style={{ position: 'relative' }}>
+              <button 
+                className="nav-link" 
+                onClick={() => {
+                  setShowDatabaseDropdown(!showDatabaseDropdown);
+                  setShowTelemetryDropdown(false);
+                  setShowHamburgerMenu(false);
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              >
+                Database <span>▾</span>
+              </button>
+
+              {showDatabaseDropdown && (
+                <div 
+                  className="glass-card" 
+                  style={{
+                    position: 'absolute',
+                    top: '2.5rem',
+                    left: 0,
+                    width: '240px',
+                    padding: '0.8rem 0',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    zIndex: 200,
+                    border: '1px solid rgba(255,255,255,0.2)'
+                  }}
+                >
+                  <button 
+                    onClick={() => {
+                      setShowDatabaseDropdown(false);
+                      handleOpenSatelliteWiki();
+                    }} 
+                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    Satellite Database
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setShowDatabaseDropdown(false);
+                      alert('Rocket Database feature coming soon!');
+                    }} 
+                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    Rocket Database
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setShowDatabaseDropdown(false);
+                      scrollToSection('launches');
+                    }} 
+                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    Mission Database
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setShowDatabaseDropdown(false);
+                      alert('Astronaut Database feature coming soon!');
+                    }} 
+                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    Astronaut Database
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setShowDatabaseDropdown(false);
+                      alert('Celestial Database feature coming soon!');
+                    }} 
+                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    Celestial Database
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setShowDatabaseDropdown(false);
+                      scrollToSection('launches');
+                    }} 
+                    style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    Launch Database
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
+
+            {/* Hamburger Menu - remaining secondary features */}
             <div style={{ position: 'relative' }}>
               <button 
                 className="nav-link" 
                 onClick={() => {
                   setShowHamburgerMenu(!showHamburgerMenu);
                   setShowTelemetryDropdown(false);
+                  setShowDatabaseDropdown(false);
                 }}
                 style={{ fontSize: '1.1rem', letterSpacing: '1px' }}
               >
@@ -755,7 +897,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                     padding: '0.8rem 0',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '0.5rem',
                     zIndex: 200,
                     border: '1px solid rgba(255,255,255,0.2)'
                   }}
@@ -766,8 +907,17 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                     Shortcuts & Features
                   </div>
                   <button 
+                    onClick={() => {
+                      setShowHamburgerMenu(false);
+                      handleOpenAllLaunchpads();
+                    }} 
+                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    Launchpad Directory
+                  </button>
+                  <button 
                     onClick={() => alert('Astronaut Telemetry feature coming soon!')} 
-                    style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
                     Astronaut Telemetry
                   </button>
@@ -1026,23 +1176,33 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
           </motion.div>
         </section>
 
-        {/* TELEMETRY STRIP */}
+        {/* LIVE SPACE INTELLIGENCE */}
         <section id="telemetry" className="content-container" style={{ paddingBottom: '5rem', scrollMarginTop: '8rem' }}>
+          <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '1rem' }}>
+            // LIVE SPACE INTELLIGENCE
+          </span>
           <motion.div 
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
             className="glass-card" 
-            style={{ padding: '2rem 2.5rem', borderRadius: '2px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem' }}
+            style={{ padding: '2rem 2.5rem', borderRadius: '2px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '2rem' }}
           >
-            {[
-              { label: 'DEEP SPACE OBSERVATION', val: apodData?.title ? apodData.title.slice(0, 20) + '...' : 'NASA APOD' },
-              { label: 'NETWORK NODES', val: '6 GLOBAL AGENCIES' },
-              { label: 'NEXT LAUNCH WINDOW', val: upcomingLaunches?.[0] ? new Date(upcomingLaunches[0].net).toLocaleDateString() : 'SYNCING...' },
-              { label: 'SYSTEM STATUS', val: 'ONLINE / OPTICAL' }
-            ].map((stat, idx) => (
-              <div key={idx} style={{ overflow: 'hidden' }}>
+            {(() => {
+              const nextLaunch = upcomingLaunches?.[0] || null;
+              const nextLaunchWeather = nextLaunch ? getWeatherForLaunch(nextLaunch) : null;
+
+              return [
+                { label: 'LIVE SATELLITES', val: liveSatelliteCount != null ? `${liveSatelliteCount.toLocaleString()} TRACKED` : 'SYNCING...' },
+                { label: 'NEXT LAUNCH', val: nextLaunch ? (nextLaunch.name.length > 22 ? nextLaunch.name.slice(0, 22) + '...' : nextLaunch.name) : 'SYNCING...' },
+                { label: 'ISS LOCATION', val: issLivePos ? `${issLivePos.lat.toFixed(1)}°, ${issLivePos.lon.toFixed(1)}°` : 'ACQUIRING...' },
+                { label: 'SPACE WEATHER', val: nextLaunchWeather?.condition || nextLaunchWeather?.wind_speed || 'SYNCING...' },
+                { label: 'UPCOMING LAUNCHES', val: `${upcomingLaunches?.length ?? 0} SCHEDULED` },
+                { label: 'ACTIVE LAUNCHPADS', val: `${allLaunchpads.length} WORLDWIDE` }
+              ];
+            })().map((stat, idx) => (
+              <div key={idx} style={{ overflow: 'hidden', borderLeft: idx === 0 ? 'none' : '1px solid rgba(255, 255, 255, 0.12)', paddingLeft: idx === 0 ? 0 : '1.5rem' }}>
                 <span style={{ fontSize: '0.65rem', color: '#71717a', letterSpacing: '2px', display: 'block', marginBottom: '0.5rem', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {stat.label}
                 </span>
