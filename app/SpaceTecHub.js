@@ -916,16 +916,40 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                     Launchpad Directory
                   </button>
                   <button 
-                    onClick={() => alert('Astronaut Telemetry feature coming soon!')} 
+                    onClick={() => alert('Space Encyclopedia feature coming soon!')} 
                     style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
-                    Astronaut Telemetry
+                    Space Encyclopedia
                   </button>
                   <button 
-                    onClick={() => alert('Space Encyclopedia feature coming soon!')} 
+                    onClick={() => alert('Space Weather feature coming soon!')} 
+                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    Space Weather
+                  </button>
+                  <button 
+                    onClick={() => alert('Astronomy Tonight feature coming soon!')} 
+                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    Astronomy Tonight
+                  </button>
+                  <button 
+                    onClick={() => alert('Space News feature coming soon!')} 
+                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    Space News
+                  </button>
+                  <button 
+                    onClick={() => alert('Space Statistics feature coming soon!')} 
+                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    Space Statistics
+                  </button>
+                  <button 
+                    onClick={() => alert('About SpaceTec feature coming soon!')} 
                     style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
-                    Space Encyclopedia
+                    About SpaceTec
                   </button>
                 </div>
               )}
@@ -1195,11 +1219,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
 
               return [
                 { label: 'LIVE SATELLITES', val: liveSatelliteCount != null ? `${liveSatelliteCount.toLocaleString()} TRACKED` : 'SYNCING...' },
-                { label: 'NEXT LAUNCH', val: nextLaunch ? (nextLaunch.name.length > 22 ? nextLaunch.name.slice(0, 22) + '...' : nextLaunch.name) : 'SYNCING...' },
+                { label: 'ACTIVE LAUNCHPADS', val: `${allLaunchpads.length} WORLDWIDE` },
                 { label: 'ISS LOCATION', val: issLivePos ? `${issLivePos.lat.toFixed(1)}°, ${issLivePos.lon.toFixed(1)}°` : 'ACQUIRING...' },
                 { label: 'SPACE WEATHER', val: nextLaunchWeather?.condition || nextLaunchWeather?.wind_speed || 'SYNCING...' },
-                { label: 'UPCOMING LAUNCHES', val: `${upcomingLaunches?.length ?? 0} SCHEDULED` },
-                { label: 'ACTIVE LAUNCHPADS', val: `${allLaunchpads.length} WORLDWIDE` }
+                { label: 'UPCOMING LAUNCHES', val: `${upcomingLaunches?.length ?? 0} SCHEDULED` }
               ];
             })().map((stat, idx) => (
               <div key={idx} style={{ overflow: 'hidden', borderLeft: idx === 0 ? 'none' : '1px solid rgba(255, 255, 255, 0.12)', paddingLeft: idx === 0 ? 0 : '1.5rem' }}>
