@@ -21,7 +21,7 @@ function fmt(value, unit = '') {
 
 export default function RocketDatabasePage() {
   const [entered, setEntered] = useState(false);
-  const [showIntro, setShowIntro] = useState(false);
+  const [showIntro, setShowIntro] = useState(true);
   const [rockets, setRockets] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,19 +41,16 @@ export default function RocketDatabasePage() {
   }, []);
 
   useEffect(() => {
-    // Let the docked header brand paint first so framer-motion has a known
-    // "small, top-left" layout to grow from, then swap to the big centered
-    // version, hold, then swap back — a genuine grow-from-corner / shrink-
-    // back-to-corner cycle using the shared layoutId.
-    const growTimer = setTimeout(() => setShowIntro(true), 120);
+    // Intro is visible from the very first paint (showIntro starts true) so
+    // there's no flash of the docked page underneath before the big centered
+    // SPACETEC transition plays. Data loading (see `load` below) kicks off
+    // immediately in parallel, so it finishes during this hold instead of
+    // popping in only after the transition ends.
     const shrinkTimer = setTimeout(() => {
       setShowIntro(false);
       setEntered(true);
-    }, 120 + ENTER_DELAY_MS);
-    return () => {
-      clearTimeout(growTimer);
-      clearTimeout(shrinkTimer);
-    };
+    }, ENTER_DELAY_MS);
+    return () => clearTimeout(shrinkTimer);
   }, []);
 
   useEffect(() => {
