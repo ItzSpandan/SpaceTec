@@ -163,6 +163,14 @@ export default function SpaceNewsPage() {
           <span className={`sn-dot ${status.toLowerCase()}`} />
           {status === 'LIVE' ? 'LIVE FEED' : status === 'ACQUIRING' ? 'ACQUIRING' : status === 'ERROR' ? 'FEED ERROR' : 'DATA DELAYED'}
         </div>
+        <button
+          type="button"
+          className="sn-back"
+          onClick={() => { window.location.href = '/'; }}
+          style={{ opacity: entered ? 1 : 0, transition: 'opacity 0.6s ease', pointerEvents: entered ? 'auto' : 'none' }}
+        >
+          [← BACK TO MAIN]
+        </button>
       </header>
 
       {/* ENTRY TRANSITION: SPACETEC -> SPACE NEWS -> SPACETEC (matches other SpaceTec sub-pages) */}
@@ -318,6 +326,22 @@ export default function SpaceNewsPage() {
           border: none;
           cursor: pointer;
           padding: 0;
+        }
+
+        .sn-back {
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          color: #fff;
+          padding: 0.6rem 1.1rem;
+          cursor: pointer;
+          font-size: 0.68rem;
+          letter-spacing: 1.5px;
+          font-weight: 700;
+          text-transform: uppercase;
+          font-family: inherit;
+        }
+        .sn-back:hover {
+          background: rgba(255, 255, 255, 0.14);
         }
 
         .sn-brand-text {
