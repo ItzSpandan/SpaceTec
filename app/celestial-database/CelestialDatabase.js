@@ -116,6 +116,14 @@ export default function CelestialDatabase() {
         <div className="cd-header-status" style={{ opacity: entered ? 1 : 0, transition: 'opacity 0.6s ease' }}>
           DATABASE ONLINE
         </div>
+        <button
+          type="button"
+          className="cd-back-home"
+          onClick={() => { window.location.href = '/'; }}
+          style={{ opacity: entered ? 1 : 0, transition: 'opacity 0.6s ease', pointerEvents: entered ? 'auto' : 'none' }}
+        >
+          [← BACK TO MAIN]
+        </button>
       </header>
 
       <AnimatePresence>
@@ -237,6 +245,12 @@ export default function CelestialDatabase() {
         .cd-brand-link { background: none; border: none; cursor: pointer; padding: 0; }
         .cd-brand-text { display: inline-block; color: #fff; font-weight: 800; font-size: 1rem; letter-spacing: 3px; text-transform: uppercase; }
         .cd-header-status { color: #64748b; font: 600 0.58rem/1 monospace; letter-spacing: 2px; }
+        .cd-back-home {
+          background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.3); color: #fff;
+          padding: 0.6rem 1.1rem; cursor: pointer; font-size: 0.68rem; letter-spacing: 1.5px;
+          font-weight: 700; text-transform: uppercase; font-family: inherit;
+        }
+        .cd-back-home:hover { background: rgba(255, 255, 255, 0.14); }
 
         .cd-content { position: relative; z-index: 5; max-width: 1240px; margin: 0 auto; padding: 60px 30px 90px; }
 
