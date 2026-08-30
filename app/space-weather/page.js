@@ -205,6 +205,14 @@ export default function SpaceWeatherPage() {
           <span className={`sw-dot ${status.toLowerCase()}`} />
           {status === 'LIVE' ? 'LIVE FEED' : status === 'ACQUIRING' ? 'ACQUIRING' : 'DATA DELAYED'}
         </div>
+        <button
+          type="button"
+          className="sw-back"
+          onClick={() => { window.location.href = '/'; }}
+          style={{ opacity: entered ? 1 : 0, transition: 'opacity 0.6s ease', pointerEvents: entered ? 'auto' : 'none' }}
+        >
+          [← BACK TO MAIN]
+        </button>
       </header>
 
       {/* ENTRY TRANSITION: SPACETEC grows from the header corner to big & centered, holds, then shrinks back */}
@@ -483,6 +491,22 @@ export default function SpaceWeatherPage() {
           letter-spacing: 8px;
           text-transform: uppercase;
           white-space: nowrap;
+        }
+
+        .sw-back {
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          color: #fff;
+          padding: 0.6rem 1.1rem;
+          cursor: pointer;
+          font-size: 0.68rem;
+          letter-spacing: 1.5px;
+          font-weight: 700;
+          text-transform: uppercase;
+          font-family: inherit;
+        }
+        .sw-back:hover {
+          background: rgba(255, 255, 255, 0.14);
         }
 
         .sw-header-status {
