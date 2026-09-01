@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import OrbitalGlobe from './OrbitalGlobe';
+import GlobalSearch from './GlobalSearch';
 import { supabase } from './supabase';
 
 // --- LAUNCH STATUS HELPERS (shared by the homepage, the explore pages, and the launch modal) ---
@@ -1210,6 +1211,17 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
               Real-time trajectory tracking, global rocket launch manifests, and deep space observations aggregated directly from global aerospace networks.
             </motion.p>
           </motion.div>
+        </section>
+
+        {/* GLOBAL SEARCH */}
+        <section id="global-search" className="content-container" style={{ paddingBottom: '5rem' }}>
+          <GlobalSearch
+            agencies={agencyDirectory}
+            launchpads={allLaunchpads}
+            onOpenAgencies={handleOpenAllAgencies}
+            onOpenLaunchpads={handleOpenAllLaunchpads}
+            onOpenSatelliteWiki={handleOpenSatelliteWiki}
+          />
         </section>
 
         {/* LIVE SPACE INTELLIGENCE */}
