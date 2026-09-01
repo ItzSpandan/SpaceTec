@@ -1,21 +1,48 @@
 const satellite = require('satellite.js');
 
+async function fetchCelesTrakWithRetry(maxRetries = 4) {
+  const url = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=json';
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s per attempt
+
+    try {
+      const res = await fetch(url, {
+        headers: {
+          // CelesTrak's usage policy asks automated clients to identify themselves.
+          'User-Agent': 'spacetec.vercel.app orbital sync (contact: <your-email-or-repo-url>)'
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        return res;
+      }
+
+      console.warn(`CelesTrak returned status ${res.status} (attempt ${attempt}/${maxRetries})`);
+    } catch (err) {
+      clearTimeout(timeoutId);
+      console.warn(`CelesTrak fetch failed: ${err.message} (attempt ${attempt}/${maxRetries})`);
+    }
+
+    if (attempt < maxRetries) {
+      // Exponential backoff: 5s, 10s, 20s between attempts — gives CelesTrak
+      // time to clear a transient load spike (e.g. the synchronized traffic
+      // surge many automated tools produce right at the top of the hour).
+      const delay = 5000 * Math.pow(2, attempt - 1);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+
+  throw new Error(`CelesTrak fetch failed after ${maxRetries} attempts`);
+}
+
 async function runSync() {
   console.log('Fetching current satellite orbital data from CelesTrak...');
 
-  const res = await fetch(
-    'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=json',
-    {
-      headers: {
-        // CelesTrak's usage policy asks automated clients to identify themselves.
-        'User-Agent': 'spacetec.vercel.app orbital sync (contact: <your-email-or-repo-url>)'
-      }
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error(`CelesTrak failed with status: ${res.status}`);
-  }
+  const res = await fetchCelesTrakWithRetry();
 
   const data = await res.json();
 
