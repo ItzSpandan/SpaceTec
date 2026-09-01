@@ -390,12 +390,52 @@ export default function GlobalSearch({
         .gsearch-dropdown {
           transition: opacity 0.18s ease, transform 0.18s ease;
         }
+        .gsearch-border-glow {
+          position: absolute;
+          inset: 0;
+          border-radius: 2px;
+          padding: 1px;
+          overflow: hidden;
+          pointer-events: none;
+          transition: opacity 0.3s ease;
+          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+        }
+        .gsearch-border-glow::before {
+          content: '';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 200vmax;
+          height: 200vmax;
+          transform: translate(-50%, -50%) rotate(0deg);
+          transform-origin: center center;
+          background: conic-gradient(
+            from 0deg,
+            transparent 0deg,
+            transparent 78deg,
+            rgba(255, 255, 255, 0.95) 90deg,
+            transparent 102deg,
+            transparent 258deg,
+            rgba(255, 255, 255, 0.95) 270deg,
+            transparent 282deg,
+            transparent 360deg
+          );
+          animation: gsearch-border-spin 4.5s linear infinite;
+        }
+        @keyframes gsearch-border-spin {
+          to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
       `}</style>
 
       {/* SEARCH FIELD */}
-      <div
+      <div style={{ position: 'relative' }}>
+        <div className="gsearch-border-glow" style={{ opacity: focused ? 1 : 0.55 }} />
+        <div
         className={`gsearch-field${focused ? ' gsearch-focused' : ''}`}
         style={{
+          position: 'relative',
           display: 'flex',
           alignItems: 'center',
           width: '100%',
@@ -478,6 +518,7 @@ export default function GlobalSearch({
             <line x1="15.4" y1="15.4" x2="20.5" y2="20.5" stroke="#d4d4d8" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
         </button>
+        </div>
       </div>
 
       {/* RESULTS DROPDOWN */}
