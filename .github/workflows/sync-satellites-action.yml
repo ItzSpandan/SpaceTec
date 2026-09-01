@@ -7,7 +7,13 @@ on:
     # every ~2 hours anyway, and their usage policy asks automated
     # tools to limit checks to about 3-4 times a day — don't go lower
     # than this without a real reason, to avoid getting rate-limited.
-    - cron: '0 */6 * * *'
+    #
+    # Deliberately offset 13 minutes past the hour instead of on the
+    # hour: huge numbers of automated tools worldwide are scheduled at
+    # exactly :00, so CelesTrak sees a synchronized traffic spike right
+    # at the top of every hour. Landing a few minutes off that avoids
+    # the worst of it.
+    - cron: '13 */6 * * *'
 
 concurrency:
   group: sync-satellites
