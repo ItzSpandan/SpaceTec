@@ -195,7 +195,7 @@ export default function SpaceNewsPage() {
               animate={{ scale: 1, letterSpacing: '0.22em' }}
             >
               <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff' }}>
-                SPACE NEWS
+                SPACETEC
               </h1>
             </motion.div>
             <motion.p
