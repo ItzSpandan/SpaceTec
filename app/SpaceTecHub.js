@@ -842,7 +842,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                   <button 
                     onClick={() => {
                       setShowDatabaseDropdown(false);
-                      scrollToSection('launches');
+                      window.location.href = '/mission-database';
                     }} 
                     style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
@@ -856,15 +856,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                     style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
                     Astronaut Database
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setShowDatabaseDropdown(false);
-                      window.location.href = '/spacecraft-database';
-                    }} 
-                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
-                  >
-                    Spacecraft Database
                   </button>
                   <button 
                     onClick={() => {
