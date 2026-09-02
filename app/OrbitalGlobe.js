@@ -289,7 +289,23 @@ function formatDatabaseSatellite(row) {
   };
 }
 
-export default function OrbitalGlobe({ requestedView }) {
+// Normalizes a launchpad record from the real launchpad database (the same
+// list used on the Launchpads page) into the shape this component already
+// renders (lat/lng, type: 'major'|'minor', agency). Visual-only mapping —
+// doesn't change or recompute any of the underlying data.
+function normalizeExternalPad(p) {
+  return {
+    id: p.id,
+    name: p.name,
+    agency: p.operator || p.agency || '',
+    lat: Number(p.lat),
+    lng: Number(p.lng ?? p.lon),
+    type: p.type || (p.isMajor ? 'major' : 'minor'),
+    country: p.country || '',
+  };
+}
+
+export default function OrbitalGlobe({ requestedView, launchpads }) {
   const globeRef = useRef(null);
   const animationRef = useRef(null);
   const lastTelemetryUpdateRef = useRef(0);
@@ -299,7 +315,11 @@ export default function OrbitalGlobe({ requestedView }) {
   const [padFilter, setPadFilter] = useState('all');
   const [satFilter, setSatFilter] = useState('stations');
   const [satLimit, setSatLimit] = useState(1000);
-  const [selectedPad, setSelectedPad] = useState(globalLaunchPads[0]);
+  const [selectedPad, setSelectedPad] = useState(() => (
+    Array.isArray(launchpads) && launchpads.length > 0
+      ? normalizeExternalPad(launchpads[0])
+      : globalLaunchPads[0]
+  ));
   const [selectedSat, setSelectedSat] = useState(null);
   const [hoveredSat, setHoveredSat] = useState(null);
   const [satellites, setSatellites] = useState([]);
@@ -320,11 +340,22 @@ export default function OrbitalGlobe({ requestedView }) {
     }
   }, [requestedView]);
 
+  // Use every pad from the real launchpad database when it's passed in;
+  // fall back to the built-in list only if no launchpads prop is provided.
+  const padSource = useMemo(() => {
+    if (Array.isArray(launchpads) && launchpads.length > 0) {
+      return launchpads
+        .map(normalizeExternalPad)
+        .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+    }
+    return globalLaunchPads;
+  }, [launchpads]);
+
   const filteredPads = useMemo(() => {
-    return globalLaunchPads.filter(
+    return padSource.filter(
       pad => padFilter === 'all' || pad.type === padFilter
     );
-  }, [padFilter]);
+  }, [padFilter, padSource]);
 
   const filterSatelliteRows = useCallback((rows, filter) => {
     const upperName = row => String(row?.name || '').toUpperCase();
@@ -622,10 +653,10 @@ export default function OrbitalGlobe({ requestedView }) {
     const material = new THREE.PointsMaterial({
       map: texture,
       color: 0xffffff,
-      size: 1.1,
-      sizeAttenuation: true,
+      size: 3,
+      sizeAttenuation: false,
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.6,
       depthWrite: false,
     });
 
@@ -921,7 +952,7 @@ export default function OrbitalGlobe({ requestedView }) {
               pointLat="lat"
               pointLng="lng"
               pointAltitude={viewMode === 'pads' ? 0.015 : d => d.displayAltitude || 0.02}
-              pointColor={d => (viewMode === 'pads' ? '#38bdf8' : (d.displayColor || '#ffffff'))}
+              pointColor={d => (viewMode === 'pads' ? '#ffffff' : (d.displayColor || '#ffffff'))}
               pointRadius={viewMode === 'pads' ? 0.65 : d => d.displayRadius || 0.2}
               pointResolution={4}
               pointsTransitionDuration={0}
