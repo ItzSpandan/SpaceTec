@@ -619,21 +619,16 @@ export default function OrbitalGlobe({ requestedView, launchpads }) {
     return activeSatsToDisplay.map(sat => {
       const isHovered = hoveredSat && String(hoveredSat.id) === String(sat.id);
 
-      // This bar is the *altitude* indicator only — dim, thin, and blue-toned
-      // so it reads as "height above surface" rather than as the satellite
-      // itself. The satellite's actual position is marked separately by a
-      // bright white cap dot at the tip (see the custom beam layer below),
-      // so the two are visually distinct instead of one solid white spike.
-      let displayColor = 'rgba(96,165,250,0.16)';
-      let displayRadius = 0.16;
+      let displayColor = 'rgba(255,255,255,0.85)';
+      let displayRadius = 0.20;
 
       if (hoveredSat) {
         if (isHovered) {
           displayColor = '#ffffff';
           displayRadius = 0.50;
         } else {
-          displayColor = 'rgba(96,165,250,0.05)';
-          displayRadius = 0.10;
+          displayColor = 'rgba(255,255,255,0.12)';
+          displayRadius = 0.12;
         }
       }
 
@@ -673,10 +668,8 @@ export default function OrbitalGlobe({ requestedView, launchpads }) {
   // Evenly-spaced dot positions strictly between the Earth's surface and the
   // satellite marker (endpoints excluded), so the dots never touch the
   // surface or overlap the "●" marker itself — same idea as the LEO beams
-  // in the reference sketch (● on top, ⋮ underneath). These trace the
-  // *altitude* only, so they stay small, dim, and blue — never confused
-  // with the satellite marker itself.
-  const buildStalkDotPositions = (satellites, radius) => {
+  // in the reference sketch (● on top, ⋮ underneath).
+  const buildBeamDotPositions = (satellites, radius) => {
     const positions = [];
     (satellites || []).forEach(sat => {
       const lat = Number(sat.lat);
@@ -692,36 +685,19 @@ export default function OrbitalGlobe({ requestedView, launchpads }) {
     return positions;
   };
 
-  // One point per satellite, placed exactly at its real position (the tip
-  // of the altitude column). This is the actual satellite marker — bright
-  // and distinct from the dim stalk dots above, so viewers can tell at a
-  // glance "line = altitude, bright dot = satellite".
-  const buildCapPositions = (satellites, radius) => {
-    const positions = [];
-    (satellites || []).forEach(sat => {
-      const lat = Number(sat.lat);
-      const lng = Number(sat.lng);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-      const altitude = Math.max(0.002, Number(sat.displayAltitude) || 0.002);
-      positions.push(...beamToVector(lat, lng, radius * (1 + altitude)));
-    });
-    return positions;
-  };
-
   // A small soft circular sprite so each dot renders as a clean round point
-  // rather than a hard square/pixel — shared by every dot in its batched
-  // Points draw call. `rgb` lets the stalk and cap layers each get their
-  // own tint from the same texture generator.
-  const createDotTexture = (rgb = '255,255,255') => {
+  // rather than a hard square/pixel — still a single texture shared by every
+  // dot in the one batched Points draw call.
+  const createDotTexture = () => {
     const size = 32;
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
     const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-    gradient.addColorStop(0, `rgba(${rgb},0.95)`);
-    gradient.addColorStop(0.6, `rgba(${rgb},0.55)`);
-    gradient.addColorStop(1, `rgba(${rgb},0)`);
+    gradient.addColorStop(0, 'rgba(255,255,255,0.95)');
+    gradient.addColorStop(0.6, 'rgba(255,255,255,0.55)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, size, size);
     return new THREE.CanvasTexture(canvas);
@@ -729,74 +705,40 @@ export default function OrbitalGlobe({ requestedView, launchpads }) {
 
   const createSatelliteBeamLayer = useCallback(data => {
     const group = new THREE.Group();
-    const radius = data?.radius || 100;
-
-    // Stalk: faint blue tracer dots along the altitude column.
-    const stalkTexture = createDotTexture('96,165,250');
-    const stalkMaterial = new THREE.PointsMaterial({
-      map: stalkTexture,
-      color: 0x60a5fa,
-      size: 2.2,
-      sizeAttenuation: false,
-      transparent: true,
-      opacity: 0.4,
-      depthWrite: false,
-    });
-    const stalkGeometry = new THREE.BufferGeometry();
-    const stalkPositions = buildStalkDotPositions(data?.satellites, radius);
-    stalkGeometry.setAttribute('position', new THREE.Float32BufferAttribute(stalkPositions, 3));
-    const stalkDots = new THREE.Points(stalkGeometry, stalkMaterial);
-
-    // Cap: one bright white dot per satellite at its real position — the
-    // actual satellite marker, sitting on top of the dim altitude stalk.
-    const capTexture = createDotTexture('255,255,255');
-    const capMaterial = new THREE.PointsMaterial({
-      map: capTexture,
+    const texture = createDotTexture();
+    const material = new THREE.PointsMaterial({
+      map: texture,
       color: 0xffffff,
-      size: 4.5,
+      size: 3,
       sizeAttenuation: false,
       transparent: true,
-      opacity: 0.95,
+      opacity: 0.6,
       depthWrite: false,
     });
-    const capGeometry = new THREE.BufferGeometry();
-    const capPositions = buildCapPositions(data?.satellites, radius);
-    capGeometry.setAttribute('position', new THREE.Float32BufferAttribute(capPositions, 3));
-    const capDots = new THREE.Points(capGeometry, capMaterial);
 
-    group.add(stalkDots);
-    group.add(capDots);
-    group.userData.stalkGeometry = stalkGeometry;
-    group.userData.stalkMaterial = stalkMaterial;
-    group.userData.stalkTexture = stalkTexture;
-    group.userData.capGeometry = capGeometry;
-    group.userData.capMaterial = capMaterial;
-    group.userData.capTexture = capTexture;
+    const geometry = new THREE.BufferGeometry();
+    const positions = buildBeamDotPositions(data?.satellites, data?.radius || 100);
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+
+    const dots = new THREE.Points(geometry, material);
+    group.add(dots);
+    group.userData.beamGeometry = geometry;
+    group.userData.beamMaterial = material;
+    group.userData.beamTexture = texture;
     return group;
   }, []);
 
   const updateSatelliteBeamLayer = useCallback((object, data) => {
-    const radius = data?.radius || 100;
-    const stalkDots = object?.children?.[0];
-    const capDots = object?.children?.[1];
+    const dots = object?.children?.[0];
+    if (!dots) return;
 
-    if (stalkDots) {
-      const positions = buildStalkDotPositions(data?.satellites, radius);
-      const oldGeometry = stalkDots.geometry;
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-      stalkDots.geometry = geometry;
-      if (oldGeometry) oldGeometry.dispose();
-    }
+    const positions = buildBeamDotPositions(data?.satellites, data?.radius || 100);
 
-    if (capDots) {
-      const positions = buildCapPositions(data?.satellites, radius);
-      const oldGeometry = capDots.geometry;
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-      capDots.geometry = geometry;
-      if (oldGeometry) oldGeometry.dispose();
-    }
+    const oldGeometry = dots.geometry;
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    dots.geometry = geometry;
+    if (oldGeometry) oldGeometry.dispose();
   }, []);
 
 
