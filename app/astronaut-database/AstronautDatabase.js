@@ -153,6 +153,14 @@ export default function AstronautDatabase() {
     return () => clearTimeout(shrinkTimer);
   }, []);
 
+  // Deep link from Global Search: /astronaut-database?id=<astronaut-id>
+  // opens straight to that astronaut's profile instead of the full list.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (id) setSelectedId(id);
+  }, []);
+
   const stats = useMemo(() => computeStats(ASTRONAUTS), []);
   const agencyOptions = useMemo(() => uniqueValues(ASTRONAUTS, 'agency'), []);
   const nationalityOptions = useMemo(() => uniqueValues(ASTRONAUTS, 'nationality'), []);
