@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import OrbitalGlobe from './OrbitalGlobe';
@@ -1773,6 +1773,102 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
   );
 }
 
+// --- Satellite Database helpers -----------------------------------------
+// Everything here derives a display value from columns the `satellites`
+// table already has (see scripts/sync-satellites.js) — nothing here adds
+// a new data source, fetches anything extra, or invents a value.
+
+function safeFiniteNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+// Same name-based grouping the Orbital Globe's satellite filters already
+// use (OrbitalGlobe.js's filterSatelliteRows) — reused here rather than
+// re-invented, since the table has no separate category/type column.
+function classifySatelliteCategory(name) {
+  const upper = String(name || '').toUpperCase();
+  if (
+    upper.includes('ISS') ||
+    upper.includes('CSS') ||
+    upper.includes('TIANGONG') ||
+    upper.includes('STATION') ||
+    upper.includes('ZARYA')
+  ) {
+    return 'Space Station';
+  }
+  if (upper.includes('STARLINK')) return 'Starlink';
+  if (
+    upper.includes('NOAA') ||
+    upper.includes('GOES') ||
+    upper.includes('METEOR') ||
+    upper.includes('METOP') ||
+    upper.includes('JPSS') ||
+    upper.includes('EUMETSAT') ||
+    upper.includes('HIMAWARI')
+  ) {
+    return 'Weather';
+  }
+  return null;
+}
+
+// Standard LEO/MEO/GEO/HEO altitude bands — a straightforward bucketing of
+// the satellite's own already-stored altitude, not a new measurement.
+function classifyOrbitFromAltitude(altitudeKm) {
+  if (!Number.isFinite(altitudeKm)) return null;
+  if (altitudeKm < 2000) return 'LEO — Low Earth Orbit';
+  if (altitudeKm < 35286) return 'MEO — Medium Earth Orbit';
+  if (altitudeKm <= 36286) return 'GEO — Geostationary Orbit';
+  return 'HEO — High Earth Orbit';
+}
+
+// Same formula the Orbital Globe already uses to turn mean_motion into an
+// orbital period (getOrbitalPeriodMinutes in OrbitalGlobe.js): revs/day -> minutes.
+function orbitalPeriodMinutesFromMeanMotion(meanMotion) {
+  if (!Number.isFinite(meanMotion) || meanMotion <= 0) return null;
+  return 1440 / meanMotion;
+}
+
+function formatOrbitalPeriod(minutes) {
+  if (!Number.isFinite(minutes) || minutes <= 0) return null;
+  const hours = Math.floor(minutes / 60);
+  const mins = Math.round(minutes % 60);
+  const clock = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+  return `${clock} (${minutes.toFixed(1)} min)`;
+}
+
+function formatEpoch(raw) {
+  if (!raw) return null;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return String(raw);
+  return `${parsed.toISOString().replace('T', ' ').slice(0, 19)} UTC`;
+}
+
+// A label/value pair for the profile panel — renders nothing when the
+// underlying column is missing, so the panel never shows a fabricated value.
+function SatDetailField({ label, value }) {
+  if (value === null || value === undefined || value === '') return null;
+  return (
+    <div>
+      <p style={{ margin: 0, fontSize: '0.6rem', color: '#71717a', letterSpacing: '1.5px', textTransform: 'uppercase' }}>{label}</p>
+      <p style={{ margin: '0.3rem 0 0', color: '#fff', fontSize: '0.85rem', fontWeight: '600' }}>{value}</p>
+    </div>
+  );
+}
+
+function SatDetailSection({ heading, children }) {
+  const items = Array.isArray(children) ? children.filter(Boolean) : children ? [children] : [];
+  if (items.length === 0) return null;
+  return (
+    <section>
+      <p style={{ margin: 0, color: '#71717a', fontSize: '0.68rem', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '700' }}>{heading}</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: '0.9rem', marginTop: '0.7rem' }}>
+        {items}
+      </div>
+    </section>
+  );
+}
+
 function SatelliteWikiPage({ spaceBackgrounds, onClose, initialSearch = '' }) {
   const [bgIdx, setBgIdx] = useState(0);
   const [isReturningMain, setIsReturningMain] = useState(false);
@@ -1781,9 +1877,37 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose, initialSearch = '' }) {
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedSatellite, setSelectedSatellite] = useState(null);
   const canvasRef = useRef(null);
   const pageSize = 50;
   const maxPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  // Derived purely from the already-loaded row (satellites are fetched with
+  // `.select('*')`, so every column is already in memory — no extra query
+  // is made when a satellite is selected).
+  const selectedDetails = useMemo(() => {
+    if (!selectedSatellite) return null;
+    const sat = selectedSatellite;
+    const meanMotion = safeFiniteNumber(sat.mean_motion);
+    const altitude = safeFiniteNumber(sat.altitude);
+    return {
+      category: classifySatelliteCategory(sat.name),
+      inclination: safeFiniteNumber(sat.inclination),
+      eccentricity: safeFiniteNumber(sat.eccentricity),
+      meanMotion,
+      periodMinutes: orbitalPeriodMinutesFromMeanMotion(meanMotion),
+      orbitClass: classifyOrbitFromAltitude(altitude),
+      raan: safeFiniteNumber(sat.raan),
+      argPerigee: safeFiniteNumber(sat.arg_perigee),
+      meanAnomaly: safeFiniteNumber(sat.mean_anomaly),
+      bstar: safeFiniteNumber(sat.bstar),
+      altitude,
+      velocity: safeFiniteNumber(sat.velocity),
+      lat: safeFiniteNumber(sat.lat),
+      lng: safeFiniteNumber(sat.lng),
+      epoch: formatEpoch(sat.epoch || sat.orbital_epoch),
+    };
+  }, [selectedSatellite]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -1918,9 +2042,31 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose, initialSearch = '' }) {
 
         <div className="glass-card" style={{ overflowX: 'auto', marginBottom: '1rem', padding: '1rem', border: '1px solid rgba(255,255,255,0.15)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-            <thead><tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)', color: '#38bdf8', letterSpacing: '2px', fontSize: '0.7rem', textTransform: 'uppercase' }}><th style={{ padding: '1rem' }}>NORAD ID</th><th style={{ padding: '1rem' }}>Object Name</th><th style={{ padding: '1rem' }}>Organization</th><th style={{ padding: '1rem' }}>Status</th></tr></thead>
+            <thead><tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)', color: '#38bdf8', letterSpacing: '2px', fontSize: '0.7rem', textTransform: 'uppercase' }}><th style={{ padding: '1rem' }}>NORAD ID</th><th style={{ padding: '1rem' }}>Object Name</th><th style={{ padding: '1rem' }}>Organization</th><th style={{ padding: '1rem' }}>Category</th><th style={{ padding: '1rem' }}>Status</th></tr></thead>
             <tbody>
-              {isLoading ? <tr><td colSpan="4" style={{ padding: '2rem 1rem', color: '#38bdf8', textAlign: 'center' }}>QUERYING SATELLITE DATABASE...</td></tr> : satellites.length === 0 ? <tr><td colSpan="4" style={{ padding: '2rem 1rem', color: '#d4d4d8', textAlign: 'center' }}>NO SATELLITES FOUND</td></tr> : satellites.map((satellite) => <tr key={satellite.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8' }}><td style={{ padding: '1.2rem 1rem', color: '#2dd4bf', fontWeight: '700' }}>{satellite.id}</td><td style={{ padding: '1.2rem 1rem', fontWeight: '700', color: '#fff' }}>{satellite.name || 'UNKNOWN'}</td><td style={{ padding: '1.2rem 1rem' }}>{satellite.organization || 'Independent / International'}</td><td style={{ padding: '1.2rem 1rem', color: '#22c55e', fontWeight: '700' }}>ACTIVE</td></tr>)}
+              {isLoading ? (
+                <tr><td colSpan="5" style={{ padding: '2rem 1rem', color: '#38bdf8', textAlign: 'center' }}>QUERYING SATELLITE DATABASE...</td></tr>
+              ) : satellites.length === 0 ? (
+                <tr><td colSpan="5" style={{ padding: '2rem 1rem', color: '#d4d4d8', textAlign: 'center' }}>NO SATELLITES FOUND</td></tr>
+              ) : (
+                satellites.map((satellite) => {
+                  const category = classifySatelliteCategory(satellite.name);
+                  return (
+                    <tr
+                      key={satellite.id}
+                      onClick={() => setSelectedSatellite(satellite)}
+                      className="sat-row"
+                      style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', cursor: 'pointer' }}
+                    >
+                      <td style={{ padding: '1.2rem 1rem', color: '#2dd4bf', fontWeight: '700' }}>{satellite.id}</td>
+                      <td style={{ padding: '1.2rem 1rem', fontWeight: '700', color: '#fff' }}>{satellite.name || 'UNKNOWN'}</td>
+                      <td style={{ padding: '1.2rem 1rem' }}>{satellite.organization || 'Independent / International'}</td>
+                      <td style={{ padding: '1.2rem 1rem', color: category ? '#38bdf8' : '#52525b' }}>{category || '—'}</td>
+                      <td style={{ padding: '1.2rem 1rem', color: '#22c55e', fontWeight: '700' }}>ACTIVE</td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -1933,6 +2079,75 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose, initialSearch = '' }) {
           </div>
         </div>
       </div>
+
+      <style>{`
+        .sat-row { transition: background-color 0.15s ease; }
+        .sat-row:hover { background-color: rgba(56, 189, 248, 0.06); }
+      `}</style>
+
+      {/* SATELLITE PROFILE */}
+      <AnimatePresence>
+        {selectedSatellite && selectedDetails && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedSatellite(null)}
+            style={{ position: 'fixed', inset: 0, zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', background: 'rgba(0,0,0,0.86)' }}
+          >
+            <motion.article
+              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 24 }}
+              onClick={(event) => event.stopPropagation()}
+              style={{ width: 'min(720px, 100%)', maxHeight: '85vh', overflowY: 'auto', background: '#050505', border: '1px solid rgba(56, 189, 248, 0.4)', padding: '2rem', boxSizing: 'border-box' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start' }}>
+                <div>
+                  <span style={{ color: '#38bdf8', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: '800', textTransform: 'uppercase' }}>
+                    // NORAD {selectedSatellite.id}{selectedDetails.category ? ` · ${selectedDetails.category}` : ''}
+                  </span>
+                  <h2 style={{ margin: '0.5rem 0 0', color: '#fff', fontSize: '1.7rem', letterSpacing: '1px' }}>{selectedSatellite.name || 'UNKNOWN OBJECT'}</h2>
+                  <p style={{ margin: '0.4rem 0 0', color: '#22c55e', fontSize: '0.68rem', letterSpacing: '2px', fontWeight: '700' }}>● ACTIVE</p>
+                </div>
+                <button onClick={() => setSelectedSatellite(null)} style={{ background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', padding: '0.5rem 0.7rem', cursor: 'pointer', flexShrink: 0 }}>CLOSE</button>
+              </div>
+
+              <div style={{ display: 'grid', gap: '1.6rem', marginTop: '2rem' }}>
+                <SatDetailSection heading="01 / IDENTIFICATION">
+                  <SatDetailField label="Organization" value={selectedSatellite.organization} />
+                  <SatDetailField label="Category" value={selectedDetails.category} />
+                  <SatDetailField label="Data Source" value={selectedSatellite.orbital_source} />
+                  <SatDetailField label="Element Epoch" value={selectedDetails.epoch} />
+                </SatDetailSection>
+
+                <SatDetailSection heading="02 / ORBITAL ELEMENTS">
+                  <SatDetailField label="Orbit Class" value={selectedDetails.orbitClass} />
+                  <SatDetailField label="Orbital Period" value={formatOrbitalPeriod(selectedDetails.periodMinutes)} />
+                  <SatDetailField label="Inclination" value={selectedDetails.inclination !== null ? `${selectedDetails.inclination.toFixed(3)}°` : null} />
+                  <SatDetailField label="Eccentricity" value={selectedDetails.eccentricity !== null ? selectedDetails.eccentricity.toFixed(6) : null} />
+                  <SatDetailField label="Mean Motion" value={selectedDetails.meanMotion !== null ? `${selectedDetails.meanMotion.toFixed(4)} rev/day` : null} />
+                  <SatDetailField label="RAAN" value={selectedDetails.raan !== null ? `${selectedDetails.raan.toFixed(3)}°` : null} />
+                  <SatDetailField label="Argument of Perigee" value={selectedDetails.argPerigee !== null ? `${selectedDetails.argPerigee.toFixed(3)}°` : null} />
+                  <SatDetailField label="Mean Anomaly" value={selectedDetails.meanAnomaly !== null ? `${selectedDetails.meanAnomaly.toFixed(3)}°` : null} />
+                  <SatDetailField label="BSTAR Drag Term" value={selectedDetails.bstar !== null ? selectedDetails.bstar.toExponential(4) : null} />
+                </SatDetailSection>
+
+                <SatDetailSection heading="03 / LAST KNOWN POSITION (AT SYNC)">
+                  <SatDetailField label="Altitude" value={selectedDetails.altitude !== null ? `${selectedDetails.altitude.toFixed(1)} km` : null} />
+                  <SatDetailField label="Velocity" value={selectedDetails.velocity !== null ? `${selectedDetails.velocity.toFixed(3)} km/s` : null} />
+                  <SatDetailField label="Latitude" value={selectedDetails.lat !== null ? `${selectedDetails.lat.toFixed(3)}°` : null} />
+                  <SatDetailField label="Longitude" value={selectedDetails.lng !== null ? `${selectedDetails.lng.toFixed(3)}°` : null} />
+                </SatDetailSection>
+              </div>
+
+              <p style={{ marginTop: '1.6rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', color: '#52525b', fontSize: '0.62rem', letterSpacing: '1px' }}>
+                Position figures reflect the last orbital sync, not live propagation. For real-time tracking, use the Orbital Globe's satellite view.
+              </p>
+            </motion.article>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {isReturningMain && <motion.div key="returning-main-wiki" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} style={{ position: 'fixed', inset: 0, zIndex: 999999, display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000' }}><div style={{ textAlign: 'center' }}><motion.h1 layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}>SPACETEC</motion.h1><p style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>CONNECTING TO MAIN...</p></div></motion.div>}
