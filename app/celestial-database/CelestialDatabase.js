@@ -80,6 +80,14 @@ export default function CelestialDatabase() {
     return () => clearTimeout(shrinkTimer);
   }, []);
 
+  // Deep link from Global Search: /celestial-database?id=<object-id>
+  // opens straight to that object's profile instead of the full list.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (id) setSelectedId(id);
+  }, []);
+
   const stats = useMemo(() => computeStats(CELESTIAL_OBJECTS), []);
 
   const results = useMemo(() => {
