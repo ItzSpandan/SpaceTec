@@ -133,6 +133,14 @@ export default function SpacecraftDatabase() {
     return () => clearTimeout(shrinkTimer);
   }, []);
 
+  // Deep link from Global Search: /spacecraft-database?id=<spacecraft-id>
+  // opens straight to that spacecraft's profile instead of the full list.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (id) setSelectedId(id);
+  }, []);
+
   const stats = useMemo(() => computeStats(SPACECRAFT), []);
   const agencyOptions = useMemo(() => uniqueValues(SPACECRAFT, 'agency'), []);
 
