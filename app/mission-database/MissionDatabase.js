@@ -186,6 +186,14 @@ export default function MissionDatabase() {
     return () => clearTimeout(shrinkTimer);
   }, []);
 
+  // Deep link from Global Search: /mission-database?id=<mission-id>
+  // opens straight to that mission's profile instead of the full list.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (id) setSelectedId(id);
+  }, []);
+
   const stats = useMemo(() => computeStats(MISSIONS), []);
   const agencyOptions = useMemo(() => uniqueValues(MISSIONS, 'agency'), []);
   const countryOptions = useMemo(() => uniqueValues(MISSIONS, 'country'), []);
