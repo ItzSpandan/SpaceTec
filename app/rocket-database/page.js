@@ -32,6 +32,18 @@ export default function RocketDatabasePage() {
   const [loadError, setLoadError] = useState(null);
   const [bgIndex, setBgIndex] = useState(0);
   const mounted = useRef(true);
+  // Holds an id from a Global Search deep link until the matching rocket
+  // has actually loaded, so it can be auto-expanded once it's available.
+  const pendingRocketIdRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('q');
+    const id = params.get('id');
+    if (q) setSearch(q);
+    if (id) pendingRocketIdRef.current = id;
+  }, []);
 
   useEffect(() => {
     const bgTimer = setInterval(() => {
@@ -71,6 +83,18 @@ export default function RocketDatabasePage() {
       setRockets(json.results || []);
       setTotalCount(json.count || 0);
       setLoadError(json.error ? (json.upstreamStatus ? `Upstream error (HTTP ${json.upstreamStatus})` : 'Upstream error') : null);
+
+      // If Global Search deep-linked a specific rocket, open it as soon as
+      // it shows up in a loaded page of results.
+      if (pendingRocketIdRef.current) {
+        const match = (json.results || []).find(
+          (r) => String(r.id) === String(pendingRocketIdRef.current)
+        );
+        if (match) {
+          setExpandedRocket(match);
+          pendingRocketIdRef.current = null;
+        }
+      }
     } catch (err) {
       console.error('Rocket database load failed:', err);
       if (!mounted.current) return;
