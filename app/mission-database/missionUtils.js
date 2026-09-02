@@ -31,6 +31,10 @@ export function searchMissions(missions, query) {
       m.type,
       m.launchVehicle,
       m.spacecraft,
+      m.launchSite,
+      m.status,
+      m.description,
+      m.objective,
     ]
       .filter(Boolean)
       .join(' ')
