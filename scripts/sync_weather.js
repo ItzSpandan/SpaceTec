@@ -60,6 +60,45 @@ const launchpads = [
   { id: 'nyalesund', name: 'NY-ALESUND ROCKET RANGE', lat: 78.9230, lon: 11.9230 }
 ];
 
+// Open-Meteo's `weather_code` field follows the WMO weather interpretation
+// code table (https://open-meteo.com/en/docs — same codes used by their
+// forecast API regardless of location), so this mapping is accurate for
+// every launchpad the script queries, not just a subset.
+const WEATHER_CODE_CONDITIONS = {
+  0: 'Clear / Optimal',
+  1: 'Mainly Clear',
+  2: 'Partly Cloudy',
+  3: 'Overcast',
+  45: 'Fog',
+  48: 'Rime Fog',
+  51: 'Light Drizzle',
+  53: 'Drizzle',
+  55: 'Dense Drizzle',
+  56: 'Freezing Drizzle',
+  57: 'Freezing Drizzle',
+  61: 'Light Rain',
+  63: 'Rain',
+  65: 'Heavy Rain',
+  66: 'Freezing Rain',
+  67: 'Freezing Rain',
+  71: 'Light Snow',
+  73: 'Snow',
+  75: 'Heavy Snow',
+  77: 'Snow Grains',
+  80: 'Rain Showers',
+  81: 'Rain Showers',
+  82: 'Violent Rain Showers',
+  85: 'Snow Showers',
+  86: 'Heavy Snow Showers',
+  95: 'Thunderstorm',
+  96: 'Thunderstorm / Hail',
+  99: 'Thunderstorm / Heavy Hail',
+};
+
+function getWeatherCondition(weatherCode) {
+  return WEATHER_CODE_CONDITIONS[weatherCode] || 'Unknown';
+}
+
 async function syncWeather() {
   console.log('Starting launchpad weather synchronization...');
 
@@ -74,7 +113,7 @@ async function syncWeather() {
         const temp = `${Math.round(data.current.temperature_2m)}°C`;
         const humidity = `${data.current.relative_humidity_2m}%`;
         const wind = `${data.current.wind_speed_10m} km/h`;
-        const condition = 'Clear / Optimal';
+        const condition = getWeatherCondition(data.current.weather_code);
 
         const weatherPayload = {
           id: pad.id,
