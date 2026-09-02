@@ -1549,7 +1549,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
           </div>
 
           <div style={{ background: '#000000', borderRadius: '2px', border: '1px solid rgba(255,255,255,0.15)', overflow: 'hidden' }}>
-            <OrbitalGlobe requestedView={globeViewMode} />
+            <OrbitalGlobe requestedView={globeViewMode} launchpads={allLaunchpads} />
           </div>
         </section>
 
