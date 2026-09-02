@@ -566,81 +566,91 @@ export default function OrbitalGlobe({ requestedView }) {
     }];
   }, [viewMode, renderSatellites]);
 
-  const createSatelliteBeamLayer = useCallback(data => {
-    const group = new THREE.Group();
-    const material = new THREE.LineDashedMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.3,
-      dashSize: 0.35,
-      gapSize: 1.15,
-      depthWrite: false,
-    });
-    const geometry = new THREE.BufferGeometry();
+  const DOTS_PER_BEAM = 5;
+
+  const beamToVector = (lat, lng, radius) => {
+    const latRad = (Number(lat) * Math.PI) / 180;
+    const lngRad = (Number(lng) * Math.PI) / 180;
+    return [
+      radius * Math.cos(latRad) * Math.sin(lngRad),
+      radius * Math.sin(latRad),
+      radius * Math.cos(latRad) * Math.cos(lngRad),
+    ];
+  };
+
+  // Evenly-spaced dot positions strictly between the Earth's surface and the
+  // satellite marker (endpoints excluded), so the dots never touch the
+  // surface or overlap the "●" marker itself — same idea as the LEO beams
+  // in the reference sketch (● on top, ⋮ underneath).
+  const buildBeamDotPositions = (satellites, radius) => {
     const positions = [];
-
-    const toVector = (lat, lng, radius) => {
-      const latRad = (Number(lat) * Math.PI) / 180;
-      const lngRad = (Number(lng) * Math.PI) / 180;
-      return [
-        radius * Math.cos(latRad) * Math.sin(lngRad),
-        radius * Math.sin(latRad),
-        radius * Math.cos(latRad) * Math.cos(lngRad),
-      ];
-    };
-
-    (data?.satellites || []).forEach(sat => {
+    (satellites || []).forEach(sat => {
       const lat = Number(sat.lat);
       const lng = Number(sat.lng);
-      const altitude = Math.max(0.002, Number(sat.displayAltitude) || 0.002);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      const altitude = Math.max(0.002, Number(sat.displayAltitude) || 0.002);
 
-      const surface = toVector(lat, lng, data.radius);
-      const satellitePosition = toVector(lat, lng, data.radius * (1 + altitude));
-      positions.push(...surface, ...satellitePosition);
+      for (let i = 1; i <= DOTS_PER_BEAM; i += 1) {
+        const t = i / (DOTS_PER_BEAM + 1);
+        positions.push(...beamToVector(lat, lng, radius * (1 + altitude * t)));
+      }
+    });
+    return positions;
+  };
+
+  // A small soft circular sprite so each dot renders as a clean round point
+  // rather than a hard square/pixel — still a single texture shared by every
+  // dot in the one batched Points draw call.
+  const createDotTexture = () => {
+    const size = 32;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    gradient.addColorStop(0, 'rgba(255,255,255,0.95)');
+    gradient.addColorStop(0.6, 'rgba(255,255,255,0.55)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+    return new THREE.CanvasTexture(canvas);
+  };
+
+  const createSatelliteBeamLayer = useCallback(data => {
+    const group = new THREE.Group();
+    const texture = createDotTexture();
+    const material = new THREE.PointsMaterial({
+      map: texture,
+      color: 0xffffff,
+      size: 1.1,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.5,
+      depthWrite: false,
     });
 
+    const geometry = new THREE.BufferGeometry();
+    const positions = buildBeamDotPositions(data?.satellites, data?.radius || 100);
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    const lines = new THREE.LineSegments(geometry, material);
-    lines.computeLineDistances();
-    group.add(lines);
+
+    const dots = new THREE.Points(geometry, material);
+    group.add(dots);
     group.userData.beamGeometry = geometry;
     group.userData.beamMaterial = material;
+    group.userData.beamTexture = texture;
     return group;
   }, []);
 
   const updateSatelliteBeamLayer = useCallback((object, data) => {
-    const lines = object?.children?.[0];
-    if (!lines) return;
+    const dots = object?.children?.[0];
+    if (!dots) return;
 
-    const positions = [];
-    const radius = data?.radius || 100;
-    const toVector = (lat, lng, r) => {
-      const latRad = (Number(lat) * Math.PI) / 180;
-      const lngRad = (Number(lng) * Math.PI) / 180;
-      return [
-        r * Math.cos(latRad) * Math.sin(lngRad),
-        r * Math.sin(latRad),
-        r * Math.cos(latRad) * Math.cos(lngRad),
-      ];
-    };
+    const positions = buildBeamDotPositions(data?.satellites, data?.radius || 100);
 
-    (data?.satellites || []).forEach(sat => {
-      const lat = Number(sat.lat);
-      const lng = Number(sat.lng);
-      const altitude = Math.max(0.002, Number(sat.displayAltitude) || 0.002);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-
-      const surface = toVector(lat, lng, radius);
-      const satellitePosition = toVector(lat, lng, radius * (1 + altitude));
-      positions.push(...surface, ...satellitePosition);
-    });
-
-    const oldGeometry = lines.geometry;
+    const oldGeometry = dots.geometry;
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    lines.geometry = geometry;
-    lines.computeLineDistances();
+    dots.geometry = geometry;
     if (oldGeometry) oldGeometry.dispose();
   }, []);
 
