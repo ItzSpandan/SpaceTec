@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { createClient } from '@supabase/supabase-js';
 import * as satellite from 'satellite.js';
+import * as THREE from 'three';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -555,6 +556,95 @@ export default function OrbitalGlobe({ requestedView }) {
     });
   }, [activeSatsToDisplay, selectedSat, hoveredSat, satellites]);
 
+  // Single batched WebGL layer for the subtle satellite altitude beams.
+  // This is visual-only: it does not affect positions, propagation, filtering, or selection.
+  const satelliteBeamLayerData = useMemo(() => {
+    if (viewMode !== 'satellites') return [];
+    return [{
+      satellites: renderSatellites,
+      radius: 100,
+    }];
+  }, [viewMode, renderSatellites]);
+
+  const createSatelliteBeamLayer = useCallback(data => {
+    const group = new THREE.Group();
+    const material = new THREE.LineDashedMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.28,
+      dashSize: 0.65,
+      gapSize: 0.95,
+      depthWrite: false,
+    });
+    const geometry = new THREE.BufferGeometry();
+    const positions = [];
+
+    const toVector = (lat, lng, radius) => {
+      const latRad = (Number(lat) * Math.PI) / 180;
+      const lngRad = (Number(lng) * Math.PI) / 180;
+      return [
+        radius * Math.cos(latRad) * Math.sin(lngRad),
+        radius * Math.sin(latRad),
+        radius * Math.cos(latRad) * Math.cos(lngRad),
+      ];
+    };
+
+    (data?.satellites || []).forEach(sat => {
+      const lat = Number(sat.lat);
+      const lng = Number(sat.lng);
+      const altitude = Math.max(0.002, Number(sat.displayAltitude) || 0.002);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+      const surface = toVector(lat, lng, data.radius);
+      const satellitePosition = toVector(lat, lng, data.radius * (1 + altitude));
+      positions.push(...surface, ...satellitePosition);
+    });
+
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    const lines = new THREE.LineSegments(geometry, material);
+    lines.computeLineDistances();
+    group.add(lines);
+    group.userData.beamGeometry = geometry;
+    group.userData.beamMaterial = material;
+    return group;
+  }, []);
+
+  const updateSatelliteBeamLayer = useCallback((object, data) => {
+    const lines = object?.children?.[0];
+    if (!lines) return;
+
+    const positions = [];
+    const radius = data?.radius || 100;
+    const toVector = (lat, lng, r) => {
+      const latRad = (Number(lat) * Math.PI) / 180;
+      const lngRad = (Number(lng) * Math.PI) / 180;
+      return [
+        r * Math.cos(latRad) * Math.sin(lngRad),
+        r * Math.sin(latRad),
+        r * Math.cos(latRad) * Math.cos(lngRad),
+      ];
+    };
+
+    (data?.satellites || []).forEach(sat => {
+      const lat = Number(sat.lat);
+      const lng = Number(sat.lng);
+      const altitude = Math.max(0.002, Number(sat.displayAltitude) || 0.002);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+      const surface = toVector(lat, lng, radius);
+      const satellitePosition = toVector(lat, lng, radius * (1 + altitude));
+      positions.push(...surface, ...satellitePosition);
+    });
+
+    const oldGeometry = lines.geometry;
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    lines.geometry = geometry;
+    lines.computeLineDistances();
+    if (oldGeometry) oldGeometry.dispose();
+  }, []);
+
+
   useEffect(() => {
     if (viewMode !== 'wiki') return;
 
@@ -826,6 +916,9 @@ export default function OrbitalGlobe({ requestedView }) {
               pointRadius={viewMode === 'pads' ? 0.65 : d => d.displayRadius || 0.2}
               pointResolution={4}
               pointsTransitionDuration={0}
+              customLayerData={satelliteBeamLayerData}
+              customThreeObject={createSatelliteBeamLayer}
+              customThreeObjectUpdate={updateSatelliteBeamLayer}
               pathsData={viewMode === 'satellites' && selectedSat ? orbitalPaths : []}
               pathPoints="points"
               pathPointLat="lat"
