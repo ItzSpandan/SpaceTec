@@ -41,8 +41,34 @@ const ROTATING_TERMS = [
   'launchpads',
   'agencies',
   'celestial objects',
+  'space weather',
   'space news',
+  'space encyclopedia',
 ];
+
+// Space Weather has no individual searchable records (it's a single live
+// dashboard), so it's matched as a quick link whenever the query looks
+// weather-related rather than filtered against a dataset.
+const SPACE_WEATHER_TERMS = [
+  'space weather',
+  'weather',
+  'solar wind',
+  'solar flare',
+  'flare',
+  'geomagnetic',
+  'aurora',
+  'kp index',
+  'cme',
+  'coronal mass ejection',
+  'sunspot',
+  'radiation storm',
+];
+
+function matchesSpaceWeather(query) {
+  const q = norm(query).trim();
+  if (q.length < 2) return false;
+  return SPACE_WEATHER_TERMS.some((term) => term.includes(q) || q.includes(term));
+}
 
 const RESULT_CAP = 5;
 
@@ -141,6 +167,10 @@ function useDebouncedValue(value, delay) {
 export default function GlobalSearch({
   agencies = [],
   launchpads = [],
+  // Each of these already opens the right existing feature; they now also
+  // accept an optional target (agency object / launchpad object / search
+  // term) so a click jumps straight to that record instead of just the
+  // section. Callers that don't pass one still work exactly as before.
   onOpenAgencies,
   onOpenLaunchpads,
   onOpenSatelliteWiki,
@@ -231,6 +261,10 @@ export default function GlobalSearch({
     };
   }, [trimmed, agencies, launchpads]);
 
+  // Space Weather is a single live dashboard (no individual records), so it
+  // surfaces as one quick-link result when the query looks weather-related.
+  const spaceWeatherMatch = useMemo(() => matchesSpaceWeather(trimmed), [trimmed]);
+
   // --- Remote: rockets (reuses the existing /api/rocket-database route) ---
   useEffect(() => {
     if (debouncedTrimmed.length < 2) {
@@ -312,7 +346,8 @@ export default function GlobalSearch({
     localResults.launchpads.length +
     rockets.length +
     satellites.length +
-    newsResults.length;
+    newsResults.length +
+    (spaceWeatherMatch ? 1 : 0);
 
   const goTo = useCallback((href) => {
     window.location.href = href;
@@ -564,13 +599,13 @@ export default function GlobalSearch({
             </div>
           ) : (
             <>
-              <ResultGroup label="CELESTIAL OBJECTS">
-                {localResults.celestial.map((o) => (
+              <ResultGroup label="SATELLITES">
+                {satellites.map((s) => (
                   <ResultRow
-                    key={`celestial-${o.id}`}
-                    title={o.name}
-                    subtitle={o.domain}
-                    onSelect={() => handleSelect(() => goTo('/celestial-database'))}
+                    key={`satellite-${s.id}`}
+                    title={s.name}
+                    subtitle={`NORAD ${s.id}`}
+                    onSelect={() => handleSelect(() => onOpenSatelliteWiki && onOpenSatelliteWiki(s.name))}
                   />
                 ))}
               </ResultGroup>
@@ -581,29 +616,7 @@ export default function GlobalSearch({
                     key={`mission-${m.id}`}
                     title={m.name}
                     subtitle={m.agency}
-                    onSelect={() => handleSelect(() => goTo('/mission-database'))}
-                  />
-                ))}
-              </ResultGroup>
-
-              <ResultGroup label="SPACECRAFT">
-                {localResults.spacecraft.map((s) => (
-                  <ResultRow
-                    key={`spacecraft-${s.id}`}
-                    title={s.name}
-                    subtitle={s.agency}
-                    onSelect={() => handleSelect(() => goTo('/spacecraft-database'))}
-                  />
-                ))}
-              </ResultGroup>
-
-              <ResultGroup label="ASTRONAUTS">
-                {localResults.astronauts.map((a) => (
-                  <ResultRow
-                    key={`astronaut-${a.id}`}
-                    title={a.name}
-                    subtitle={a.agency}
-                    onSelect={() => handleSelect(() => goTo('/astronaut-database'))}
+                    onSelect={() => handleSelect(() => goTo(`/mission-database?id=${encodeURIComponent(m.id)}`))}
                   />
                 ))}
               </ResultGroup>
@@ -614,18 +627,33 @@ export default function GlobalSearch({
                     key={`rocket-${r.id}`}
                     title={r.name}
                     subtitle={r.manufacturer}
-                    onSelect={() => handleSelect(() => goTo('/rocket-database'))}
+                    onSelect={() =>
+                      handleSelect(() =>
+                        goTo(`/rocket-database?id=${encodeURIComponent(r.id)}&q=${encodeURIComponent(r.name)}`)
+                      )
+                    }
                   />
                 ))}
               </ResultGroup>
 
-              <ResultGroup label="SATELLITES">
-                {satellites.map((s) => (
+              <ResultGroup label="SPACECRAFT">
+                {localResults.spacecraft.map((s) => (
                   <ResultRow
-                    key={`satellite-${s.id}`}
+                    key={`spacecraft-${s.id}`}
                     title={s.name}
-                    subtitle={`NORAD ${s.id}`}
-                    onSelect={() => handleSelect(() => onOpenSatelliteWiki && onOpenSatelliteWiki())}
+                    subtitle={s.agency}
+                    onSelect={() => handleSelect(() => goTo(`/spacecraft-database?id=${encodeURIComponent(s.id)}`))}
+                  />
+                ))}
+              </ResultGroup>
+
+              <ResultGroup label="ASTRONAUTS">
+                {localResults.astronauts.map((a) => (
+                  <ResultRow
+                    key={`astronaut-${a.id}`}
+                    title={a.name}
+                    subtitle={a.agency}
+                    onSelect={() => handleSelect(() => goTo(`/astronaut-database?id=${encodeURIComponent(a.id)}`))}
                   />
                 ))}
               </ResultGroup>
@@ -636,7 +664,7 @@ export default function GlobalSearch({
                     key={`agency-${a.id}`}
                     title={a.name}
                     subtitle={a.tagline}
-                    onSelect={() => handleSelect(() => (onOpenAgencies ? onOpenAgencies() : null))}
+                    onSelect={() => handleSelect(() => (onOpenAgencies ? onOpenAgencies(a) : null))}
                   />
                 ))}
               </ResultGroup>
@@ -647,9 +675,31 @@ export default function GlobalSearch({
                     key={`launchpad-${p.id}`}
                     title={p.name}
                     subtitle={p.country}
-                    onSelect={() => handleSelect(() => (onOpenLaunchpads ? onOpenLaunchpads() : null))}
+                    onSelect={() => handleSelect(() => (onOpenLaunchpads ? onOpenLaunchpads(p) : null))}
                   />
                 ))}
+              </ResultGroup>
+
+              <ResultGroup label="CELESTIAL OBJECTS">
+                {localResults.celestial.map((o) => (
+                  <ResultRow
+                    key={`celestial-${o.id}`}
+                    title={o.name}
+                    subtitle={o.domain}
+                    onSelect={() => handleSelect(() => goTo(`/celestial-database?id=${encodeURIComponent(o.id)}`))}
+                  />
+                ))}
+              </ResultGroup>
+
+              <ResultGroup label="SPACE WEATHER">
+                {spaceWeatherMatch && (
+                  <ResultRow
+                    key="space-weather"
+                    title="LIVE SPACE WEATHER"
+                    subtitle="Solar wind, geomagnetic activity & aurora forecast"
+                    onSelect={() => handleSelect(() => goTo('/space-weather'))}
+                  />
+                )}
               </ResultGroup>
 
               <ResultGroup label="SPACE NEWS">
