@@ -83,81 +83,101 @@ function DetailView({ mission, onBack, onSelectMission }) {
 
       <div className="msn-detail-grid">
         <div className="msn-detail-col">
-          <span className="msn-kicker">MISSION PROFILE</span>
-          <div className="msn-field-list">
-            <div className="msn-field-row">
-              <span>AGENCY / OPERATOR</span>
-              {mission.agencyLinkId ? (
-                <a href="/#agencies" className="msn-field-link">{mission.agency}</a>
-              ) : (
-                <b>{display(mission.agency)}</b>
-              )}
-            </div>
-            <div className="msn-field-row"><span>COUNTRY</span><b>{display(mission.country)}</b></div>
-            <div className="msn-field-row"><span>MISSION TYPE</span><b>{display(mission.type)}</b></div>
-            <div className="msn-field-row"><span>STATUS</span><b>{display(mission.status)}</b></div>
-            <div className="msn-field-row"><span>CREWED / UNCREWED</span><b>{mission.crewed ? 'CREWED' : 'UNCREWED'}</b></div>
-            <div className="msn-field-row"><span>LAUNCH DATE</span><b>{formatDate(mission.launchDate)}</b></div>
-            <div className="msn-field-row"><span>LAUNCH SITE</span>
-              {mission.launchSite ? (
-                <a href="/#launchpads" className="msn-field-link">{mission.launchSite}</a>
-              ) : (
-                <b>DATA UNAVAILABLE</b>
-              )}
-            </div>
-            <div className="msn-field-row"><span>DESTINATION</span><b>{display(mission.destination)}</b></div>
-            <div className="msn-field-row"><span>MISSION DURATION</span><b>{display(mission.duration)}</b></div>
-          </div>
-
-          <span className="msn-kicker" style={{ marginTop: '28px' }}>LAUNCH VEHICLE</span>
-          <div className="msn-tag-list">
-            {mission.launchVehicle ? (
-              <a href="/rocket-database" className="msn-tag msn-tag-link">{mission.launchVehicle}</a>
-            ) : (
-              <span className="msn-empty-inline">DATA UNAVAILABLE</span>
-            )}
-          </div>
-
-          <span className="msn-kicker" style={{ marginTop: '24px' }}>SPACECRAFT</span>
-          <div className="msn-tag-list">
-            {mission.spacecraft ? (
-              <span className="msn-tag">{mission.spacecraft}</span>
-            ) : (
-              <span className="msn-empty-inline">DATA UNAVAILABLE</span>
-            )}
-          </div>
-
-          <span className="msn-kicker" style={{ marginTop: '24px' }}>CELESTIAL DESTINATION</span>
-          <div className="msn-tag-list">
-            {mission.destination ? (
-              <a href="/celestial-database" className="msn-tag msn-tag-link">{mission.destination}</a>
-            ) : (
-              <span className="msn-empty-inline">DATA UNAVAILABLE</span>
-            )}
-          </div>
-
-          {mission.crewed && (
-            <>
-              <span className="msn-kicker" style={{ marginTop: '24px' }}>CREW</span>
-              <div className="msn-tag-list">
-                {crew.length > 0 ? (
-                  crew.map((a) => (
-                    <a key={a.id} href="/astronaut-database" className="msn-tag msn-tag-link">{a.name}</a>
-                  ))
+          <div className="msn-section">
+            <h2 className="msn-section-title">MISSION OVERVIEW</h2>
+            <div className="msn-field-list">
+              <div className="msn-field-row">
+                <span>AGENCY / OPERATOR</span>
+                {mission.agencyLinkId ? (
+                  <a href="/#agencies" className="msn-field-link">{mission.agency}</a>
                 ) : (
-                  <span className="msn-empty-inline">DATA UNAVAILABLE</span>
+                  <b>{display(mission.agency)}</b>
                 )}
               </div>
-            </>
-          )}
+              <div className="msn-field-row"><span>COUNTRY</span><b>{display(mission.country)}</b></div>
+              <div className="msn-field-row"><span>MISSION TYPE</span><b>{display(mission.type)}</b></div>
+              <div className="msn-field-row"><span>STATUS</span><b>{display(mission.status)}</b></div>
+              <div className="msn-field-row"><span>CREWED / UNCREWED</span><b>{mission.crewed ? 'CREWED' : 'UNCREWED'}</b></div>
+            </div>
+          </div>
 
-          <span className="msn-kicker" style={{ marginTop: '28px' }}>MISSION OBJECTIVE</span>
-          <p className="msn-objective">{display(mission.objective)}</p>
+          <div className="msn-section">
+            <h2 className="msn-section-title">LAUNCH INFORMATION</h2>
+            <div className="msn-field-list">
+              <div className="msn-field-row"><span>LAUNCH DATE</span><b>{formatDate(mission.launchDate)}</b></div>
+              <div className="msn-field-row"><span>LAUNCH SITE</span>
+                {mission.launchSite ? (
+                  <a href="/#launchpads" className="msn-field-link">{mission.launchSite}</a>
+                ) : (
+                  <b>DATA UNAVAILABLE</b>
+                )}
+              </div>
+              {mission.duration && (
+                <div className="msn-field-row"><span>MISSION DURATION</span><b>{mission.duration}</b></div>
+              )}
+            </div>
+
+            <span className="msn-kicker" style={{ marginTop: '20px' }}>LAUNCH VEHICLE</span>
+            <div className="msn-tag-list">
+              {mission.launchVehicle ? (
+                <a href="/rocket-database" className="msn-tag msn-tag-link">{mission.launchVehicle}</a>
+              ) : (
+                <span className="msn-empty-inline">DATA UNAVAILABLE</span>
+              )}
+            </div>
+          </div>
+
+          <div className="msn-section">
+            <h2 className="msn-section-title">MISSION DETAILS</h2>
+
+            <span className="msn-kicker">SPACECRAFT</span>
+            <div className="msn-tag-list">
+              {mission.spacecraft ? (
+                <span className="msn-tag">{mission.spacecraft}</span>
+              ) : (
+                <span className="msn-empty-inline">DATA UNAVAILABLE</span>
+              )}
+            </div>
+
+            <span className="msn-kicker" style={{ marginTop: '20px' }}>CELESTIAL DESTINATION</span>
+            <div className="msn-tag-list">
+              {mission.destination ? (
+                <a href="/celestial-database" className="msn-tag msn-tag-link">{mission.destination}</a>
+              ) : (
+                <span className="msn-empty-inline">DATA UNAVAILABLE</span>
+              )}
+            </div>
+
+            {mission.crewed && (
+              <>
+                <span className="msn-kicker" style={{ marginTop: '20px' }}>CREW</span>
+                <div className="msn-tag-list">
+                  {crew.length > 0 ? (
+                    crew.map((a) => (
+                      <a key={a.id} href="/astronaut-database" className="msn-tag msn-tag-link">{a.name}</a>
+                    ))
+                  ) : (
+                    <span className="msn-empty-inline">DATA UNAVAILABLE</span>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          {mission.objective && (
+            <div className="msn-section">
+              <h2 className="msn-section-title">ADDITIONAL INFORMATION</h2>
+              <span className="msn-kicker">MISSION OBJECTIVE</span>
+              <p className="msn-objective">{mission.objective}</p>
+            </div>
+          )}
         </div>
 
         <div className="msn-detail-col">
-          <span className="msn-kicker">MISSION TIMELINE</span>
-          <TimelineView timeline={mission.timeline} />
+          <div className="msn-section">
+            <h2 className="msn-section-title">MISSION TIMELINE</h2>
+            <TimelineView timeline={mission.timeline} />
+          </div>
         </div>
       </div>
     </section>
@@ -461,6 +481,14 @@ export default function MissionDatabase() {
         .msn-detail-head p { max-width: 760px; color: #a1a1aa; font-size: 0.9rem; line-height: 1.6; }
 
         .msn-detail-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 40px; }
+
+        .msn-section { margin-bottom: 32px; }
+        .msn-section:last-child { margin-bottom: 0; }
+        .msn-section-title {
+          margin: 0 0 14px; color: #f8fafc; font: 800 0.78rem/1.3 'Space Grotesk', sans-serif;
+          letter-spacing: 2px; text-transform: uppercase; padding-bottom: 10px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
 
         .msn-field-list { border-top: 1px solid rgba(255, 255, 255, 0.08); }
         .msn-field-row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); font: 600 0.65rem/1.3 monospace; letter-spacing: 1px; color: #64748b; }
