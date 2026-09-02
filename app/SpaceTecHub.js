@@ -64,6 +64,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
   const [isTransitioningPastLaunches, setIsTransitioningPastLaunches] = useState(false);
   const [showAllAgenciesPage, setShowAllAgenciesPage] = useState(false);
   const [isTransitioningAgencies, setIsTransitioningAgencies] = useState(false);
+  // Set when Global Search opens a specific agency, so AllAgenciesPage can
+  // jump straight to that profile instead of just the directory.
+  const [pendingAgencyTarget, setPendingAgencyTarget] = useState(null);
   const [globeViewMode, setGlobeViewMode] = useState({ mode: 'pads', requestId: 0 });
 
   // New States for Explore Launchpads Section
@@ -71,10 +74,16 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
   const [padBatchIndex, setPadBatchIndex] = useState(0);
   const [showAllLaunchpadsPage, setShowAllLaunchpadsPage] = useState(false);
   const [isTransitioningLaunchpads, setIsTransitioningLaunchpads] = useState(false);
+  // Set when Global Search opens a specific launchpad, so AllLaunchpadsPage
+  // can jump straight to that pad instead of just the directory.
+  const [pendingPadTarget, setPendingPadTarget] = useState(null);
   
   // New States for Satellite Wiki Page View
   const [showSatelliteWikiPage, setShowSatelliteWikiPage] = useState(false);
   const [isTransitioningWiki, setIsTransitioningWiki] = useState(false);
+  // Set when Global Search opens the satellite wiki for a specific name, so
+  // it opens already searched instead of the full unfiltered list.
+  const [satelliteWikiInitialSearch, setSatelliteWikiInitialSearch] = useState('');
   
   // Dropdown & Menu States
   const [showTelemetryDropdown, setShowTelemetryDropdown] = useState(false);
@@ -296,7 +305,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
     return padWeatherById[pad.id] || null;
   };
 
-  const handleOpenAllLaunchpads = () => {
+  const handleOpenAllLaunchpads = (pad) => {
+    setPendingPadTarget(pad || null);
     setIsTransitioningLaunchpads(true);
     setTimeout(() => {
       setIsTransitioningLaunchpads(false);
@@ -506,14 +516,16 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
   };
 
 
-  const handleOpenAllAgencies = () => {
+  const handleOpenAllAgencies = (agency) => {
+    setPendingAgencyTarget(agency || null);
     setIsTransitioningAgencies(true);
     setTimeout(() => {
       setIsTransitioningAgencies(false);
       setShowAllAgenciesPage(true);
     }, 3500);
   };
-  const handleOpenSatelliteWiki = () => {
+  const handleOpenSatelliteWiki = (searchTerm) => {
+    setSatelliteWikiInitialSearch(searchTerm || '');
     setIsTransitioningWiki(true);
     setTimeout(() => {
       setIsTransitioningWiki(false);
@@ -1715,6 +1727,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
         {showSatelliteWikiPage && (
           <SatelliteWikiPage 
             spaceBackgrounds={spaceBackgrounds}
+            initialSearch={satelliteWikiInitialSearch}
             onClose={() => setShowSatelliteWikiPage(false)}
           />
         )}
@@ -1725,6 +1738,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
           <AllAgenciesPage 
             agencies={agencyDirectory}
             spaceBackgrounds={spaceBackgrounds}
+            initialAgencyId={pendingAgencyTarget?.id ?? null}
             onClose={() => setShowAllAgenciesPage(false)}
           />
         )}
@@ -1738,6 +1752,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
             weatherById={padWeatherById}
             getStatusColor={getStatusColor}
             spaceBackgrounds={spaceBackgrounds}
+            initialPadId={pendingPadTarget?.id ?? null}
             onClose={() => setShowAllLaunchpadsPage(false)}
           />
         )}
@@ -1758,11 +1773,11 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
   );
 }
 
-function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
+function SatelliteWikiPage({ spaceBackgrounds, onClose, initialSearch = '' }) {
   const [bgIdx, setBgIdx] = useState(0);
   const [isReturningMain, setIsReturningMain] = useState(false);
   const [satellites, setSatellites] = useState([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -1925,10 +1940,12 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose }) {
     </motion.div>
   );
 }
-function AllAgenciesPage({ agencies, spaceBackgrounds, onClose }) {
+function AllAgenciesPage({ agencies, spaceBackgrounds, onClose, initialAgencyId = null }) {
   const [bgIdx, setBgIdx] = useState(0);
   const [isReturningMain, setIsReturningMain] = useState(false);
-  const [expandedAgency, setExpandedAgency] = useState(null);
+  const [expandedAgency, setExpandedAgency] = useState(
+    () => (initialAgencyId ? agencies.find((a) => a.id === initialAgencyId) || null : null)
+  );
 
   useEffect(() => {
     const timer = setInterval(() => setBgIdx((current) => (current + 1) % spaceBackgrounds.length), 7000);
@@ -1967,10 +1984,12 @@ function AllAgenciesPage({ agencies, spaceBackgrounds, onClose }) {
     </motion.div>
   );
 }
-function AllLaunchpadsPage({ launchpads, weatherById, getStatusColor, spaceBackgrounds, onClose }) {
+function AllLaunchpadsPage({ launchpads, weatherById, getStatusColor, spaceBackgrounds, onClose, initialPadId = null }) {
   const [bgIdx, setBgIdx] = useState(0);
   const [isReturningMain, setIsReturningMain] = useState(false);
-  const [expandedPad, setExpandedPad] = useState(null);
+  const [expandedPad, setExpandedPad] = useState(
+    () => (initialPadId ? launchpads.find((p) => p.id === initialPadId) || null : null)
+  );
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
