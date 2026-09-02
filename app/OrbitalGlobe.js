@@ -228,21 +228,77 @@ function generateOrbitPath(sat, centerDate = new Date()) {
   const periodMinutes = clamp(getOrbitalPeriodMinutes(sat), 20, 1440);
   const halfPeriod = periodMinutes / 2;
   const stepMinutes = Math.max(ORBIT_SAMPLE_MINUTES, periodMinutes / MAX_ORBIT_POINTS);
+  const stepSeconds = stepMinutes * 60;
 
-  const points = [];
+  const raw = [];
   for (let offset = -halfPeriod; offset <= halfPeriod; offset += stepMinutes) {
     const sampleDate = new Date(centerDate.getTime() + offset * 60 * 1000);
     const propagated = propagateSatellite(sat, sampleDate);
     if (!propagated) continue;
-
-    points.push({
-      lat: propagated.lat,
-      lng: propagated.lng,
-      altitude: Math.max(0.003, propagated.altitude * 1.01),
-    });
+    raw.push(propagated);
   }
 
-  return points;
+  if (raw.length === 0) return [];
+
+  // Approximate 3D position (km) for each sample, used only to sanity-check
+  // consecutive points — not to alter any actual propagated data.
+  const toKmVector = p => {
+    const latRad = (p.lat * Math.PI) / 180;
+    const lngRad = (p.lng * Math.PI) / 180;
+    const r = EARTH_RADIUS_KM + (Number(p.altitudeKm) || 0);
+    return [
+      r * Math.cos(latRad) * Math.cos(lngRad),
+      r * Math.cos(latRad) * Math.sin(lngRad),
+      r * Math.sin(latRad),
+    ];
+  };
+
+  // Occasional bad SGP4/SDP4 samples (rare numerical edge cases, mostly on
+  // long-period/high-altitude orbits) can land far from their neighbors and
+  // otherwise draw as one wild line jumping across the whole path. A real
+  // satellite can't move further between two samples than its own reported
+  // speed allows (generous margin for curvature), so drop any sample that
+  // implies an implausible jump from the last good one.
+  const kept = [raw[0]];
+  for (let i = 1; i < raw.length; i += 1) {
+    const prev = kept[kept.length - 1];
+    const curr = raw[i];
+    const [px, py, pz] = toKmVector(prev);
+    const [cx, cy, cz] = toKmVector(curr);
+    const jumpKm = Math.sqrt((cx - px) ** 2 + (cy - py) ** 2 + (cz - pz) ** 2);
+    const maxPlausibleKm = Math.max(500, (Number(curr.velocityKmS) || 8) * stepSeconds * 4);
+    if (jumpKm > maxPlausibleKm) continue;
+    kept.push(curr);
+  }
+
+  // A ground track this tight (e.g. geostationary/near-geostationary orbits,
+  // whose ground track is genuinely almost a single point) doesn't read as a
+  // meaningful path on screen — skip drawing it rather than show a confusing
+  // tangle of dashes collapsed onto the satellite marker.
+  if (kept.length > 2) {
+    let sumCos = 0;
+    let sumSin = 0;
+    let minLat = Infinity;
+    let maxLat = -Infinity;
+    kept.forEach(p => {
+      const lngRad = (p.lng * Math.PI) / 180;
+      sumCos += Math.cos(lngRad);
+      sumSin += Math.sin(lngRad);
+      if (p.lat < minLat) minLat = p.lat;
+      if (p.lat > maxLat) maxLat = p.lat;
+    });
+    const resultant = Math.sqrt(sumCos * sumCos + sumSin * sumSin) / kept.length;
+    const latSpread = maxLat - minLat;
+    if (resultant > 0.9995 && latSpread < 1.5) {
+      return [];
+    }
+  }
+
+  return kept.map(p => ({
+    lat: p.lat,
+    lng: p.lng,
+    altitude: Math.max(0.003, p.altitude * 1.01),
+  }));
 }
 
 function formatDatabaseSatellite(row) {
