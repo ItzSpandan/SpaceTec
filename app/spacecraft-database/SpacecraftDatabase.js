@@ -10,14 +10,15 @@ import {
   sortSpacecraft,
   uniqueValues,
   formatDate,
-  display,
   specRows,
+  profileRows,
 } from './spacecraftUtils';
 import CelestialBackground from '../celestial-database/CelestialBackground';
 
 const ENTER_DELAY_MS = 2000;
 
 function SpacecraftCard({ craft, onSelect }) {
+  const firstFlightYear = craft.firstFlight ? craft.firstFlight.slice(0, 4) : null;
   return (
     <button type="button" className="sc-card" onClick={() => onSelect(craft.id)}>
       <div className="sc-card-meta">
@@ -25,6 +26,11 @@ function SpacecraftCard({ craft, onSelect }) {
         <span className="sc-type">{craft.type}</span>
       </div>
       <h3 className="sc-card-name">{craft.name}</h3>
+      <div className="sc-card-sub">
+        {craft.agency && <span>{craft.agency}</span>}
+        {craft.agency && firstFlightYear && <span className="sc-card-sub-dot">•</span>}
+        {firstFlightYear && <span>SINCE {firstFlightYear}</span>}
+      </div>
       <p className="sc-card-desc">{craft.summary}</p>
       <div className="sc-card-footer">
         <span>{craft.missions?.length || 0} LOGGED MISSION{craft.missions?.length === 1 ? '' : 'S'}</span>
@@ -36,6 +42,9 @@ function SpacecraftCard({ craft, onSelect }) {
 
 function DetailView({ craft, onBack }) {
   const specs = specRows(craft.specs);
+  const profile = profileRows(craft);
+  const hasMissions = (craft.missions || []).length > 0;
+  const hasLaunchVehicles = (craft.launchVehicles || []).length > 0;
 
   return (
     <section className="sc-detail">
@@ -49,22 +58,23 @@ function DetailView({ craft, onBack }) {
 
       <div className="sc-detail-grid">
         <div className="sc-detail-col">
-          <span className="sc-kicker">PROFILE</span>
-          <div className="sc-field-list">
-            <div className="sc-field-row"><span>MANUFACTURER</span><b>{display(craft.manufacturer)}</b></div>
-            <div className="sc-field-row">
-              <span>AGENCY</span>
-              {craft.agencyLinkId ? (
-                <a href="/#agencies" className="sc-field-link">{craft.agency}</a>
-              ) : (
-                <b>{display(craft.agency)}</b>
-              )}
-            </div>
-            <div className="sc-field-row"><span>STATUS</span><b>{display(craft.status)}</b></div>
-            <div className="sc-field-row"><span>CREW CAPACITY</span><b>{craft.crewCapacity ? craft.crewCapacity : 'UNCREWED'}</b></div>
-            <div className="sc-field-row"><span>FIRST FLIGHT</span><b>{formatDate(craft.firstFlight)}</b></div>
-            <div className="sc-field-row"><span>LOGGED MISSIONS</span><b>{display(craft.missions?.length)}</b></div>
-          </div>
+          {profile.length > 0 && (
+            <>
+              <span className="sc-kicker">PROFILE</span>
+              <div className="sc-field-list">
+                {profile.map((row) => (
+                  <div className="sc-field-row" key={row.label}>
+                    <span>{row.label}</span>
+                    {row.link ? (
+                      <a href={row.link} className="sc-field-link">{row.value}</a>
+                    ) : (
+                      <b>{row.value}</b>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
 
           {specs.length > 0 && (
             <>
@@ -77,38 +87,51 @@ function DetailView({ craft, onBack }) {
             </>
           )}
 
-          <span className="sc-kicker" style={{ marginTop: '24px' }}>LAUNCH VEHICLES USED</span>
-          <div className="sc-tag-list">
-            {(craft.launchVehicles || []).length > 0 ? (
-              craft.launchVehicles.map((v) => (
-                <a key={v} href="/rocket-database" className="sc-tag sc-tag-link">{v}</a>
-              ))
-            ) : (
-              <span className="sc-empty-inline">DATA UNAVAILABLE</span>
-            )}
-          </div>
+          {hasLaunchVehicles && (
+            <>
+              <span className="sc-kicker" style={{ marginTop: '24px' }}>LAUNCH VEHICLES USED</span>
+              <div className="sc-tag-list">
+                {craft.launchVehicles.map((v) => (
+                  <a key={v} href="/rocket-database" className="sc-tag sc-tag-link">{v}</a>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="sc-detail-col">
-          <span className="sc-kicker">MISSION HISTORY</span>
-          <div className="sc-mission-list">
-            {(craft.missions || []).map((m) => (
-              <div className="sc-mission" key={m.name + m.date}>
-                <div className="sc-mission-head">
-                  <h4>{m.name}</h4>
-                  <span>{formatDate(m.date)}</span>
-                </div>
-                <div className="sc-mission-fields">
-                  <div><span>LAUNCH VEHICLE</span><b>{display(m.launchVehicle)}</b></div>
-                </div>
-                {m.description && <p className="sc-mission-note">{m.description}</p>}
+          {hasMissions ? (
+            <>
+              <span className="sc-kicker">MISSION HISTORY</span>
+              <div className="sc-mission-list">
+                {craft.missions.map((m) => (
+                  <div className="sc-mission" key={m.name + m.date}>
+                    <div className="sc-mission-head">
+                      <h4>{m.name}</h4>
+                      <span>{formatDate(m.date)}</span>
+                    </div>
+                    {m.launchVehicle && (
+                      <div className="sc-mission-fields">
+                        <div><span>LAUNCH VEHICLE</span><b>{m.launchVehicle}</b></div>
+                      </div>
+                    )}
+                    {m.description && <p className="sc-mission-note">{m.description}</p>}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-
-          <a href="/#launches" className="sc-related-link" style={{ marginTop: '20px', display: 'inline-block' }}>
-            VIEW MISSION DATABASE →
-          </a>
+              <a href="/#launches" className="sc-related-link" style={{ marginTop: '20px', display: 'inline-block' }}>
+                VIEW MISSION DATABASE →
+              </a>
+            </>
+          ) : (
+            <>
+              <span className="sc-kicker">MISSION HISTORY</span>
+              <div className="sc-empty-inline">NO LOGGED MISSIONS YET</div>
+              <a href="/#launches" className="sc-related-link" style={{ marginTop: '20px', display: 'inline-block' }}>
+                VIEW MISSION DATABASE →
+              </a>
+            </>
+          )}
         </div>
       </div>
     </section>
@@ -358,7 +381,9 @@ export default function SpacecraftDatabase() {
         .sc-status[data-status='IN DEVELOPMENT'] { color: #facc15; }
         .sc-type { color: #64748b; }
 
-        .sc-card-name { margin: 0 0 8px; color: #f8fafc; font: 700 1.1rem/1.3 'Space Grotesk', sans-serif; }
+        .sc-card-name { margin: 0 0 6px; color: #f8fafc; font: 700 1.1rem/1.3 'Space Grotesk', sans-serif; }
+        .sc-card-sub { display: flex; align-items: center; gap: 6px; color: #71717a; font: 700 0.6rem/1 monospace; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; min-height: 12px; }
+        .sc-card-sub-dot { color: #3f3f46; }
         .sc-card-desc { color: #a1a1aa; font-size: 0.8rem; line-height: 1.55; margin: 0 0 16px; flex: 1; }
 
         .sc-card-footer { display: flex; justify-content: space-between; border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 12px; color: #64748b; font: 700 0.58rem/1 monospace; letter-spacing: 1px; }
@@ -388,7 +413,7 @@ export default function SpacecraftDatabase() {
         }
         .sc-tag-link { color: #38bdf8; border-color: rgba(56, 189, 248, 0.3); }
         .sc-tag-link:hover { border-color: rgba(56, 189, 248, 0.7); }
-        .sc-empty-inline { color: #52525b; font: 700 0.62rem/1 monospace; letter-spacing: 1px; }
+        .sc-empty-inline { display: block; color: #52525b; font: 700 0.62rem/1 monospace; letter-spacing: 1px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 14px; }
 
         .sc-mission-list { display: flex; flex-direction: column; gap: 18px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 4px; }
         .sc-mission { border-bottom: 1px solid rgba(255, 255, 255, 0.06); padding-bottom: 16px; }
