@@ -1,446 +1,2653 @@
-'use client';
+// Astronaut / spaceflight-crew dataset for SpaceTec's Astronaut Database.
+//
+// Every entry here is built from well-established, publicly documented
+// spaceflight history (agency biographies, mission records). Fields that
+// aren't reliably known for a given astronaut are simply omitted — the UI
+// renders those as "DATA UNAVAILABLE" rather than guessing. Nothing here
+// is fabricated.
+//
+// `agencyLinkId` matches an id in SpaceTecHub.js's AGENCIES list, so the
+// astronaut profile can deep-link straight to that agency's existing card
+// instead of duplicating agency info.
 
-import { useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ASTRONAUTS, STATUS_VALUES } from './astronautData';
-import {
-  computeStats,
-  searchAstronauts,
-  filterAstronauts,
-  sortAstronauts,
-  uniqueValues,
-  uniqueSpacecraft,
-  formatDate,
-  display,
-} from './astronautUtils';
-import CelestialBackground from '../celestial-database/CelestialBackground';
+export const STATUS_VALUES = ['ACTIVE', 'RETIRED', 'DECEASED'];
 
-const ENTER_DELAY_MS = 2000;
+export const ASTRONAUTS = [
+  {
+    id: 'yuri-gagarin',
+    name: 'Yuri Gagarin',
+    agency: 'Soviet Space Programme',
+    agencyLinkId: 'roscosmos',
+    nationality: 'Soviet Union',
+    status: 'DECEASED',
+    selectionYear: 1960,
+    spacecraftFlown: ['Vostok'],
+    launchVehiclesFlown: ['Vostok-K'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Vostok 1',
+        launchDate: '1961-04-12',
+        spacecraft: 'Vostok',
+        launchVehicle: 'Vostok-K',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Pilot',
+        duration: '1 hour 48 minutes',
+        note: 'First human spaceflight in history.',
+      },
+    ],
+  },
+  {
+    id: 'valentina-tereshkova',
+    name: 'Valentina Tereshkova',
+    agency: 'Soviet Space Programme',
+    agencyLinkId: 'roscosmos',
+    nationality: 'Soviet Union',
+    status: 'RETIRED',
+    selectionYear: 1962,
+    spacecraftFlown: ['Vostok'],
+    launchVehiclesFlown: ['Vostok-K'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Vostok 6',
+        launchDate: '1963-06-16',
+        spacecraft: 'Vostok',
+        launchVehicle: 'Vostok-K',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Pilot',
+        duration: '2 days 22 hours 50 minutes',
+        note: 'First woman in space.',
+      },
+    ],
+  },
+  {
+    id: 'alexei-leonov',
+    name: 'Alexei Leonov',
+    agency: 'Soviet Space Programme',
+    agencyLinkId: 'roscosmos',
+    nationality: 'Soviet Union',
+    status: 'DECEASED',
+    selectionYear: 1960,
+    spacecraftFlown: ['Voskhod', 'Soyuz'],
+    launchVehiclesFlown: ['Voskhod', 'Soyuz'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 1, totalTime: '12 minutes 9 seconds' },
+    missions: [
+      {
+        name: 'Voskhod 2',
+        launchDate: '1965-03-18',
+        spacecraft: 'Voskhod',
+        launchVehicle: 'Voskhod',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Pilot',
+        duration: '1 day 2 hours',
+        note: 'Performed the first spacewalk in history.',
+      },
+      {
+        name: 'Soyuz 19 (Apollo–Soyuz Test Project)',
+        launchDate: '1975-07-15',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Commander',
+        duration: '5 days 22 hours 30 minutes',
+      },
+    ],
+  },
+  {
+    id: 'neil-armstrong',
+    name: 'Neil Armstrong',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'DECEASED',
+    selectionYear: 1962,
+    spacecraftFlown: ['Gemini', 'Apollo Command/Service Module', 'Apollo Lunar Module'],
+    launchVehiclesFlown: ['Titan II GLV', 'Saturn V'],
+    launchSites: ['Cape Canaveral', 'Kennedy Space Center'],
+    spacewalks: { count: 1, totalTime: '2 hours 31 minutes' },
+    missions: [
+      {
+        name: 'Gemini 8',
+        launchDate: '1966-03-16',
+        spacecraft: 'Gemini',
+        launchVehicle: 'Titan II GLV',
+        launchSite: 'Cape Canaveral',
+        role: 'Command Pilot',
+        duration: '10 hours 41 minutes',
+        note: 'First docking of two spacecraft in orbit.',
+      },
+      {
+        name: 'Apollo 11',
+        launchDate: '1969-07-16',
+        spacecraft: 'Apollo Command/Service Module & Lunar Module',
+        launchVehicle: 'Saturn V',
+        launchSite: 'Kennedy Space Center',
+        role: 'Commander',
+        duration: '8 days 3 hours 18 minutes',
+        note: 'First crewed lunar landing; first person to walk on the Moon.',
+      },
+    ],
+  },
+  {
+    id: 'buzz-aldrin',
+    name: 'Buzz Aldrin',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'RETIRED',
+    selectionYear: 1963,
+    spacecraftFlown: ['Gemini', 'Apollo Command/Service Module', 'Apollo Lunar Module'],
+    launchVehiclesFlown: ['Titan II GLV', 'Saturn V'],
+    launchSites: ['Cape Canaveral', 'Kennedy Space Center'],
+    spacewalks: { count: 4, totalTime: '7 hours 52 minutes' },
+    missions: [
+      {
+        name: 'Gemini 12',
+        launchDate: '1966-11-11',
+        spacecraft: 'Gemini',
+        launchVehicle: 'Titan II GLV',
+        launchSite: 'Cape Canaveral',
+        role: 'Pilot',
+        duration: '3 days 22 hours 34 minutes',
+      },
+      {
+        name: 'Apollo 11',
+        launchDate: '1969-07-16',
+        spacecraft: 'Apollo Command/Service Module & Lunar Module',
+        launchVehicle: 'Saturn V',
+        launchSite: 'Kennedy Space Center',
+        role: 'Lunar Module Pilot',
+        duration: '8 days 3 hours 18 minutes',
+        note: 'Second person to walk on the Moon.',
+      },
+    ],
+  },
+  {
+    id: 'michael-collins',
+    name: 'Michael Collins',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'DECEASED',
+    selectionYear: 1963,
+    spacecraftFlown: ['Gemini', 'Apollo Command/Service Module'],
+    launchVehiclesFlown: ['Titan II GLV', 'Saturn V'],
+    launchSites: ['Cape Canaveral', 'Kennedy Space Center'],
+    spacewalks: { count: 1, totalTime: '39 minutes' },
+    missions: [
+      {
+        name: 'Gemini 10',
+        launchDate: '1966-07-18',
+        spacecraft: 'Gemini',
+        launchVehicle: 'Titan II GLV',
+        launchSite: 'Cape Canaveral',
+        role: 'Pilot',
+        duration: '2 days 22 hours 47 minutes',
+      },
+      {
+        name: 'Apollo 11',
+        launchDate: '1969-07-16',
+        spacecraft: 'Apollo Command/Service Module',
+        launchVehicle: 'Saturn V',
+        launchSite: 'Kennedy Space Center',
+        role: 'Command Module Pilot',
+        duration: '8 days 3 hours 18 minutes',
+        note: 'Piloted the Command Module in lunar orbit during the Apollo 11 landing.',
+      },
+    ],
+  },
+  {
+    id: 'john-glenn',
+    name: 'John Glenn',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'DECEASED',
+    selectionYear: 1959,
+    spacecraftFlown: ['Mercury', 'Space Shuttle'],
+    launchVehiclesFlown: ['Atlas LV-3B', 'Space Shuttle'],
+    launchSites: ['Cape Canaveral', 'Kennedy Space Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Mercury-Atlas 6 (Friendship 7)',
+        launchDate: '1962-02-20',
+        spacecraft: 'Mercury',
+        launchVehicle: 'Atlas LV-3B',
+        launchSite: 'Cape Canaveral',
+        role: 'Pilot',
+        duration: '4 hours 55 minutes',
+        note: 'First American to orbit the Earth.',
+      },
+      {
+        name: 'STS-95',
+        launchDate: '1998-10-29',
+        spacecraft: 'Space Shuttle Discovery',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Payload Specialist',
+        duration: '8 days 21 hours 44 minutes',
+        note: 'At 77, became the oldest person to fly in space at the time.',
+      },
+    ],
+  },
+  {
+    id: 'sally-ride',
+    name: 'Sally Ride',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'DECEASED',
+    selectionYear: 1978,
+    spacecraftFlown: ['Space Shuttle'],
+    launchVehiclesFlown: ['Space Shuttle'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'STS-7',
+        launchDate: '1983-06-18',
+        spacecraft: 'Space Shuttle Challenger',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: '6 days 2 hours 24 minutes',
+        note: 'First American woman in space.',
+      },
+      {
+        name: 'STS-41-G',
+        launchDate: '1984-10-05',
+        spacecraft: 'Space Shuttle Challenger',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: '8 days 5 hours 24 minutes',
+      },
+    ],
+  },
+  {
+    id: 'sunita-williams',
+    name: 'Sunita Williams',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'ACTIVE',
+    selectionYear: 1998,
+    spacecraftFlown: ['Space Shuttle', 'Soyuz', 'Boeing Starliner'],
+    launchVehiclesFlown: ['Space Shuttle', 'Soyuz', 'Atlas V'],
+    launchSites: ['Kennedy Space Center', 'Baikonur Cosmodrome', 'Cape Canaveral'],
+    spacewalks: { count: 9, totalTime: '62 hours 6 minutes' },
+    missions: [
+      {
+        name: 'STS-116 / Expedition 14/15',
+        launchDate: '2006-12-09',
+        spacecraft: 'Space Shuttle Discovery / ISS',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Flight Engineer',
+        duration: '195 days 18 hours',
+      },
+      {
+        name: 'Soyuz TMA-05M / Expedition 32/33',
+        launchDate: '2012-07-15',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'ISS Commander (Expedition 33)',
+        duration: '127 days',
+      },
+      {
+        name: 'Boeing Crewed Flight Test / Expedition 71/72',
+        launchDate: '2024-06-05',
+        spacecraft: 'Boeing Starliner',
+        launchVehicle: 'Atlas V',
+        launchSite: 'Cape Canaveral',
+        role: 'Pilot',
+        duration: null,
+        note: 'Extended ISS stay after Starliner returned uncrewed; came home on a Crew Dragon.',
+      },
+    ],
+  },
+  {
+    id: 'peggy-whitson',
+    name: 'Peggy Whitson',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'ACTIVE',
+    selectionYear: 1996,
+    spacecraftFlown: ['Space Shuttle', 'Soyuz', 'Crew Dragon'],
+    launchVehiclesFlown: ['Space Shuttle', 'Soyuz', 'Falcon 9'],
+    launchSites: ['Kennedy Space Center', 'Baikonur Cosmodrome'],
+    spacewalks: { count: 10, totalTime: '60 hours 21 minutes' },
+    missions: [
+      {
+        name: 'STS-111 / Expedition 5',
+        launchDate: '2002-06-05',
+        spacecraft: 'Space Shuttle Endeavour / ISS',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Flight Engineer',
+        duration: '184 days',
+      },
+      {
+        name: 'Soyuz TMA-11 / Expedition 16',
+        launchDate: '2007-10-10',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'ISS Commander',
+        duration: '191 days',
+        note: 'First woman to command the ISS.',
+      },
+      {
+        name: 'Soyuz MS-03 / Expedition 50/51',
+        launchDate: '2016-11-17',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'ISS Commander (Expedition 51)',
+        duration: '289 days',
+      },
+      {
+        name: 'Axiom Mission 2',
+        launchDate: '2023-05-21',
+        spacecraft: 'Crew Dragon',
+        launchVehicle: 'Falcon 9',
+        launchSite: 'Kennedy Space Center',
+        role: 'Commander',
+        duration: '8 days',
+      },
+    ],
+  },
+  {
+    id: 'scott-kelly',
+    name: 'Scott Kelly',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'RETIRED',
+    selectionYear: 1996,
+    spacecraftFlown: ['Space Shuttle', 'Soyuz'],
+    launchVehiclesFlown: ['Space Shuttle', 'Soyuz'],
+    launchSites: ['Kennedy Space Center', 'Baikonur Cosmodrome'],
+    spacewalks: { count: 3, totalTime: '12 hours 1 minute' },
+    missions: [
+      {
+        name: 'STS-103',
+        launchDate: '1999-12-19',
+        spacecraft: 'Space Shuttle Discovery',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Pilot',
+        duration: '7 days 23 hours',
+      },
+      {
+        name: 'STS-118',
+        launchDate: '2007-08-08',
+        spacecraft: 'Space Shuttle Endeavour',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Commander',
+        duration: '12 days 17 hours',
+      },
+      {
+        name: 'Soyuz TMA-18M / Expedition 43/44/45/46 ("Year in Space")',
+        launchDate: '2015-03-27',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'ISS Commander (Expedition 46)',
+        duration: '340 days',
+        note: 'Longest single spaceflight by a NASA astronaut at the time.',
+      },
+    ],
+  },
+  {
+    id: 'christina-koch',
+    name: 'Christina Koch',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'ACTIVE',
+    selectionYear: 2013,
+    spacecraftFlown: ['Soyuz'],
+    launchVehiclesFlown: ['Soyuz'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 6, totalTime: '42 hours 15 minutes' },
+    missions: [
+      {
+        name: 'Soyuz MS-12 / Expedition 59/60/61',
+        launchDate: '2019-03-14',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: '328 days',
+        note: 'Longest single spaceflight by a woman at the time; part of the first all-female spacewalk with Jessica Meir.',
+      },
+    ],
+  },
+  {
+    id: 'samantha-cristoforetti',
+    name: 'Samantha Cristoforetti',
+    agency: 'European Space Agency',
+    agencyLinkId: 'esa',
+    nationality: 'Italy',
+    status: 'ACTIVE',
+    selectionYear: 2009,
+    spacecraftFlown: ['Soyuz', 'Crew Dragon'],
+    launchVehiclesFlown: ['Soyuz', 'Falcon 9'],
+    launchSites: ['Baikonur Cosmodrome', 'Kennedy Space Center'],
+    spacewalks: { count: 1, totalTime: '7 hours 5 minutes' },
+    missions: [
+      {
+        name: 'Soyuz TMA-15M / Expedition 42/43',
+        launchDate: '2014-11-23',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: '199 days 16 hours',
+        note: 'Longest single spaceflight by a woman at the time of return.',
+      },
+      {
+        name: 'Crew-4 / Expedition 67/68',
+        launchDate: '2022-04-27',
+        spacecraft: 'Crew Dragon',
+        launchVehicle: 'Falcon 9',
+        launchSite: 'Kennedy Space Center',
+        role: 'ISS Commander (Expedition 68)',
+        duration: '170 days',
+        note: 'First European woman to command the ISS.',
+      },
+    ],
+  },
+  {
+    id: 'tim-peake',
+    name: 'Tim Peake',
+    agency: 'European Space Agency',
+    agencyLinkId: 'esa',
+    nationality: 'United Kingdom',
+    status: 'RETIRED',
+    selectionYear: 2009,
+    spacecraftFlown: ['Soyuz'],
+    launchVehiclesFlown: ['Soyuz'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 1, totalTime: '4 hours 43 minutes' },
+    missions: [
+      {
+        name: 'Soyuz TMA-19M / Expedition 46/47',
+        launchDate: '2015-12-15',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: '186 days',
+        note: 'First British ESA astronaut on the ISS.',
+      },
+    ],
+  },
+  {
+    id: 'thomas-pesquet',
+    name: 'Thomas Pesquet',
+    agency: 'European Space Agency',
+    agencyLinkId: 'esa',
+    nationality: 'France',
+    status: 'ACTIVE',
+    selectionYear: 2009,
+    spacecraftFlown: ['Soyuz', 'Crew Dragon'],
+    launchVehiclesFlown: ['Soyuz', 'Falcon 9'],
+    launchSites: ['Baikonur Cosmodrome', 'Kennedy Space Center'],
+    spacewalks: { count: 4, totalTime: '23 hours 24 minutes' },
+    missions: [
+      {
+        name: 'Soyuz MS-03 / Expedition 50/51',
+        launchDate: '2016-11-17',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: '196 days',
+      },
+      {
+        name: 'Crew-2 / Expedition 65',
+        launchDate: '2021-04-23',
+        spacecraft: 'Crew Dragon',
+        launchVehicle: 'Falcon 9',
+        launchSite: 'Kennedy Space Center',
+        role: 'ISS Commander (Expedition 65)',
+        duration: '199 days',
+        note: 'First French astronaut to command the ISS.',
+      },
+    ],
+  },
+  {
+    id: 'rakesh-sharma',
+    name: 'Rakesh Sharma',
+    agency: 'Intercosmos (Soviet–Indian mission)',
+    agencyLinkId: null,
+    nationality: 'India',
+    status: 'RETIRED',
+    selectionYear: 1982,
+    spacecraftFlown: ['Soyuz'],
+    launchVehiclesFlown: ['Soyuz'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz T-11',
+        launchDate: '1984-04-03',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Cosmonaut Researcher',
+        duration: '7 days 21 hours 40 minutes',
+        note: 'First Indian citizen in space, flown under the Soviet Intercosmos programme.',
+      },
+    ],
+  },
+  {
+    id: 'yang-liwei',
+    name: 'Yang Liwei',
+    agency: 'CNSA',
+    agencyLinkId: 'cnsa',
+    nationality: 'China',
+    status: 'RETIRED',
+    selectionYear: 1998,
+    spacecraftFlown: ['Shenzhou'],
+    launchVehiclesFlown: ['Long March 2F'],
+    launchSites: ['Jiuquan Satellite Launch Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Shenzhou 5',
+        launchDate: '2003-10-15',
+        spacecraft: 'Shenzhou',
+        launchVehicle: 'Long March 2F',
+        launchSite: 'Jiuquan Satellite Launch Center',
+        role: 'Pilot',
+        duration: '21 hours 22 minutes',
+        note: 'First crewed Chinese spaceflight.',
+      },
+    ],
+  },
+  {
+    id: 'liu-yang',
+    name: 'Liu Yang',
+    agency: 'CNSA',
+    agencyLinkId: 'cnsa',
+    nationality: 'China',
+    status: 'ACTIVE',
+    selectionYear: 2010,
+    spacecraftFlown: ['Shenzhou'],
+    launchVehiclesFlown: ['Long March 2F'],
+    launchSites: ['Jiuquan Satellite Launch Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Shenzhou 9',
+        launchDate: '2012-06-16',
+        spacecraft: 'Shenzhou',
+        launchVehicle: 'Long March 2F',
+        launchSite: 'Jiuquan Satellite Launch Center',
+        role: 'Mission Specialist',
+        duration: '12 days 15 hours',
+        note: 'First Chinese woman in space.',
+      },
+      {
+        name: 'Shenzhou 14',
+        launchDate: '2022-06-05',
+        spacecraft: 'Shenzhou',
+        launchVehicle: 'Long March 2F',
+        launchSite: 'Jiuquan Satellite Launch Center',
+        role: 'Mission Specialist',
+        duration: '183 days',
+      },
+    ],
+  },
+  {
+    id: 'wang-yaping',
+    name: 'Wang Yaping',
+    agency: 'CNSA',
+    agencyLinkId: 'cnsa',
+    nationality: 'China',
+    status: 'ACTIVE',
+    selectionYear: 2010,
+    spacecraftFlown: ['Shenzhou'],
+    launchVehiclesFlown: ['Long March 2F'],
+    launchSites: ['Jiuquan Satellite Launch Center'],
+    spacewalks: { count: 1, totalTime: '6 hours 25 minutes' },
+    missions: [
+      {
+        name: 'Shenzhou 10',
+        launchDate: '2013-06-11',
+        spacecraft: 'Shenzhou',
+        launchVehicle: 'Long March 2F',
+        launchSite: 'Jiuquan Satellite Launch Center',
+        role: 'Mission Specialist',
+        duration: '14 days 14 hours',
+      },
+      {
+        name: 'Shenzhou 13',
+        launchDate: '2021-10-15',
+        spacecraft: 'Shenzhou',
+        launchVehicle: 'Long March 2F',
+        launchSite: 'Jiuquan Satellite Launch Center',
+        role: 'Mission Specialist',
+        duration: '183 days',
+        note: 'First Chinese woman to perform a spacewalk.',
+      },
+    ],
+  },
+  {
+    id: 'koichi-wakata',
+    name: 'Koichi Wakata',
+    agency: 'JAXA',
+    agencyLinkId: 'jaxa',
+    nationality: 'Japan',
+    status: 'RETIRED',
+    selectionYear: 1992,
+    spacecraftFlown: ['Space Shuttle', 'Soyuz', 'Crew Dragon'],
+    launchVehiclesFlown: ['Space Shuttle', 'Soyuz', 'Falcon 9'],
+    launchSites: ['Kennedy Space Center', 'Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'STS-72',
+        launchDate: '1996-01-11',
+        spacecraft: 'Space Shuttle Endeavour',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: '8 days 22 hours',
+      },
+      {
+        name: 'STS-92',
+        launchDate: '2000-10-11',
+        spacecraft: 'Space Shuttle Discovery',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: '12 days 21 hours',
+      },
+      {
+        name: 'Soyuz TMA-13 / Expedition 18/19/20',
+        launchDate: '2009-03-26',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: '137 days',
+      },
+      {
+        name: 'Soyuz TMA-11M / Expedition 38/39',
+        launchDate: '2013-11-07',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'ISS Commander (Expedition 39)',
+        duration: '188 days',
+        note: 'First Japanese ISS commander.',
+      },
+      {
+        name: 'Crew-5 / Expedition 68/69',
+        launchDate: '2022-10-05',
+        spacecraft: 'Crew Dragon',
+        launchVehicle: 'Falcon 9',
+        launchSite: 'Kennedy Space Center',
+        role: 'Flight Engineer',
+        duration: '157 days',
+      },
+    ],
+  },
+  {
+    id: 'naoko-yamazaki',
+    name: 'Naoko Yamazaki',
+    agency: 'JAXA',
+    agencyLinkId: 'jaxa',
+    nationality: 'Japan',
+    status: 'RETIRED',
+    selectionYear: 1999,
+    spacecraftFlown: ['Space Shuttle'],
+    launchVehiclesFlown: ['Space Shuttle'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'STS-131',
+        launchDate: '2010-04-05',
+        spacecraft: 'Space Shuttle Discovery',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: '15 days 2 hours',
+        note: 'Second Japanese woman in space.',
+      },
+    ],
+  },
+  {
+    id: 'chris-hadfield',
+    name: 'Chris Hadfield',
+    agency: 'Canadian Space Agency',
+    agencyLinkId: 'csa',
+    nationality: 'Canada',
+    status: 'RETIRED',
+    selectionYear: 1992,
+    spacecraftFlown: ['Space Shuttle', 'Soyuz'],
+    launchVehiclesFlown: ['Space Shuttle', 'Soyuz'],
+    launchSites: ['Kennedy Space Center', 'Baikonur Cosmodrome'],
+    spacewalks: { count: 2, totalTime: '14 hours 54 minutes' },
+    missions: [
+      {
+        name: 'STS-74',
+        launchDate: '1995-11-12',
+        spacecraft: 'Space Shuttle Atlantis',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: '8 days 4 hours',
+        note: 'First Canadian to visit Mir.',
+      },
+      {
+        name: 'STS-100',
+        launchDate: '2001-04-19',
+        spacecraft: 'Space Shuttle Endeavour',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: '11 days 21 hours',
+        note: 'First Canadian to perform a spacewalk.',
+      },
+      {
+        name: 'Soyuz TMA-07M / Expedition 34/35',
+        launchDate: '2012-12-19',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'ISS Commander (Expedition 35)',
+        duration: '146 days',
+        note: 'First Canadian to command the ISS.',
+      },
+    ],
+  },
+  {
+    id: 'roberta-bondar',
+    name: 'Roberta Bondar',
+    agency: 'Canadian Space Agency',
+    agencyLinkId: 'csa',
+    nationality: 'Canada',
+    status: 'RETIRED',
+    selectionYear: 1983,
+    spacecraftFlown: ['Space Shuttle'],
+    launchVehiclesFlown: ['Space Shuttle'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'STS-42',
+        launchDate: '1992-01-22',
+        spacecraft: 'Space Shuttle Discovery',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Payload Specialist',
+        duration: '8 days 1 hour',
+        note: 'First Canadian woman in space.',
+      },
+    ],
+  },
 
-function AstronautCard({ astronaut, onSelect }) {
-  return (
-    <button type="button" className="crew-card" onClick={() => onSelect(astronaut.id)}>
-      <div className="crew-card-meta">
-        <span className="crew-status" data-status={astronaut.status}>{astronaut.status}</span>
-        <span className="crew-agency">{astronaut.agency}</span>
-      </div>
-      <h3 className="crew-card-name">{astronaut.name}</h3>
-      <p className="crew-card-desc">{astronaut.nationality}</p>
-      <div className="crew-card-footer">
-        <span>{astronaut.missions?.length || 0} SPACEFLIGHT{astronaut.missions?.length === 1 ? '' : 'S'}</span>
-        <span className="crew-card-arrow">VIEW PROFILE →</span>
-      </div>
-    </button>
-  );
-}
+  // ---- Additional NASA astronauts (Space Shuttle era to present ISS crews) ----
+  {
+    id: 'mae-jemison',
+    name: 'Mae Jemison',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'RETIRED',
+    selectionYear: 1987,
+    spacecraftFlown: ['Space Shuttle'],
+    launchVehiclesFlown: ['Space Shuttle'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'STS-47',
+        launchDate: '1992-09-12',
+        spacecraft: 'Space Shuttle Endeavour',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: '7 days 22 hours',
+        note: 'First African-American woman in space.',
+      },
+    ],
+  },
+  {
+    id: 'guion-bluford',
+    name: 'Guion Bluford',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'RETIRED',
+    selectionYear: 1978,
+    spacecraftFlown: ['Space Shuttle'],
+    launchVehiclesFlown: ['Space Shuttle'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'STS-8',
+        launchDate: '1983-08-30',
+        spacecraft: 'Space Shuttle Challenger',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: '6 days 1 hour',
+        note: 'First African-American in space.',
+      },
+    ],
+  },
+  {
+    id: 'eileen-collins',
+    name: 'Eileen Collins',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'RETIRED',
+    selectionYear: 1990,
+    spacecraftFlown: ['Space Shuttle'],
+    launchVehiclesFlown: ['Space Shuttle'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'STS-63',
+        launchDate: '1995-02-03',
+        spacecraft: 'Space Shuttle Discovery',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Pilot',
+        duration: null,
+        note: 'First woman to pilot a Space Shuttle.',
+      },
+      {
+        name: 'STS-93',
+        launchDate: '1999-07-23',
+        spacecraft: 'Space Shuttle Columbia',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Commander',
+        duration: null,
+        note: 'First woman to command a Space Shuttle mission.',
+      },
+    ],
+  },
+  {
+    id: 'shannon-lucid',
+    name: 'Shannon Lucid',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'RETIRED',
+    selectionYear: 1978,
+    spacecraftFlown: ['Space Shuttle', 'Soyuz'],
+    launchVehiclesFlown: ['Space Shuttle', 'Soyuz'],
+    launchSites: ['Kennedy Space Center', 'Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'STS-76 / Mir',
+        launchDate: '1996-03-22',
+        spacecraft: 'Space Shuttle Atlantis / Mir',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: '188 days',
+        note: 'Longest single spaceflight by a woman at the time.',
+      },
+    ],
+  },
+  {
+    id: 'jim-lovell',
+    name: 'Jim Lovell',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'RETIRED',
+    selectionYear: 1962,
+    spacecraftFlown: ['Gemini', 'Apollo Command/Service Module'],
+    launchVehiclesFlown: ['Titan II GLV', 'Saturn V'],
+    launchSites: ['Cape Canaveral', 'Kennedy Space Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Gemini 7',
+        launchDate: '1965-12-04',
+        spacecraft: 'Gemini',
+        launchVehicle: 'Titan II GLV',
+        launchSite: 'Cape Canaveral',
+        role: 'Pilot',
+        duration: '13 days 18 hours',
+      },
+      {
+        name: 'Gemini 12',
+        launchDate: '1966-11-11',
+        spacecraft: 'Gemini',
+        launchVehicle: 'Titan II GLV',
+        launchSite: 'Cape Canaveral',
+        role: 'Command Pilot',
+        duration: '3 days 22 hours',
+      },
+      {
+        name: 'Apollo 8',
+        launchDate: '1968-12-21',
+        spacecraft: 'Apollo Command/Service Module',
+        launchVehicle: 'Saturn V',
+        launchSite: 'Kennedy Space Center',
+        role: 'Command Module Pilot',
+        duration: '6 days 3 hours',
+        note: 'First crewed mission to orbit the Moon.',
+      },
+      {
+        name: 'Apollo 13',
+        launchDate: '1970-04-11',
+        spacecraft: 'Apollo Command/Service Module',
+        launchVehicle: 'Saturn V',
+        launchSite: 'Kennedy Space Center',
+        role: 'Commander',
+        duration: '5 days 22 hours',
+        note: 'Commanded the aborted lunar mission after an in-flight oxygen tank failure.',
+      },
+    ],
+  },
+  {
+    id: 'alan-shepard',
+    name: 'Alan Shepard',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'DECEASED',
+    selectionYear: 1959,
+    spacecraftFlown: ['Mercury', 'Apollo Command/Service Module & Lunar Module'],
+    launchVehiclesFlown: ['Redstone', 'Saturn V'],
+    launchSites: ['Cape Canaveral', 'Kennedy Space Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Mercury-Redstone 3 (Freedom 7)',
+        launchDate: '1961-05-05',
+        spacecraft: 'Mercury',
+        launchVehicle: 'Redstone',
+        launchSite: 'Cape Canaveral',
+        role: 'Pilot',
+        duration: '15 minutes',
+        note: 'First American in space.',
+      },
+      {
+        name: 'Apollo 14',
+        launchDate: '1971-01-31',
+        spacecraft: 'Apollo Command/Service Module & Lunar Module',
+        launchVehicle: 'Saturn V',
+        launchSite: 'Kennedy Space Center',
+        role: 'Commander',
+        duration: '9 days',
+        note: 'Fifth person to walk on the Moon.',
+      },
+    ],
+  },
+  {
+    id: 'gene-cernan',
+    name: 'Gene Cernan',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'DECEASED',
+    selectionYear: 1963,
+    spacecraftFlown: ['Gemini', 'Apollo Command/Service Module & Lunar Module'],
+    launchVehiclesFlown: ['Titan II GLV', 'Saturn V'],
+    launchSites: ['Cape Canaveral', 'Kennedy Space Center'],
+    spacewalks: { count: 3, totalTime: null },
+    missions: [
+      {
+        name: 'Gemini 9A',
+        launchDate: '1966-06-03',
+        spacecraft: 'Gemini',
+        launchVehicle: 'Titan II GLV',
+        launchSite: 'Cape Canaveral',
+        role: 'Pilot',
+        duration: '3 days',
+      },
+      {
+        name: 'Apollo 10',
+        launchDate: '1969-05-18',
+        spacecraft: 'Apollo Command/Service Module & Lunar Module',
+        launchVehicle: 'Saturn V',
+        launchSite: 'Kennedy Space Center',
+        role: 'Lunar Module Pilot',
+        duration: '8 days',
+      },
+      {
+        name: 'Apollo 17',
+        launchDate: '1972-12-07',
+        spacecraft: 'Apollo Command/Service Module & Lunar Module',
+        launchVehicle: 'Saturn V',
+        launchSite: 'Kennedy Space Center',
+        role: 'Commander',
+        duration: '12 days 14 hours',
+        note: 'Last person to walk on the Moon.',
+      },
+    ],
+  },
+  {
+    id: 'bob-behnken',
+    name: 'Bob Behnken',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'RETIRED',
+    selectionYear: 2000,
+    spacecraftFlown: ['Space Shuttle', 'Crew Dragon'],
+    launchVehiclesFlown: ['Space Shuttle', 'Falcon 9'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 6, totalTime: null },
+    missions: [
+      {
+        name: 'STS-123',
+        launchDate: '2008-03-11',
+        spacecraft: 'Space Shuttle Endeavour',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: null,
+      },
+      {
+        name: 'STS-130',
+        launchDate: '2010-02-08',
+        spacecraft: 'Space Shuttle Endeavour',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: null,
+      },
+      {
+        name: 'Crew Dragon Demo-2',
+        launchDate: '2020-05-30',
+        spacecraft: 'Crew Dragon',
+        launchVehicle: 'Falcon 9',
+        launchSite: 'Kennedy Space Center',
+        role: 'Joint Operations Commander',
+        duration: '64 days',
+        note: 'First crewed flight of Crew Dragon.',
+      },
+    ],
+  },
+  {
+    id: 'doug-hurley',
+    name: 'Doug Hurley',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'RETIRED',
+    selectionYear: 2000,
+    spacecraftFlown: ['Space Shuttle', 'Crew Dragon'],
+    launchVehiclesFlown: ['Space Shuttle', 'Falcon 9'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'STS-127',
+        launchDate: '2009-07-15',
+        spacecraft: 'Space Shuttle Endeavour',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Pilot',
+        duration: null,
+      },
+      {
+        name: 'STS-135',
+        launchDate: '2011-07-08',
+        spacecraft: 'Space Shuttle Atlantis',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Pilot',
+        duration: null,
+        note: 'Final flight of the Space Shuttle program.',
+      },
+      {
+        name: 'Crew Dragon Demo-2',
+        launchDate: '2020-05-30',
+        spacecraft: 'Crew Dragon',
+        launchVehicle: 'Falcon 9',
+        launchSite: 'Kennedy Space Center',
+        role: 'Spacecraft Commander',
+        duration: '64 days',
+        note: 'First crewed flight of Crew Dragon.',
+      },
+    ],
+  },
+  {
+    id: 'victor-glover',
+    name: 'Victor Glover',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'ACTIVE',
+    selectionYear: 2013,
+    spacecraftFlown: ['Crew Dragon'],
+    launchVehiclesFlown: ['Falcon 9'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 4, totalTime: null },
+    missions: [
+      {
+        name: 'Crew-1 / Expedition 64/65',
+        launchDate: '2020-11-16',
+        spacecraft: 'Crew Dragon',
+        launchVehicle: 'Falcon 9',
+        launchSite: 'Kennedy Space Center',
+        role: 'Pilot',
+        duration: '168 days',
+      },
+    ],
+  },
+  {
+    id: 'jasmin-moghbeli',
+    name: 'Jasmin Moghbeli',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'ACTIVE',
+    selectionYear: 2017,
+    spacecraftFlown: ['Crew Dragon'],
+    launchVehiclesFlown: ['Falcon 9'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 1, totalTime: null },
+    missions: [
+      {
+        name: 'Crew-7 / Expedition 69/70',
+        launchDate: '2023-08-26',
+        spacecraft: 'Crew Dragon',
+        launchVehicle: 'Falcon 9',
+        launchSite: 'Kennedy Space Center',
+        role: 'ISS Commander (Expedition 70)',
+        duration: '199 days',
+      },
+    ],
+  },
+  {
+    id: 'frank-rubio',
+    name: 'Frank Rubio',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'ACTIVE',
+    selectionYear: 2017,
+    spacecraftFlown: ['Soyuz'],
+    launchVehiclesFlown: ['Soyuz'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 1, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz MS-22 / Expedition 68/69',
+        launchDate: '2022-09-21',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: '371 days',
+        note: 'Longest single spaceflight by a NASA astronaut, extended after his Soyuz was damaged.',
+      },
+    ],
+  },
+  {
+    id: 'nick-hague',
+    name: 'Nick Hague',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'ACTIVE',
+    selectionYear: 2013,
+    spacecraftFlown: ['Soyuz', 'Crew Dragon'],
+    launchVehiclesFlown: ['Soyuz', 'Falcon 9'],
+    launchSites: ['Baikonur Cosmodrome', 'Kennedy Space Center'],
+    spacewalks: { count: 3, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz MS-10',
+        launchDate: '2018-10-11',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: null,
+        note: 'Mission aborted during ascent after a booster failure; crew survived via the launch escape system.',
+      },
+      {
+        name: 'Soyuz MS-12 / Expedition 59/60',
+        launchDate: '2019-03-14',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: '203 days',
+      },
+      {
+        name: 'Crew-9 / Expedition 71/72',
+        launchDate: '2024-09-28',
+        spacecraft: 'Crew Dragon',
+        launchVehicle: 'Falcon 9',
+        launchSite: 'Kennedy Space Center',
+        role: 'Spacecraft Commander',
+        duration: null,
+      },
+    ],
+  },
+  {
+    id: 'don-pettit',
+    name: 'Don Pettit',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'ACTIVE',
+    selectionYear: 1996,
+    spacecraftFlown: ['Space Shuttle', 'Soyuz'],
+    launchVehiclesFlown: ['Space Shuttle', 'Soyuz'],
+    launchSites: ['Kennedy Space Center', 'Baikonur Cosmodrome'],
+    spacewalks: { count: 2, totalTime: null },
+    missions: [
+      {
+        name: 'Expedition 6',
+        launchDate: '2002-11-23',
+        spacecraft: 'Space Shuttle Endeavour / ISS',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Flight Engineer',
+        duration: null,
+      },
+      {
+        name: 'Expedition 30/31',
+        launchDate: '2011-12-21',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: null,
+      },
+      {
+        name: 'Soyuz MS-26 / Expedition 71/72',
+        launchDate: '2024-09-11',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: null,
+      },
+    ],
+  },
 
-function DetailView({ astronaut, onBack }) {
-  const spacewalks = astronaut.spacewalks;
-  const hasSpacewalks = spacewalks && spacewalks.count > 0;
+  // ---- Additional Roscosmos / Soviet cosmonauts ----
+  {
+    id: 'valeri-polyakov',
+    name: 'Valeri Polyakov',
+    agency: 'Roscosmos',
+    agencyLinkId: 'roscosmos',
+    nationality: 'Russia',
+    status: 'DECEASED',
+    selectionYear: 1972,
+    spacecraftFlown: ['Soyuz', 'Mir'],
+    launchVehiclesFlown: ['Soyuz'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz TM-6',
+        launchDate: '1988-08-29',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: null,
+      },
+      {
+        name: 'Soyuz TM-18',
+        launchDate: '1994-01-08',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: '437 days 18 hours',
+        note: 'Longest single spaceflight in history.',
+      },
+    ],
+  },
+  {
+    id: 'sergei-krikalev',
+    name: 'Sergei Krikalev',
+    agency: 'Roscosmos',
+    agencyLinkId: 'roscosmos',
+    nationality: 'Russia',
+    status: 'RETIRED',
+    selectionYear: 1985,
+    spacecraftFlown: ['Soyuz', 'Space Shuttle'],
+    launchVehiclesFlown: ['Soyuz', 'Space Shuttle'],
+    launchSites: ['Baikonur Cosmodrome', 'Kennedy Space Center'],
+    spacewalks: { count: 8, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz TM-7',
+        launchDate: '1988-11-26',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: null,
+      },
+      {
+        name: 'Soyuz TM-31 / Expedition 1',
+        launchDate: '2000-10-31',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: null,
+        note: 'Part of the first crew to occupy the ISS.',
+      },
+    ],
+  },
+  {
+    id: 'gennady-padalka',
+    name: 'Gennady Padalka',
+    agency: 'Roscosmos',
+    agencyLinkId: 'roscosmos',
+    nationality: 'Russia',
+    status: 'RETIRED',
+    selectionYear: 1989,
+    spacecraftFlown: ['Soyuz'],
+    launchVehiclesFlown: ['Soyuz'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 10, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz TM-28',
+        launchDate: '1998-08-13',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Commander',
+        duration: null,
+      },
+      {
+        name: 'Soyuz TMA-16M / Expedition 43/44',
+        launchDate: '2015-03-27',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'ISS Commander',
+        duration: null,
+        note: 'Holds the record for most cumulative time in space by any human.',
+      },
+    ],
+  },
+  {
+    id: 'oleg-kononenko',
+    name: 'Oleg Kononenko',
+    agency: 'Roscosmos',
+    agencyLinkId: 'roscosmos',
+    nationality: 'Russia',
+    status: 'ACTIVE',
+    selectionYear: 1996,
+    spacecraftFlown: ['Soyuz'],
+    launchVehiclesFlown: ['Soyuz'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 8, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz TMA-12',
+        launchDate: '2008-04-08',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: null,
+      },
+      {
+        name: 'Soyuz MS-24 / Expedition 70/71',
+        launchDate: '2023-09-15',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'ISS Commander',
+        duration: '374 days',
+        note: 'Surpassed Gennady Padalka to become the person with the most cumulative time in space.',
+      },
+    ],
+  },
+  {
+    id: 'elena-serova',
+    name: 'Elena Serova',
+    agency: 'Roscosmos',
+    agencyLinkId: 'roscosmos',
+    nationality: 'Russia',
+    status: 'RETIRED',
+    selectionYear: 2006,
+    spacecraftFlown: ['Soyuz'],
+    launchVehiclesFlown: ['Soyuz'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz TMA-14M / Expedition 41/42',
+        launchDate: '2014-09-25',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: '167 days',
+        note: 'First Russian woman to visit the ISS.',
+      },
+    ],
+  },
+  {
+    id: 'anna-kikina',
+    name: 'Anna Kikina',
+    agency: 'Roscosmos',
+    agencyLinkId: 'roscosmos',
+    nationality: 'Russia',
+    status: 'ACTIVE',
+    selectionYear: 2012,
+    spacecraftFlown: ['Crew Dragon'],
+    launchVehiclesFlown: ['Falcon 9'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Crew-5 / Expedition 68/69',
+        launchDate: '2022-10-05',
+        spacecraft: 'Crew Dragon',
+        launchVehicle: 'Falcon 9',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: '157 days',
+        note: 'First Russian cosmonaut to fly on a Crew Dragon.',
+      },
+    ],
+  },
 
-  return (
-    <section className="crew-detail">
-      <button type="button" className="crew-back" onClick={onBack}>← BACK TO DATABASE</button>
+  // ---- Additional ESA astronauts ----
+  {
+    id: 'luca-parmitano',
+    name: 'Luca Parmitano',
+    agency: 'European Space Agency',
+    agencyLinkId: 'esa',
+    nationality: 'Italy',
+    status: 'ACTIVE',
+    selectionYear: 2009,
+    spacecraftFlown: ['Soyuz'],
+    launchVehiclesFlown: ['Soyuz'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 4, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz TMA-09M / Expedition 36/37',
+        launchDate: '2013-05-28',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: null,
+      },
+      {
+        name: 'Soyuz MS-13 / Expedition 60/61',
+        launchDate: '2019-07-20',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'ISS Commander (Expedition 61)',
+        duration: null,
+        note: 'First Italian to command the ISS.',
+      },
+    ],
+  },
+  {
+    id: 'alexander-gerst',
+    name: 'Alexander Gerst',
+    agency: 'European Space Agency',
+    agencyLinkId: 'esa',
+    nationality: 'Germany',
+    status: 'ACTIVE',
+    selectionYear: 2009,
+    spacecraftFlown: ['Soyuz'],
+    launchVehiclesFlown: ['Soyuz'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz TMA-13M / Expedition 40/41',
+        launchDate: '2014-05-28',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: null,
+      },
+      {
+        name: 'Soyuz MS-09 / Expedition 56/57',
+        launchDate: '2018-06-06',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'ISS Commander (Expedition 57)',
+        duration: null,
+        note: 'First German to command the ISS.',
+      },
+    ],
+  },
+  {
+    id: 'matthias-maurer',
+    name: 'Matthias Maurer',
+    agency: 'European Space Agency',
+    agencyLinkId: 'esa',
+    nationality: 'Germany',
+    status: 'ACTIVE',
+    selectionYear: 2015,
+    spacecraftFlown: ['Crew Dragon'],
+    launchVehiclesFlown: ['Falcon 9'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 1, totalTime: null },
+    missions: [
+      {
+        name: 'Crew-3 / Expedition 66/67',
+        launchDate: '2021-11-11',
+        spacecraft: 'Crew Dragon',
+        launchVehicle: 'Falcon 9',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: '177 days',
+      },
+    ],
+  },
+  {
+    id: 'andreas-mogensen',
+    name: 'Andreas Mogensen',
+    agency: 'European Space Agency',
+    agencyLinkId: 'esa',
+    nationality: 'Denmark',
+    status: 'ACTIVE',
+    selectionYear: 2009,
+    spacecraftFlown: ['Soyuz', 'Crew Dragon'],
+    launchVehiclesFlown: ['Soyuz', 'Falcon 9'],
+    launchSites: ['Baikonur Cosmodrome', 'Kennedy Space Center'],
+    spacewalks: { count: 1, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz TMA-18M',
+        launchDate: '2015-09-02',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: null,
+        note: 'First Danish astronaut in space.',
+      },
+      {
+        name: 'Crew-7 / Expedition 69/70',
+        launchDate: '2023-08-26',
+        spacecraft: 'Crew Dragon',
+        launchVehicle: 'Falcon 9',
+        launchSite: 'Kennedy Space Center',
+        role: 'ISS Commander (Expedition 70)',
+        duration: '199 days',
+      },
+    ],
+  },
+  {
+    id: 'paolo-nespoli',
+    name: 'Paolo Nespoli',
+    agency: 'European Space Agency',
+    agencyLinkId: 'esa',
+    nationality: 'Italy',
+    status: 'RETIRED',
+    selectionYear: 1998,
+    spacecraftFlown: ['Space Shuttle', 'Soyuz'],
+    launchVehiclesFlown: ['Space Shuttle', 'Soyuz'],
+    launchSites: ['Kennedy Space Center', 'Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'STS-120',
+        launchDate: '2007-10-23',
+        spacecraft: 'Space Shuttle Discovery',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: null,
+      },
+      {
+        name: 'Soyuz TMA-20 / Expedition 26/27',
+        launchDate: '2010-12-15',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: null,
+      },
+      {
+        name: 'Soyuz MS-05 / Expedition 52/53',
+        launchDate: '2017-07-28',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: null,
+      },
+    ],
+  },
 
-      <div className="crew-detail-head">
-        <span className="crew-kicker">{astronaut.status}</span>
-        <h1>{astronaut.name}</h1>
-        <p>{astronaut.nationality}</p>
-      </div>
+  // ---- Additional JAXA astronauts ----
+  {
+    id: 'soichi-noguchi',
+    name: 'Soichi Noguchi',
+    agency: 'JAXA',
+    agencyLinkId: 'jaxa',
+    nationality: 'Japan',
+    status: 'RETIRED',
+    selectionYear: 1996,
+    spacecraftFlown: ['Space Shuttle', 'Soyuz', 'Crew Dragon'],
+    launchVehiclesFlown: ['Space Shuttle', 'Soyuz', 'Falcon 9'],
+    launchSites: ['Kennedy Space Center', 'Baikonur Cosmodrome'],
+    spacewalks: { count: 6, totalTime: null },
+    missions: [
+      {
+        name: 'STS-114',
+        launchDate: '2005-07-26',
+        spacecraft: 'Space Shuttle Discovery',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: null,
+      },
+      {
+        name: 'Soyuz TMA-01M / Expedition 22/23',
+        launchDate: '2009-12-20',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: null,
+      },
+      {
+        name: 'Crew-1 / Expedition 64/65',
+        launchDate: '2020-11-16',
+        spacecraft: 'Crew Dragon',
+        launchVehicle: 'Falcon 9',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: '168 days',
+      },
+    ],
+  },
+  {
+    id: 'satoshi-furukawa',
+    name: 'Satoshi Furukawa',
+    agency: 'JAXA',
+    agencyLinkId: 'jaxa',
+    nationality: 'Japan',
+    status: 'ACTIVE',
+    selectionYear: 1999,
+    spacecraftFlown: ['Soyuz', 'Crew Dragon'],
+    launchVehiclesFlown: ['Soyuz', 'Falcon 9'],
+    launchSites: ['Baikonur Cosmodrome', 'Kennedy Space Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz TMA-02M / Expedition 28/29',
+        launchDate: '2011-06-08',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: null,
+      },
+      {
+        name: 'Crew-7 / Expedition 69/70',
+        launchDate: '2023-08-26',
+        spacecraft: 'Crew Dragon',
+        launchVehicle: 'Falcon 9',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: '199 days',
+      },
+    ],
+  },
+  {
+    id: 'norishige-kanai',
+    name: 'Norishige Kanai',
+    agency: 'JAXA',
+    agencyLinkId: 'jaxa',
+    nationality: 'Japan',
+    status: 'RETIRED',
+    selectionYear: 2009,
+    spacecraftFlown: ['Soyuz'],
+    launchVehiclesFlown: ['Soyuz'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz MS-07 / Expedition 54/55',
+        launchDate: '2017-12-17',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Flight Engineer',
+        duration: null,
+      },
+    ],
+  },
 
-      <div className="crew-detail-grid">
-        <div className="crew-detail-col">
-          <span className="crew-kicker">PROFILE</span>
-          <div className="crew-field-list">
-            <div className="crew-field-row">
-              <span>AGENCY</span>
-              {astronaut.agencyLinkId ? (
-                <a href={`/#agencies`} className="crew-field-link">{astronaut.agency}</a>
-              ) : (
-                <b>{astronaut.agency}</b>
-              )}
-            </div>
-            <div className="crew-field-row"><span>NATIONALITY</span><b>{display(astronaut.nationality)}</b></div>
-            <div className="crew-field-row"><span>STATUS</span><b>{display(astronaut.status)}</b></div>
-            <div className="crew-field-row"><span>SELECTION YEAR</span><b>{display(astronaut.selectionYear)}</b></div>
-            <div className="crew-field-row"><span>FIRST SPACEFLIGHT</span><b>{formatDate(astronaut.missions?.[0]?.launchDate)}</b></div>
-            <div className="crew-field-row"><span>MOST RECENT SPACEFLIGHT</span><b>{formatDate(astronaut.missions?.[astronaut.missions.length - 1]?.launchDate)}</b></div>
-            <div className="crew-field-row"><span>NUMBER OF SPACEFLIGHTS</span><b>{display(astronaut.missions?.length)}</b></div>
-          </div>
+  // ---- Additional CSA astronauts ----
+  {
+    id: 'marc-garneau',
+    name: 'Marc Garneau',
+    agency: 'Canadian Space Agency',
+    agencyLinkId: 'csa',
+    nationality: 'Canada',
+    status: 'RETIRED',
+    selectionYear: 1983,
+    spacecraftFlown: ['Space Shuttle'],
+    launchVehiclesFlown: ['Space Shuttle'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'STS-41-G',
+        launchDate: '1984-10-05',
+        spacecraft: 'Space Shuttle Challenger',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Payload Specialist',
+        duration: null,
+        note: 'First Canadian in space.',
+      },
+    ],
+  },
+  {
+    id: 'julie-payette',
+    name: 'Julie Payette',
+    agency: 'Canadian Space Agency',
+    agencyLinkId: 'csa',
+    nationality: 'Canada',
+    status: 'RETIRED',
+    selectionYear: 1992,
+    spacecraftFlown: ['Space Shuttle'],
+    launchVehiclesFlown: ['Space Shuttle'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'STS-96',
+        launchDate: '1999-05-27',
+        spacecraft: 'Space Shuttle Discovery',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: null,
+      },
+      {
+        name: 'STS-127',
+        launchDate: '2009-07-15',
+        spacecraft: 'Space Shuttle Endeavour',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: null,
+      },
+    ],
+  },
+  {
+    id: 'jeremy-hansen',
+    name: 'Jeremy Hansen',
+    agency: 'Canadian Space Agency',
+    agencyLinkId: 'csa',
+    nationality: 'Canada',
+    status: 'ACTIVE',
+    selectionYear: 2009,
+    spacecraftFlown: ['Orion'],
+    launchVehiclesFlown: [],
+    launchSites: [],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Artemis II',
+        launchDate: null,
+        spacecraft: 'Orion',
+        launchVehicle: 'Space Launch System',
+        launchSite: 'Kennedy Space Center',
+        role: 'Mission Specialist',
+        duration: null,
+        note: 'Assigned to the crewed lunar flyby mission; first Canadian to fly beyond low Earth orbit.',
+      },
+    ],
+  },
 
-          <span className="crew-kicker" style={{ marginTop: '28px' }}>SPACECRAFT FLOWN</span>
-          <div className="crew-tag-list">
-            {(astronaut.spacecraftFlown || []).length > 0
-              ? astronaut.spacecraftFlown.map((s) => <span key={s} className="crew-tag">{s}</span>)
-              : <span className="crew-empty-inline">DATA UNAVAILABLE</span>}
-          </div>
+  // ---- Additional CNSA astronauts ----
+  {
+    id: 'zhai-zhigang',
+    name: 'Zhai Zhigang',
+    agency: 'CNSA',
+    agencyLinkId: 'cnsa',
+    nationality: 'China',
+    status: 'ACTIVE',
+    selectionYear: 1998,
+    spacecraftFlown: ['Shenzhou'],
+    launchVehiclesFlown: ['Long March 2F'],
+    launchSites: ['Jiuquan Satellite Launch Center'],
+    spacewalks: { count: 1, totalTime: null },
+    missions: [
+      {
+        name: 'Shenzhou 7',
+        launchDate: '2008-09-25',
+        spacecraft: 'Shenzhou',
+        launchVehicle: 'Long March 2F',
+        launchSite: 'Jiuquan Satellite Launch Center',
+        role: 'Commander',
+        duration: null,
+        note: 'Performed the first Chinese spacewalk.',
+      },
+      {
+        name: 'Shenzhou 13',
+        launchDate: '2021-10-15',
+        spacecraft: 'Shenzhou',
+        launchVehicle: 'Long March 2F',
+        launchSite: 'Jiuquan Satellite Launch Center',
+        role: 'Commander',
+        duration: '183 days',
+      },
+    ],
+  },
+  {
+    id: 'nie-haisheng',
+    name: 'Nie Haisheng',
+    agency: 'CNSA',
+    agencyLinkId: 'cnsa',
+    nationality: 'China',
+    status: 'RETIRED',
+    selectionYear: 1998,
+    spacecraftFlown: ['Shenzhou'],
+    launchVehiclesFlown: ['Long March 2F'],
+    launchSites: ['Jiuquan Satellite Launch Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Shenzhou 6',
+        launchDate: '2005-10-12',
+        spacecraft: 'Shenzhou',
+        launchVehicle: 'Long March 2F',
+        launchSite: 'Jiuquan Satellite Launch Center',
+        role: 'Mission Specialist',
+        duration: null,
+      },
+      {
+        name: 'Shenzhou 10',
+        launchDate: '2013-06-11',
+        spacecraft: 'Shenzhou',
+        launchVehicle: 'Long March 2F',
+        launchSite: 'Jiuquan Satellite Launch Center',
+        role: 'Commander',
+        duration: null,
+      },
+      {
+        name: 'Shenzhou 12',
+        launchDate: '2021-06-17',
+        spacecraft: 'Shenzhou',
+        launchVehicle: 'Long March 2F',
+        launchSite: 'Jiuquan Satellite Launch Center',
+        role: 'Commander',
+        duration: '92 days',
+        note: 'First crew to occupy the Tiangong space station.',
+      },
+    ],
+  },
+  {
+    id: 'jing-haipeng',
+    name: 'Jing Haipeng',
+    agency: 'CNSA',
+    agencyLinkId: 'cnsa',
+    nationality: 'China',
+    status: 'ACTIVE',
+    selectionYear: 1998,
+    spacecraftFlown: ['Shenzhou'],
+    launchVehiclesFlown: ['Long March 2F'],
+    launchSites: ['Jiuquan Satellite Launch Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Shenzhou 7',
+        launchDate: '2008-09-25',
+        spacecraft: 'Shenzhou',
+        launchVehicle: 'Long March 2F',
+        launchSite: 'Jiuquan Satellite Launch Center',
+        role: 'Mission Specialist',
+        duration: null,
+      },
+      {
+        name: 'Shenzhou 9',
+        launchDate: '2012-06-16',
+        spacecraft: 'Shenzhou',
+        launchVehicle: 'Long March 2F',
+        launchSite: 'Jiuquan Satellite Launch Center',
+        role: 'Commander',
+        duration: null,
+      },
+      {
+        name: 'Shenzhou 11',
+        launchDate: '2016-10-17',
+        spacecraft: 'Shenzhou',
+        launchVehicle: 'Long March 2F',
+        launchSite: 'Jiuquan Satellite Launch Center',
+        role: 'Commander',
+        duration: '33 days',
+      },
+    ],
+  },
 
-          <span className="crew-kicker" style={{ marginTop: '24px' }}>LAUNCH VEHICLES FLOWN</span>
-          <div className="crew-tag-list">
-            {(astronaut.launchVehiclesFlown || []).length > 0 ? (
-              astronaut.launchVehiclesFlown.map((v) => (
-                <a key={v} href="/rocket-database" className="crew-tag crew-tag-link">{v}</a>
-              ))
-            ) : (
-              <span className="crew-empty-inline">DATA UNAVAILABLE</span>
-            )}
-          </div>
+  // ---- India (Gaganyaan programme and Axiom Mission 4) ----
+  {
+    id: 'shubhanshu-shukla',
+    name: 'Shubhanshu Shukla',
+    agency: 'ISRO',
+    agencyLinkId: null,
+    nationality: 'India',
+    status: 'ACTIVE',
+    selectionYear: 2019,
+    spacecraftFlown: ['Crew Dragon'],
+    launchVehiclesFlown: ['Falcon 9'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Axiom Mission 4',
+        launchDate: '2025-06-25',
+        spacecraft: 'Crew Dragon',
+        launchVehicle: 'Falcon 9',
+        launchSite: 'Kennedy Space Center',
+        role: 'Pilot',
+        duration: null,
+        note: 'Second Indian citizen in space, and the first to visit the ISS.',
+      },
+    ],
+  },
 
-          <span className="crew-kicker" style={{ marginTop: '24px' }}>LAUNCH SITES</span>
-          <div className="crew-tag-list">
-            {(astronaut.launchSites || []).length > 0
-              ? astronaut.launchSites.map((s) => <span key={s} className="crew-tag">{s}</span>)
-              : <span className="crew-empty-inline">DATA UNAVAILABLE</span>}
-          </div>
+  // --- Added: Mercury/Gemini/Apollo-era NASA astronauts, Soviet cosmonauts,
+  // and international "first" astronauts not previously in the dataset.
+  // Sourced from agency biographies and mission records (NASA, ESA, Roscosmos,
+  // Britannica, Wikipedia mission infoboxes). Missions/dates/durations verified
+  // before entry; nothing here is invented.
 
-          <span className="crew-kicker" style={{ marginTop: '24px' }}>SPACEWALK HISTORY</span>
-          {hasSpacewalks ? (
-            <div className="crew-field-list">
-              <div className="crew-field-row"><span>NUMBER OF EVAS</span><b>{spacewalks.count}</b></div>
-              <div className="crew-field-row"><span>TOTAL EVA TIME</span><b>{display(spacewalks.totalTime)}</b></div>
-            </div>
-          ) : (
-            <div className="crew-empty-inline" style={{ marginTop: '8px' }}>NO RECORDED SPACEWALKS</div>
-          )}
-        </div>
+  {
+    id: 'wally-schirra',
+    name: 'Wally Schirra',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'DECEASED',
+    selectionYear: 1959,
+    spacecraftFlown: ['Mercury', 'Gemini', 'Apollo CSM'],
+    launchVehiclesFlown: ['Atlas LV-3B', 'Titan II GLV', 'Saturn IB'],
+    launchSites: ['Cape Canaveral', 'Kennedy Space Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Mercury-Atlas 8 (Sigma 7)',
+        launchDate: '1962-10-03',
+        spacecraft: 'Mercury',
+        launchVehicle: 'Atlas LV-3B',
+        launchSite: 'Cape Canaveral',
+        role: 'Pilot',
+        duration: '9 hours 13 minutes',
+        note: 'Sixth crewed Mercury flight, testing spacecraft systems over six orbits.',
+      },
+      {
+        name: 'Gemini 6A',
+        launchDate: '1965-12-15',
+        spacecraft: 'Gemini',
+        launchVehicle: 'Titan II GLV',
+        launchSite: 'Cape Kennedy',
+        role: 'Command Pilot',
+        duration: '25 hours 51 minutes',
+        note: 'First rendezvous between two crewed spacecraft, station-keeping with Gemini 7.',
+      },
+      {
+        name: 'Apollo 7',
+        launchDate: '1968-10-11',
+        spacecraft: 'Apollo CSM',
+        launchVehicle: 'Saturn IB',
+        launchSite: 'Kennedy Space Center',
+        role: 'Commander',
+        duration: '10 days 20 hours 9 minutes',
+        note: 'First crewed Apollo flight, qualifying the Command/Service Module in Earth orbit.',
+      },
+    ],
+  },
+  {
+    id: 'gordon-cooper',
+    name: 'Gordon Cooper',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'DECEASED',
+    selectionYear: 1959,
+    spacecraftFlown: ['Mercury', 'Gemini'],
+    launchVehiclesFlown: ['Atlas LV-3B', 'Titan II GLV'],
+    launchSites: ['Cape Canaveral', 'Cape Kennedy'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Mercury-Atlas 9 (Faith 7)',
+        launchDate: '1963-05-15',
+        spacecraft: 'Mercury',
+        launchVehicle: 'Atlas LV-3B',
+        launchSite: 'Cape Canaveral',
+        role: 'Pilot',
+        duration: '34 hours 19 minutes',
+        note: 'Final and longest crewed Mercury flight, completing 22 orbits.',
+      },
+      {
+        name: 'Gemini 5',
+        launchDate: '1965-08-21',
+        spacecraft: 'Gemini',
+        launchVehicle: 'Titan II GLV',
+        launchSite: 'Cape Kennedy',
+        role: 'Command Pilot',
+        duration: '7 days 22 hours 55 minutes',
+        note: 'Set a new spaceflight endurance record with pilot Pete Conrad.',
+      },
+    ],
+  },
+  {
+    id: 'scott-carpenter',
+    name: 'Scott Carpenter',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'DECEASED',
+    selectionYear: 1959,
+    spacecraftFlown: ['Mercury'],
+    launchVehiclesFlown: ['Atlas LV-3B'],
+    launchSites: ['Cape Canaveral'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Mercury-Atlas 7 (Aurora 7)',
+        launchDate: '1962-05-24',
+        spacecraft: 'Mercury',
+        launchVehicle: 'Atlas LV-3B',
+        launchSite: 'Cape Canaveral',
+        role: 'Pilot',
+        duration: '4 hours 56 minutes',
+        note: 'Second American to orbit Earth, completing three orbits.',
+      },
+    ],
+  },
+  {
+    id: 'deke-slayton',
+    name: 'Deke Slayton',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'DECEASED',
+    selectionYear: 1959,
+    spacecraftFlown: ['Apollo CSM'],
+    launchVehiclesFlown: ['Saturn IB'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Apollo–Soyuz Test Project',
+        launchDate: '1975-07-15',
+        spacecraft: 'Apollo CSM',
+        launchVehicle: 'Saturn IB',
+        launchSite: 'Kennedy Space Center',
+        role: 'Docking Module Pilot',
+        duration: '9 days 1 hour 28 minutes',
+        note: 'Original Mercury Seven member grounded for over a decade by a heart condition; flew this joint US–Soviet docking mission at age 51.',
+      },
+    ],
+  },
+  {
+    id: 'gus-grissom',
+    name: 'Gus Grissom',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'DECEASED',
+    selectionYear: 1959,
+    spacecraftFlown: ['Mercury', 'Gemini'],
+    launchVehiclesFlown: ['Redstone', 'Titan II GLV'],
+    launchSites: ['Cape Canaveral', 'Cape Kennedy'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Mercury-Redstone 4 (Liberty Bell 7)',
+        launchDate: '1961-07-21',
+        spacecraft: 'Mercury',
+        launchVehicle: 'Redstone',
+        launchSite: 'Cape Canaveral',
+        role: 'Pilot',
+        duration: '15 minutes 37 seconds',
+        note: 'Second American in space on a suborbital flight; the capsule sank shortly after splashdown.',
+      },
+      {
+        name: 'Gemini 3',
+        launchDate: '1965-03-23',
+        spacecraft: 'Gemini',
+        launchVehicle: 'Titan II GLV',
+        launchSite: 'Cape Kennedy',
+        role: 'Command Pilot',
+        duration: '4 hours 53 minutes',
+        note: 'First crewed Gemini flight; first spacecraft to maneuver into a different orbit.',
+      },
+    ],
+  },
+  {
+    id: 'ed-white',
+    name: 'Ed White',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'DECEASED',
+    selectionYear: 1962,
+    spacecraftFlown: ['Gemini'],
+    launchVehiclesFlown: ['Titan II GLV'],
+    launchSites: ['Cape Kennedy'],
+    spacewalks: { count: 1, totalTime: '36 minutes' },
+    missions: [
+      {
+        name: 'Gemini 4',
+        launchDate: '1965-06-03',
+        spacecraft: 'Gemini',
+        launchVehicle: 'Titan II GLV',
+        launchSite: 'Cape Kennedy',
+        role: 'Pilot',
+        duration: '4 days 1 hour 56 minutes',
+        note: 'Performed the first spacewalk by a NASA astronaut.',
+      },
+    ],
+  },
+  {
+    id: 'john-young',
+    name: 'John Young',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'DECEASED',
+    selectionYear: 1962,
+    spacecraftFlown: ['Gemini', 'Apollo CSM', 'Apollo LM', 'Space Shuttle'],
+    launchVehiclesFlown: ['Titan II GLV', 'Saturn V', 'Space Shuttle'],
+    launchSites: ['Cape Kennedy', 'Kennedy Space Center'],
+    spacewalks: { count: 3, totalTime: '20 hours 14 minutes' },
+    missions: [
+      {
+        name: 'Gemini 3',
+        launchDate: '1965-03-23',
+        spacecraft: 'Gemini',
+        launchVehicle: 'Titan II GLV',
+        launchSite: 'Cape Kennedy',
+        role: 'Pilot',
+        duration: '4 hours 53 minutes',
+        note: 'First crewed Gemini flight, with Command Pilot Gus Grissom.',
+      },
+      {
+        name: 'Gemini 10',
+        launchDate: '1966-07-18',
+        spacecraft: 'Gemini',
+        launchVehicle: 'Titan II GLV',
+        launchSite: 'Cape Kennedy',
+        role: 'Command Pilot',
+        duration: '2 days 22 hours 46 minutes',
+        note: 'Performed a dual rendezvous with two separate Agena target vehicles.',
+      },
+      {
+        name: 'Apollo 10',
+        launchDate: '1969-05-18',
+        spacecraft: 'Apollo CSM',
+        launchVehicle: 'Saturn V',
+        launchSite: 'Kennedy Space Center',
+        role: 'Command Module Pilot',
+        duration: '8 days 3 minutes',
+        note: 'Dress rehearsal for the first Moon landing; Young became the first person to orbit the Moon alone.',
+      },
+      {
+        name: 'Apollo 16',
+        launchDate: '1972-04-16',
+        spacecraft: 'Apollo LM',
+        launchVehicle: 'Saturn V',
+        launchSite: 'Kennedy Space Center',
+        role: 'Commander',
+        duration: '11 days 1 hour 51 minutes',
+        note: 'Fifth crewed Moon landing; explored the Descartes Highlands with Charles Duke.',
+      },
+      {
+        name: 'STS-1',
+        launchDate: '1981-04-12',
+        spacecraft: 'Space Shuttle Columbia',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Commander',
+        duration: '2 days 6 hours 20 minutes',
+        note: 'First flight of the Space Shuttle program.',
+      },
+      {
+        name: 'STS-9',
+        launchDate: '1983-11-28',
+        spacecraft: 'Space Shuttle Columbia',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Commander',
+        duration: '10 days 7 hours 47 minutes',
+        note: 'First flight of the ESA-built Spacelab module; Young became the first person to fly in space six times.',
+      },
+    ],
+  },
+  {
+    id: 'david-scott',
+    name: 'David Scott',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'RETIRED',
+    selectionYear: 1963,
+    spacecraftFlown: ['Gemini', 'Apollo CSM', 'Apollo LM'],
+    launchVehiclesFlown: ['Titan II GLV', 'Saturn V'],
+    launchSites: ['Cape Kennedy', 'Kennedy Space Center'],
+    spacewalks: { count: 5, totalTime: '20 hours 46 minutes' },
+    missions: [
+      {
+        name: 'Gemini 8',
+        launchDate: '1966-03-16',
+        spacecraft: 'Gemini',
+        launchVehicle: 'Titan II GLV',
+        launchSite: 'Cape Kennedy',
+        role: 'Pilot',
+        duration: '10 hours 41 minutes',
+        note: 'First docking of two spacecraft in orbit; mission was cut short after a thruster malfunction caused a dangerous spin.',
+      },
+      {
+        name: 'Apollo 9',
+        launchDate: '1969-03-03',
+        spacecraft: 'Apollo CSM',
+        launchVehicle: 'Saturn V',
+        launchSite: 'Kennedy Space Center',
+        role: 'Command Module Pilot',
+        duration: '10 days 1 hour',
+        note: 'First crewed test of the Apollo Lunar Module, flown in Earth orbit.',
+      },
+      {
+        name: 'Apollo 15',
+        launchDate: '1971-07-26',
+        spacecraft: 'Apollo LM',
+        launchVehicle: 'Saturn V',
+        launchSite: 'Kennedy Space Center',
+        role: 'Commander',
+        duration: '12 days 7 hours 12 minutes',
+        note: 'Fourth Moon landing and first "J mission"; Scott became the seventh person to walk on the Moon and the first to drive the Lunar Roving Vehicle.',
+      },
+    ],
+  },
+  {
+    id: 'charles-duke',
+    name: 'Charles Duke',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'RETIRED',
+    selectionYear: 1966,
+    spacecraftFlown: ['Apollo LM'],
+    launchVehiclesFlown: ['Saturn V'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 3, totalTime: '21 hours 38 minutes' },
+    missions: [
+      {
+        name: 'Apollo 16',
+        launchDate: '1972-04-16',
+        spacecraft: 'Apollo LM',
+        launchVehicle: 'Saturn V',
+        launchSite: 'Kennedy Space Center',
+        role: 'Lunar Module Pilot',
+        duration: '11 days 1 hour 51 minutes',
+        note: 'Became the tenth and youngest person to walk on the Moon, exploring the Descartes Highlands.',
+      },
+    ],
+  },
+  {
+    id: 'harrison-schmitt',
+    name: 'Harrison Schmitt',
+    agency: 'NASA',
+    agencyLinkId: 'nasa',
+    nationality: 'United States',
+    status: 'RETIRED',
+    selectionYear: 1965,
+    spacecraftFlown: ['Apollo LM'],
+    launchVehiclesFlown: ['Saturn V'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 3, totalTime: '22 hours 3 minutes' },
+    missions: [
+      {
+        name: 'Apollo 17',
+        launchDate: '1972-12-07',
+        spacecraft: 'Apollo LM',
+        launchVehicle: 'Saturn V',
+        launchSite: 'Kennedy Space Center',
+        role: 'Lunar Module Pilot',
+        duration: '12 days 13 hours 52 minutes',
+        note: 'Final crewed Moon landing; the only professional geologist to walk on the lunar surface.',
+      },
+    ],
+  },
+  {
+    id: 'vladimir-komarov',
+    name: 'Vladimir Komarov',
+    agency: 'Soviet Space Programme',
+    agencyLinkId: 'roscosmos',
+    nationality: 'Soviet Union',
+    status: 'DECEASED',
+    selectionYear: 1960,
+    spacecraftFlown: ['Voskhod', 'Soyuz'],
+    launchVehiclesFlown: ['Voskhod rocket', 'Soyuz rocket'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Voskhod 1',
+        launchDate: '1964-10-12',
+        spacecraft: 'Voskhod',
+        launchVehicle: 'Voskhod rocket',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Commander',
+        duration: '1 day 17 minutes',
+        note: 'First spaceflight to carry more than one crew member.',
+      },
+      {
+        name: 'Soyuz 1',
+        launchDate: '1967-04-23',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz rocket',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Commander',
+        duration: '1 day 2 hours 48 minutes',
+        note: "First crewed flight of the Soyuz spacecraft; Komarov was killed when the descent module's parachute failed, the first in-flight fatality in spaceflight history.",
+      },
+    ],
+  },
+  {
+    id: 'toktar-aubakirov',
+    name: 'Toktar Aubakirov',
+    agency: 'Soviet Space Programme',
+    agencyLinkId: 'roscosmos',
+    nationality: 'Kazakhstan',
+    status: 'RETIRED',
+    selectionYear: 1990,
+    spacecraftFlown: ['Soyuz'],
+    launchVehiclesFlown: ['Soyuz-U2'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz TM-13',
+        launchDate: '1991-10-02',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz-U2',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Research Cosmonaut',
+        duration: '8 days',
+        note: 'First person of Kazakh nationality in space; visited the Mir space station.',
+      },
+    ],
+  },
+  {
+    id: 'helen-sharman',
+    name: 'Helen Sharman',
+    agency: 'Project Juno (British–Soviet mission)',
+    nationality: 'United Kingdom',
+    status: 'RETIRED',
+    selectionYear: 1989,
+    spacecraftFlown: ['Soyuz'],
+    launchVehiclesFlown: ['Soyuz-U2'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz TM-12',
+        launchDate: '1991-05-18',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz-U2',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Research Cosmonaut',
+        duration: '7 days 21 hours 13 minutes',
+        note: 'First Briton in space; flew to the Mir space station under the privately funded Project Juno, returning aboard Soyuz TM-11.',
+      },
+    ],
+  },
+  {
+    id: 'ulf-merbold',
+    name: 'Ulf Merbold',
+    agency: 'European Space Agency',
+    agencyLinkId: 'esa',
+    nationality: 'Germany',
+    status: 'RETIRED',
+    selectionYear: 1978,
+    spacecraftFlown: ['Space Shuttle'],
+    launchVehiclesFlown: ['Space Shuttle'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'STS-9',
+        launchDate: '1983-11-28',
+        spacecraft: 'Space Shuttle Columbia',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Payload Specialist',
+        duration: '10 days 7 hours 47 minutes',
+        note: 'First ESA astronaut to fly to space, and the first non-American to fly aboard a NASA spacecraft, on the maiden Spacelab mission.',
+      },
+    ],
+  },
+  {
+    id: 'jean-loup-chretien',
+    name: 'Jean-Loup Chrétien',
+    agency: 'CNES',
+    agencyLinkId: 'cnes',
+    nationality: 'France',
+    status: 'RETIRED',
+    selectionYear: 1980,
+    spacecraftFlown: ['Soyuz'],
+    launchVehiclesFlown: ['Soyuz-U'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz T-6',
+        launchDate: '1982-06-24',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz-U',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Research Cosmonaut',
+        duration: '7 days 21 hours 50 minutes',
+        note: 'First French citizen in space and first Western European to fly to the Salyut 7 space station.',
+      },
+    ],
+  },
+  {
+    id: 'vladimir-remek',
+    name: 'Vladimír Remek',
+    agency: 'Intercosmos (Soviet–Czechoslovak mission)',
+    nationality: 'Czechoslovakia',
+    status: 'RETIRED',
+    selectionYear: 1976,
+    spacecraftFlown: ['Soyuz'],
+    launchVehiclesFlown: ['Soyuz-U'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz 28',
+        launchDate: '1978-03-02',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz-U',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Research Cosmonaut',
+        duration: '7 days 22 hours 16 minutes',
+        note: 'First person in space who was not a citizen of the United States or the Soviet Union; visited the Salyut 6 space station.',
+      },
+    ],
+  },
+  {
+    id: 'miroslaw-hermaszewski',
+    name: 'Mirosław Hermaszewski',
+    agency: 'Intercosmos (Soviet–Polish mission)',
+    nationality: 'Poland',
+    status: 'DECEASED',
+    selectionYear: 1976,
+    spacecraftFlown: ['Soyuz'],
+    launchVehiclesFlown: ['Soyuz-U'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz 30',
+        launchDate: '1978-06-27',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz-U',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Research Cosmonaut',
+        duration: '7 days 22 hours 2 minutes',
+        note: 'First and, to date, only Polish citizen in space; visited the Salyut 6 space station.',
+      },
+    ],
+  },
+  {
+    id: 'arnaldo-tamayo-mendez',
+    name: 'Arnaldo Tamayo Méndez',
+    agency: 'Intercosmos (Soviet–Cuban mission)',
+    nationality: 'Cuba',
+    status: 'RETIRED',
+    selectionYear: 1978,
+    spacecraftFlown: ['Soyuz'],
+    launchVehiclesFlown: ['Soyuz-U'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz 38',
+        launchDate: '1980-09-18',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz-U',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Research Cosmonaut',
+        duration: '7 days 20 hours 43 minutes',
+        note: 'First Cuban, first Latin American, and first person of African descent in space; visited the Salyut 6 space station.',
+      },
+    ],
+  },
+  {
+    id: 'pham-tuan',
+    name: 'Phạm Tuân',
+    agency: 'Intercosmos (Soviet–Vietnamese mission)',
+    nationality: 'Vietnam',
+    status: 'RETIRED',
+    selectionYear: 1979,
+    spacecraftFlown: ['Soyuz'],
+    launchVehiclesFlown: ['Soyuz-U'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz 37',
+        launchDate: '1980-07-23',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz-U',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Research Cosmonaut',
+        duration: '7 days 20 hours 42 minutes',
+        note: 'First Vietnamese citizen and first Asian in space; visited the Salyut 6 space station, returning aboard Soyuz 36.',
+      },
+    ],
+  },
+  {
+    id: 'sultan-bin-salman',
+    name: 'Sultan bin Salman Al Saud',
+    agency: 'Royal Saudi Air Force / ARABSAT',
+    nationality: 'Saudi Arabia',
+    status: 'RETIRED',
+    selectionYear: 1985,
+    spacecraftFlown: ['Space Shuttle'],
+    launchVehiclesFlown: ['Space Shuttle'],
+    launchSites: ['Kennedy Space Center'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'STS-51-G',
+        launchDate: '1985-06-17',
+        spacecraft: 'Space Shuttle Discovery',
+        launchVehicle: 'Space Shuttle',
+        launchSite: 'Kennedy Space Center',
+        role: 'Payload Specialist',
+        duration: '7 days 1 hour 39 minutes',
+        note: 'First Arab, first Muslim, and first member of a royal family in space; helped deploy the ARABSAT-1B satellite.',
+      },
+    ],
+  },
+  {
+    id: 'hazza-al-mansouri',
+    name: 'Hazza Al Mansouri',
+    agency: 'Mohammed Bin Rashid Space Centre (MBRSC)',
+    nationality: 'United Arab Emirates',
+    status: 'ACTIVE',
+    selectionYear: 2018,
+    spacecraftFlown: ['Soyuz'],
+    launchVehiclesFlown: ['Soyuz-FG'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz MS-15',
+        launchDate: '2019-09-25',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz-FG',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Spaceflight Participant',
+        duration: '8 days',
+        note: 'First Emirati citizen in space; visited the International Space Station.',
+      },
+    ],
+  },
+  {
+    id: 'yi-so-yeon',
+    name: 'Yi So-yeon',
+    agency: 'Korea Aerospace Research Institute (KARI)',
+    nationality: 'South Korea',
+    status: 'RETIRED',
+    selectionYear: 2006,
+    spacecraftFlown: ['Soyuz'],
+    launchVehiclesFlown: ['Soyuz-FG'],
+    launchSites: ['Baikonur Cosmodrome'],
+    spacewalks: { count: 0, totalTime: null },
+    missions: [
+      {
+        name: 'Soyuz TMA-12',
+        launchDate: '2008-04-08',
+        spacecraft: 'Soyuz',
+        launchVehicle: 'Soyuz-FG',
+        launchSite: 'Baikonur Cosmodrome',
+        role: 'Spaceflight Participant',
+        duration: '10 days 21 hours 13 minutes',
+        note: 'First South Korean citizen in space; visited the International Space Station, returning aboard Soyuz TMA-11.',
+      },
+    ],
+  },
 
-        <div className="crew-detail-col">
-          <span className="crew-kicker">MISSION HISTORY</span>
-          <div className="crew-mission-list">
-            {(astronaut.missions || []).map((m) => (
-              <div className="crew-mission" key={m.name + m.launchDate}>
-                <div className="crew-mission-head">
-                  <h4>{m.name}</h4>
-                  <span>{formatDate(m.launchDate)}</span>
-                </div>
-                <div className="crew-mission-fields">
-                  <div><span>SPACECRAFT</span><b>{display(m.spacecraft)}</b></div>
-                  <div><span>LAUNCH VEHICLE</span><b>{display(m.launchVehicle)}</b></div>
-                  <div><span>LAUNCH SITE</span><b>{display(m.launchSite)}</b></div>
-                  <div><span>ROLE</span><b>{display(m.role)}</b></div>
-                  <div><span>DURATION</span><b>{display(m.duration)}</b></div>
-                </div>
-                {m.note && <p className="crew-mission-note">{m.note}</p>}
-              </div>
-            ))}
-          </div>
-
-          <a href="/#launches" className="crew-related-link" style={{ marginTop: '20px', display: 'inline-block' }}>
-            VIEW MISSION DATABASE →
-          </a>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-export default function AstronautDatabase() {
-  const [entered, setEntered] = useState(false);
-  const [showIntro, setShowIntro] = useState(true);
-  const [query, setQuery] = useState('');
-  const [activeAgency, setActiveAgency] = useState('ALL');
-  const [activeNationality, setActiveNationality] = useState('ALL');
-  const [activeStatus, setActiveStatus] = useState('ALL');
-  const [activeSpacecraft, setActiveSpacecraft] = useState('ALL');
-  const [sortBy, setSortBy] = useState('name');
-  const [selectedId, setSelectedId] = useState(null);
-
-  useEffect(() => {
-    const shrinkTimer = setTimeout(() => {
-      setShowIntro(false);
-      setEntered(true);
-    }, ENTER_DELAY_MS);
-    return () => clearTimeout(shrinkTimer);
-  }, []);
-
-  // Deep link from Global Search: /astronaut-database?id=<astronaut-id>
-  // opens straight to that astronaut's profile instead of the full list.
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const id = new URLSearchParams(window.location.search).get('id');
-    if (id) setSelectedId(id);
-  }, []);
-
-  const stats = useMemo(() => computeStats(ASTRONAUTS), []);
-  const agencyOptions = useMemo(() => uniqueValues(ASTRONAUTS, 'agency'), []);
-  const nationalityOptions = useMemo(() => uniqueValues(ASTRONAUTS, 'nationality'), []);
-  const spacecraftOptions = useMemo(() => uniqueSpacecraft(ASTRONAUTS), []);
-
-  const results = useMemo(() => {
-    const filtered = filterAstronauts(ASTRONAUTS, {
-      agency: activeAgency,
-      nationality: activeNationality,
-      status: activeStatus,
-      spacecraft: activeSpacecraft,
-    });
-    const searched = searchAstronauts(filtered, query);
-    return sortAstronauts(searched, sortBy);
-  }, [query, activeAgency, activeNationality, activeStatus, activeSpacecraft, sortBy]);
-
-  const selectedAstronaut = useMemo(
-    () => ASTRONAUTS.find((a) => a.id === selectedId) || null,
-    [selectedId]
-  );
-
-  return (
-    <main className="crew-page">
-      <CelestialBackground />
-
-      <header className="crew-header">
-        <div className="crew-brand-slot">
-          <button
-            type="button"
-            className="crew-brand-link"
-            onClick={() => { if (entered) window.location.href = '/'; }}
-            style={{ pointerEvents: entered ? 'auto' : 'none' }}
-          >
-            <motion.span
-              layoutId="crew-brand"
-              transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
-              className="crew-brand-text"
-            >
-              SPACETEC
-            </motion.span>
-          </button>
-        </div>
-        <div className="crew-header-status" style={{ opacity: entered ? 1 : 0, transition: 'opacity 0.6s ease' }}>
-          DATABASE ONLINE
-        </div>
-      </header>
-
-      <AnimatePresence>
-        {showIntro && (
-          <motion.div
-            key="crew-intro"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            style={{
-              position: 'fixed', inset: 0, zIndex: 9999,
-              display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
-              backgroundColor: '#000000', padding: '2rem',
-            }}
-          >
-            <motion.div
-              layoutId="crew-brand"
-              transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
-              initial={{ scale: 0.9, letterSpacing: '0.12em' }}
-              animate={{ scale: 1, letterSpacing: '0.22em' }}
-            >
-              <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff' }}>
-                SPACETEC
-              </h1>
-            </motion.div>
-            <motion.p
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
-              style={{ fontSize: 'calc(0.7rem + 0.3vw)', letterSpacing: '12px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '500' }}
-            >
-              INDEXING FLIGHT CREW RECORDS...
-            </motion.p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="crew-content">
-        {selectedAstronaut ? (
-          <DetailView astronaut={selectedAstronaut} onBack={() => setSelectedId(null)} />
-        ) : (
-          <>
-            <section className="crew-hero">
-              <span className="crew-kicker">SPACETEC DATABASE</span>
-              <h1>ASTRONAUT DATABASE</h1>
-              <p>SpaceTec&apos;s searchable index of astronauts and spaceflight crew from major space agencies and human-spaceflight programs, past and present.</p>
-
-              <div className="crew-stats">
-                <div className="crew-stat"><b>{stats.TOTAL}</b><span>TOTAL ASTRONAUTS</span></div>
-                <div className="crew-stat"><b>{stats.ACTIVE}</b><span>ACTIVE</span></div>
-                <div className="crew-stat"><b>{stats.RETIRED}</b><span>RETIRED</span></div>
-                <div className="crew-stat"><b>{stats.AGENCIES}</b><span>AGENCIES</span></div>
-                <div className="crew-stat"><b>{stats.COUNTRIES}</b><span>COUNTRIES</span></div>
-                <div className="crew-stat"><b>{stats.SPACEFLIGHTS}</b><span>SPACEFLIGHTS</span></div>
-              </div>
-            </section>
-
-            <section className="crew-controls">
-              <input
-                type="text"
-                className="crew-search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search astronauts..."
-              />
-
-              <div className="crew-filter-row">
-                <select value={activeAgency} onChange={(e) => setActiveAgency(e.target.value)}>
-                  <option value="ALL">ALL AGENCIES</option>
-                  {agencyOptions.map((a) => <option key={a} value={a}>{a}</option>)}
-                </select>
-                <select value={activeNationality} onChange={(e) => setActiveNationality(e.target.value)}>
-                  <option value="ALL">ALL COUNTRIES</option>
-                  {nationalityOptions.map((n) => <option key={n} value={n}>{n}</option>)}
-                </select>
-                <select value={activeStatus} onChange={(e) => setActiveStatus(e.target.value)}>
-                  <option value="ALL">ALL STATUSES</option>
-                  {STATUS_VALUES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <select value={activeSpacecraft} onChange={(e) => setActiveSpacecraft(e.target.value)}>
-                  <option value="ALL">ALL SPACECRAFT</option>
-                  {spacecraftOptions.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                  <option value="name">SORT: NAME</option>
-                  <option value="firstFlight">SORT: FIRST FLIGHT</option>
-                  <option value="missions">SORT: MISSIONS</option>
-                  <option value="agency">SORT: AGENCY</option>
-                </select>
-              </div>
-            </section>
-
-            <section className="crew-grid-section">
-              {results.length === 0 ? (
-                <div className="crew-empty">NO ASTRONAUTS MATCH THIS QUERY</div>
-              ) : (
-                <div className="crew-grid">
-                  {results.map((a) => (
-                    <AstronautCard key={a.id} astronaut={a} onSelect={setSelectedId} />
-                  ))}
-                </div>
-              )}
-            </section>
-          </>
-        )}
-      </div>
-
-      <style jsx global>{`
-        .crew-page {
-          min-height: 100vh;
-          width: 100%;
-          background: #000000;
-          color: #fff;
-          font-family: 'Space Grotesk', sans-serif;
-        }
-
-        .crew-header {
-          position: sticky;
-          top: 0;
-          z-index: 20;
-          height: 68px;
-          padding: 0 30px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          background: rgba(0, 0, 0, 0.85);
-          backdrop-filter: blur(16px);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .crew-brand-link { background: none; border: none; cursor: pointer; padding: 0; }
-        .crew-brand-text { display: inline-block; color: #fff; font-weight: 800; font-size: 1rem; letter-spacing: 3px; text-transform: uppercase; }
-        .crew-header-status { color: #64748b; font: 600 0.58rem/1 monospace; letter-spacing: 2px; }
-
-        .crew-content { position: relative; z-index: 5; max-width: 1240px; margin: 0 auto; padding: 60px 30px 90px; }
-
-        .crew-kicker { display: block; color: #64748b; font: 700 0.62rem/1.4 monospace; letter-spacing: 2.5px; text-transform: uppercase; margin-bottom: 10px; }
-
-        .crew-hero { border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 32px; margin-bottom: 32px; }
-        .crew-hero h1 { margin: 10px 0 18px; color: #f8fafc; font: 800 3.4rem/0.95 'Space Grotesk', sans-serif; letter-spacing: -2px; }
-        .crew-hero p { max-width: 720px; color: #a1a1aa; font-size: 0.95rem; line-height: 1.6; }
-
-        .crew-stats { display: flex; flex-wrap: wrap; gap: 28px; margin-top: 28px; }
-        .crew-stat { display: flex; flex-direction: column; }
-        .crew-stat b { color: #38bdf8; font: 800 1.6rem/1 'Space Grotesk', sans-serif; }
-        .crew-stat span { color: #64748b; font: 700 0.58rem/1.6 monospace; letter-spacing: 1.5px; }
-
-        .crew-controls { margin-bottom: 32px; }
-        .crew-search {
-          width: 100%; max-width: 480px; background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(255, 255, 255, 0.12); color: #fff; padding: 11px 14px;
-          font: 500 0.85rem 'Space Grotesk', sans-serif; letter-spacing: 0.4px; margin-bottom: 16px; display: block;
-        }
-        .crew-search::placeholder { color: #52525b; }
-        .crew-search:focus { outline: none; border-color: rgba(56, 189, 248, 0.5); }
-
-        .crew-filter-row { display: flex; gap: 12px; flex-wrap: wrap; }
-        .crew-filter-row select {
-          background: #000; border: 1px solid rgba(255, 255, 255, 0.12); color: #d4d4d8;
-          padding: 8px 12px; font: 700 0.62rem/1 monospace; letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer;
-        }
-
-        .crew-grid-section { border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 24px; }
-
-        .crew-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.08); }
-
-        .crew-card {
-          background: #000; text-align: left; border: none; color: #fff; padding: 22px;
-          display: flex; flex-direction: column; cursor: pointer; font-family: inherit;
-        }
-        .crew-card:hover { background: rgba(255, 255, 255, 0.03); }
-
-        .crew-card-meta { display: flex; justify-content: space-between; align-items: center; font: 700 0.58rem/1 monospace; letter-spacing: 1.5px; margin-bottom: 10px; }
-        .crew-status { color: #38bdf8; }
-        .crew-status[data-status='DECEASED'] { color: #64748b; }
-        .crew-agency { color: #64748b; }
-
-        .crew-card-name { margin: 0 0 8px; color: #f8fafc; font: 700 1.1rem/1.3 'Space Grotesk', sans-serif; }
-        .crew-card-desc { color: #a1a1aa; font-size: 0.8rem; line-height: 1.55; margin: 0 0 16px; flex: 1; }
-
-        .crew-card-footer { display: flex; justify-content: space-between; border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 12px; color: #64748b; font: 700 0.58rem/1 monospace; letter-spacing: 1px; }
-        .crew-card-arrow { color: #38bdf8; }
-
-        .crew-empty { padding: 40px 0; color: #52525b; font: 700 0.75rem/1 monospace; letter-spacing: 1.5px; text-align: center; border: 1px dashed rgba(255, 255, 255, 0.08); }
-
-        .crew-back { background: none; border: none; color: #64748b; font: 700 0.62rem/1 monospace; letter-spacing: 1.5px; cursor: pointer; padding: 0; margin-bottom: 28px; }
-        .crew-back:hover { color: #fff; }
-
-        .crew-detail-head { border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 28px; margin-bottom: 32px; }
-        .crew-detail-head h1 { margin: 10px 0 14px; color: #f8fafc; font: 800 2.6rem/1 'Space Grotesk', sans-serif; letter-spacing: -1px; }
-        .crew-detail-head p { max-width: 720px; color: #a1a1aa; font-size: 0.9rem; line-height: 1.6; }
-
-        .crew-detail-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 40px; }
-
-        .crew-field-list { border-top: 1px solid rgba(255, 255, 255, 0.08); }
-        .crew-field-row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); font: 600 0.65rem/1.3 monospace; letter-spacing: 1px; color: #64748b; }
-        .crew-field-row b { color: #dbe4ef; font-size: 0.72rem; text-align: right; }
-        .crew-field-link { color: #38bdf8; text-decoration: none; font-size: 0.72rem; font-weight: 700; }
-        .crew-field-link:hover { text-decoration: underline; }
-
-        .crew-tag-list { display: flex; flex-wrap: wrap; gap: 8px; }
-        .crew-tag {
-          display: inline-block; color: #d4d4d8; border: 1px solid rgba(255, 255, 255, 0.14);
-          padding: 6px 10px; font: 700 0.6rem/1 monospace; letter-spacing: 1px; text-decoration: none;
-        }
-        .crew-tag-link { color: #38bdf8; border-color: rgba(56, 189, 248, 0.3); }
-        .crew-tag-link:hover { border-color: rgba(56, 189, 248, 0.7); }
-        .crew-empty-inline { color: #52525b; font: 700 0.62rem/1 monospace; letter-spacing: 1px; }
-
-        .crew-mission-list { display: flex; flex-direction: column; gap: 18px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 4px; }
-        .crew-mission { border-bottom: 1px solid rgba(255, 255, 255, 0.06); padding-bottom: 16px; }
-        .crew-mission-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-top: 14px; }
-        .crew-mission-head h4 { margin: 0; color: #f8fafc; font: 700 0.95rem/1.3 'Space Grotesk', sans-serif; }
-        .crew-mission-head span { color: #64748b; font: 700 0.6rem/1 monospace; letter-spacing: 1px; white-space: nowrap; }
-        .crew-mission-fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 16px; margin-top: 8px; }
-        .crew-mission-fields div { display: flex; justify-content: space-between; gap: 8px; font: 600 0.6rem/1.4 monospace; letter-spacing: 0.5px; color: #64748b; }
-        .crew-mission-fields b { color: #dbe4ef; font-size: 0.65rem; text-align: right; }
-        .crew-mission-note { color: #a1a1aa; font-size: 0.75rem; line-height: 1.5; margin: 10px 0 0; }
-
-        .crew-related-link { color: #38bdf8; text-decoration: none; font: 700 0.65rem/1 monospace; letter-spacing: 1px; }
-        .crew-related-link:hover { text-decoration: underline; }
-
-        @media (max-width: 1024px) {
-          .crew-grid { grid-template-columns: repeat(2, 1fr); }
-          .crew-detail-grid { grid-template-columns: 1fr; }
-        }
-
-        @media (max-width: 640px) {
-          .crew-grid { grid-template-columns: 1fr; }
-          .crew-hero h1 { font-size: 2.4rem; }
-          .crew-brand-text { font-size: 0.85rem; letter-spacing: 4px; }
-          .crew-mission-fields { grid-template-columns: 1fr; }
-        }
-      `}</style>
-    </main>
-  );
-}
+];
