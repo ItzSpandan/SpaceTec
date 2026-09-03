@@ -27,8 +27,10 @@ export function searchSpacecraft(spacecraft, query) {
       s.manufacturer,
       s.agency,
       s.type,
+      s.summary,
       ...(s.launchVehicles || []),
       ...(s.missions || []).map((m) => m.name),
+      ...Object.values(s.specs || {}),
     ]
       .filter(Boolean)
       .join(' ')
@@ -79,6 +81,27 @@ export function formatDate(dateStr) {
 
 export function display(value) {
   return value === null || value === undefined || value === '' ? 'DATA UNAVAILABLE' : value;
+}
+
+// Builds the PROFILE field list for a spacecraft's detail view, including
+// only fields that actually have data. Per the "no fabricated fields" rule,
+// a field with no known value is omitted entirely rather than shown as a
+// placeholder. Crew capacity is the one exception: 0 is a real, known fact
+// (the vehicle is uncrewed) and is worth showing, so it's checked for
+// "is a number" rather than truthiness.
+export function profileRows(craft) {
+  const rows = [];
+  if (craft.manufacturer) rows.push({ label: 'MANUFACTURER', value: craft.manufacturer });
+  if (craft.agency) rows.push({ label: 'AGENCY', value: craft.agency, link: craft.agencyLinkId ? '/#agencies' : null });
+  if (craft.status) rows.push({ label: 'STATUS', value: craft.status });
+  if (typeof craft.crewCapacity === 'number') {
+    rows.push({ label: 'CREW CAPACITY', value: craft.crewCapacity > 0 ? craft.crewCapacity : 'UNCREWED' });
+  }
+  if (craft.firstFlight) rows.push({ label: 'FIRST FLIGHT', value: formatDate(craft.firstFlight) });
+  if (craft.missions && craft.missions.length > 0) {
+    rows.push({ label: 'LOGGED MISSIONS', value: craft.missions.length });
+  }
+  return rows;
 }
 
 // Turns a spacecraft's `specs` object (free-form, only-known-fields) into a
