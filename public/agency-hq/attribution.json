@@ -29,11 +29,11 @@
   {
     "agencyId": "asi",
     "localFilename": "asi.jpg",
-    "sourcePage": "https://commons.wikimedia.org/wiki/File%3ANASA%20Bilateral%20Agreement%20with%20Italian%20Space%20Agency%20(NHQ201509090001).jpg",
-    "originalImageUrl": "https://upload.wikimedia.org/wikipedia/commons/a/ad/NASA_Bilateral_Agreement_with_Italian_Space_Agency_%28NHQ201509090001%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
-    "author": "Aubrey Gemignani",
-    "license": "Public domain",
-    "attribution": "Flickr"
+    "sourcePage": "https://commons.wikimedia.org/wiki/File%3ACape%20Town%20(ZA)%2C%20Waterfront%2C%20Clock%20Tower%2C%20Detail%20--%202024%20--%202911.jpg",
+    "originalImageUrl": "https://upload.wikimedia.org/wikipedia/commons/0/0a/Cape_Town_%28ZA%29%2C_Waterfront%2C_Clock_Tower%2C_Detail_--_2024_--_2911.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "author": "Dietmar Rabich",
+    "license": "CC BY-SA 4.0",
+    "attribution": "Dietmar Rabich"
   },
   {
     "agencyId": "astroscale",
@@ -56,20 +56,11 @@
   {
     "agencyId": "cnes",
     "localFilename": "cnes.jpg",
-    "sourcePage": "https://commons.wikimedia.org/wiki/File%3AVice%20President%20Harris%20and%20French%20President%20Macron%20meet%20at%20NASA%20H%20(NHQ202211300022).jpeg",
-    "originalImageUrl": "https://upload.wikimedia.org/wikipedia/commons/e/e1/Vice_President_Harris_and_French_President_Macron_meet_at_NASA_H_%28NHQ202211300022%29.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
-    "author": "Keegan Barber",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File%3AUS%20Navy%20100812-N-3283P-003%20Master%20Chief%20Damage%20Controlman%20David%20Singer%20shows%20Riko%20Watanabe%20the%20proper%20hose%20handling%20technique%20at%20theYokosuka%20Fire%20Fighting%20and%20Damage%20Control%20Training%20Facility%20to%20Japanese%20college%20students%20during.jpg",
+    "originalImageUrl": "https://upload.wikimedia.org/wikipedia/commons/0/07/US_Navy_100812-N-3283P-003_Master_Chief_Damage_Controlman_David_Singer_shows_Riko_Watanabe_the_proper_hose_handling_technique_at_theYokosuka_Fire_Fighting_and_Damage_Control_Training_Facility_to_Japanese_college_students_during.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "author": "U.S. Navy photo by Mass Communication Specialist Dominique Pineiro",
     "license": "Public domain",
-    "attribution": "This image or video was catalogued by NASA Headquarters of the United States National Aeronautics and Space Administration (NASA) under Photo ID: NHQ202211300022."
-  },
-  {
-    "agencyId": "cnsa",
-    "localFilename": "cnsa.jpg",
-    "sourcePage": "https://commons.wikimedia.org/wiki/File%3ANine%20Ideal%20Indian%20Women.djvu",
-    "originalImageUrl": "https://upload.wikimedia.org/wikipedia/commons/0/0b/Nine_Ideal_Indian_Women.djvu?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
-    "author": "Suniti Devi",
-    "license": "Public domain",
-    "attribution": "http://dli.serc.iisc.ernet.in/cgi-bin/metainfo.cgi/data10/data51/upload/0001/922?&amp;barcode=99999990823534"
+    "attribution": "This image was released by the United States Navy with the ID 100812-N-3283P-003 (next).\nThis tag does not indicate the copyright status of the attached work. A normal copyright tag is still required. See Commons:Licensing.\n\n\nالعربية ∙ বাংলা ∙ \nBahasa Indonesia ∙ \nBahaso Jambi ∙ \nDeutsch ∙ Deutsch (Sie-Form) ∙ English ∙ español ∙ euskara ∙ فارسی ∙ français ∙ italiano ∙ 日本語 ∙ 한국어 ∙ македонски ∙ മലയാളം ∙ Plattdüütsch ∙ Nederlands ∙ polski ∙ پښتو ∙ português ∙ русский ∙ slovenščina ∙ svenska ∙ Türkçe ∙ українська ∙ 简体中文 ∙ 繁體中文 ∙ +/−"
   },
   {
     "agencyId": "conae",
@@ -81,13 +72,22 @@
     "attribution": "https://www.dvidshub.net/image/725094"
   },
   {
+    "agencyId": "csa",
+    "localFilename": "csa.jpg",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File%3AConnaught%20Building%2C%20National%20Headquarters%20of%20Canada%20Revenue%20Agency%2C%20Ottawa%2C%20Ontario%20(30068988555).jpg",
+    "originalImageUrl": "https://upload.wikimedia.org/wikipedia/commons/2/2f/Connaught_Building%2C_National_Headquarters_of_Canada_Revenue_Agency%2C_Ottawa%2C_Ontario_%2830068988555%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "author": "Ken Lund from Reno, Nevada, USA",
+    "license": "CC BY-SA 2.0",
+    "attribution": "Connaught Building, National Headquarters of Canada Revenue Agency, Ottawa, Ontario"
+  },
+  {
     "agencyId": "dlr",
     "localFilename": "dlr.jpg",
-    "sourcePage": "https://commons.wikimedia.org/wiki/File%3ADeputy%20Admin%20Melroy%20Meets%20with%20German%20Aerospace%20Representatives%20(NHQ202203310004).jpg",
-    "originalImageUrl": "https://upload.wikimedia.org/wikipedia/commons/0/09/Deputy_Admin_Melroy_Meets_with_German_Aerospace_Representatives_%28NHQ202203310004%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
-    "author": "Aubrey Gemignani",
-    "license": "Public domain",
-    "attribution": "This image or video was catalogued by NASA Headquarters of the United States National Aeronautics and Space Administration (NASA) under Photo ID: NHQ202203310004."
+    "sourcePage": "https://commons.wikimedia.org/wiki/File%3AESA%20Headquarters%20in%20Paris.jpg",
+    "originalImageUrl": "https://upload.wikimedia.org/wikipedia/commons/9/96/ESA_Headquarters_in_Paris.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "author": "ESA/P. Sebirot, CC BY-SA 3.0 IGO",
+    "license": "CC BY-SA 3.0 igo",
+    "attribution": "https://www.esa.int/ESA_Multimedia/Images/2023/11/ESA_s_headquarters_Mario_Nikis"
   },
   {
     "agencyId": "esa",
@@ -97,15 +97,6 @@
     "author": "NASA Langley Research Center",
     "license": "Public domain",
     "attribution": "https://images.nasa.gov/details/LRC-1963-B701_P-07159"
-  },
-  {
-    "agencyId": "firefly",
-    "localFilename": "firefly.jpg",
-    "sourcePage": "https://commons.wikimedia.org/wiki/File%3AVandenberg%20Hosts%20Base%20Tour%20for%20San%20Luis%20Obispo%20Chamber%20of%20Commerce%20(9457805).jpg",
-    "originalImageUrl": "https://upload.wikimedia.org/wikipedia/commons/2/24/Vandenberg_Hosts_Base_Tour_for_San_Luis_Obispo_Chamber_of_Commerce_%289457805%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
-    "author": "U.S. Space Force photo by Airman 1st Class Ian Hawkes",
-    "license": "Public domain",
-    "attribution": "This image was released by the United States Space Force with the ID 251219-X-DW038-1005 (next).\nThis tag does not indicate the copyright status of the attached work. A normal copyright tag is still required. See Commons:Licensing.\n\n\nالعربية ∙ বাংলা ∙ \nBahasa Indonesia ∙ \nBahaso Jambi ∙ \nDeutsch ∙ Deutsch (Sie-Form) ∙ English ∙ español ∙ euskara ∙ فارسی ∙ français ∙ italiano ∙ 日本語 ∙ 한국어 ∙ македонски ∙ മലയാളം ∙ Plattdüütsch ∙ Nederlands ∙ polski ∙ پښتو ∙ português ∙ русский ∙ slovenščina ∙ svenska ∙ Türkçe ∙ українська ∙ 简体中文 ∙ 繁體中文 ∙ +/−"
   },
   {
     "agencyId": "intuitive-machines",
@@ -137,20 +128,11 @@
   {
     "agencyId": "kari",
     "localFilename": "kari.jpg",
-    "sourcePage": "https://commons.wikimedia.org/wiki/File%3AUS%20Navy%20080910-N-0483B-008%20Chief%20petty%20officers%20and%20chief%20petty%20officer%20selects%20assigned%20to%20Fleet%20Activities%20Yokosuka%20and%20Naval%20Air%20Facility%20Atsugi%20(NAF)%20conduct%20a%20formation%20physical%20training%20run.jpg",
-    "originalImageUrl": "https://upload.wikimedia.org/wikipedia/commons/a/a0/US_Navy_080910-N-0483B-008_Chief_petty_officers_and_chief_petty_officer_selects_assigned_to_Fleet_Activities_Yokosuka_and_Naval_Air_Facility_Atsugi_%28NAF%29_conduct_a_formation_physical_training_run.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
-    "author": "U.S. Navy photo by Mass Communication Specialist Seaman Kari R. Bergman",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File%3AKari-biotech-facility-presentation%203837016517%20o.jpg",
+    "originalImageUrl": "https://upload.wikimedia.org/wikipedia/commons/b/bd/Kari-biotech-facility-presentation_3837016517_o.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "author": null,
     "license": "Public domain",
-    "attribution": "This image was released by the United States Navy with the ID 080910-N-0483B-008 (next).\nThis tag does not indicate the copyright status of the attached work. A normal copyright tag is still required. See Commons:Licensing.\n\n\nالعربية ∙ বাংলা ∙ \nBahasa Indonesia ∙ \nBahaso Jambi ∙ \nDeutsch ∙ Deutsch (Sie-Form) ∙ English ∙ español ∙ euskara ∙ فارسی ∙ français ∙ italiano ∙ 日本語 ∙ 한국어 ∙ македонски ∙ മലയാളം ∙ Plattdüütsch ∙ Nederlands ∙ polski ∙ پښتو ∙ português ∙ русский ∙ slovenščina ∙ svenska ∙ Türkçe ∙ українська ∙ 简体中文 ∙ 繁體中文 ∙ +/−"
-  },
-  {
-    "agencyId": "maxar",
-    "localFilename": "maxar.jpg",
-    "sourcePage": "https://commons.wikimedia.org/wiki/File%3APsyche%20Solar%20Array%20Arrival%20and%20Offload%20(KSC-20230715-PH-DAC01%200001).jpg",
-    "originalImageUrl": "https://upload.wikimedia.org/wikipedia/commons/b/b3/Psyche_Solar_Array_Arrival_and_Offload_%28KSC-20230715-PH-DAC01_0001%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
-    "author": "NASA Kennedy Space Center / NASA/Dan Casper",
-    "license": "Public domain",
-    "attribution": "This image or video was catalogued by John F. Kennedy Space Center of the United States National Aeronautics and Space Administration (NASA) under Photo ID: KSC-20230715-PH-DAC01_0001."
+    "attribution": "https://www.flickr.com/photos/usdagov/sets/72157622086177620"
   },
   {
     "agencyId": "nasa",
@@ -164,11 +146,11 @@
   {
     "agencyId": "planet",
     "localFilename": "planet.jpg",
-    "sourcePage": "https://commons.wikimedia.org/wiki/File%3AVice%20President%20Harris%20and%20French%20President%20Macron%20meet%20at%20NASA%20H%20(NHQ202211300013).jpeg",
-    "originalImageUrl": "https://upload.wikimedia.org/wikipedia/commons/e/e8/Vice_President_Harris_and_French_President_Macron_meet_at_NASA_H_%28NHQ202211300013%29.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
-    "author": "Keegan Barber",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File%3ANASA%20Journey%20to%20Mars%20and%20%E2%80%9CThe%20Martian%22%20(201508180009HQ).jpg",
+    "originalImageUrl": "https://upload.wikimedia.org/wikipedia/commons/c/cb/NASA_Journey_to_Mars_and_%E2%80%9CThe_Martian%22_%28201508180009HQ%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "author": "Bill Ingalls",
     "license": "Public domain",
-    "attribution": "This image or video was catalogued by NASA Headquarters of the United States National Aeronautics and Space Administration (NASA) under Photo ID: NHQ202211300013."
+    "attribution": "https://www.flickr.com/photos/nasahqphoto/20066478764/"
   },
   {
     "agencyId": "rocket-lab",
@@ -200,11 +182,11 @@
   {
     "agencyId": "sierra-space",
     "localFilename": "sierra-space.jpg",
-    "sourcePage": "https://commons.wikimedia.org/wiki/File%3ASpace%20Symposium%20(NHQ202108260011).jpg",
-    "originalImageUrl": "https://upload.wikimedia.org/wikipedia/commons/a/a3/Space_Symposium_%28NHQ202108260011%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
-    "author": "NASA Headquarters / NASA/Bill Ingalls",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File%3ASierra%20Space%20Dream%20Chaser%20Spaceplane%20at%20the%20Space%20Environments%20Complex%20(GRC-2024-C-01582).jpg",
+    "originalImageUrl": "https://upload.wikimedia.org/wikipedia/commons/c/c0/Sierra_Space_Dream_Chaser_Spaceplane_at_the_Space_Environments_Complex_%28GRC-2024-C-01582%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "author": "NASA Glenn Research Center / NASA/Jordan Salkin",
     "license": "Public domain",
-    "attribution": "This image or video was catalogued by NASA Headquarters of the United States National Aeronautics and Space Administration (NASA) under Photo ID: NHQ202108260011."
+    "attribution": "This image or video was catalogued by Glenn Research Center of the United States National Aeronautics and Space Administration (NASA) under Photo ID: GRC-2024-C-01582."
   },
   {
     "agencyId": "spacex",
@@ -236,10 +218,10 @@
   {
     "agencyId": "uksa",
     "localFilename": "uksa.jpg",
-    "sourcePage": "https://commons.wikimedia.org/wiki/File%3ANASA%20Leadership%20Meets%20with%20UK%20Space%20Agency%20(NHQ202304210014).jpg",
-    "originalImageUrl": "https://upload.wikimedia.org/wikipedia/commons/5/5e/NASA_Leadership_Meets_with_UK_Space_Agency_%28NHQ202304210014%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
-    "author": "NASA HQ PHOTO",
+    "sourcePage": "https://commons.wikimedia.org/wiki/File%3AJared%20Isaacman%20tours%20Airbus%20Defence%20and%20Space%20Facilities%20(NHQ20260719%20admin%20020).jpg",
+    "originalImageUrl": "https://upload.wikimedia.org/wikipedia/commons/4/47/Jared_Isaacman_tours_Airbus_Defence_and_Space_Facilities_%28NHQ20260719_admin_020%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+    "author": "NASA Headquarters / NASA/Tiffany Coutris",
     "license": "Public domain",
-    "attribution": "This image or video was catalogued by NASA Headquarters of the United States National Aeronautics and Space Administration (NASA) under Photo ID: NHQ202304210014."
+    "attribution": "This image or video was catalogued by NASA Headquarters of the United States National Aeronautics and Space Administration (NASA) under Photo ID: NHQ20260719_admin_020."
   }
 ]
