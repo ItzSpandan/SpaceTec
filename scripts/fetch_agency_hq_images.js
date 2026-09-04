@@ -27,20 +27,42 @@ const REQUEST_DELAY_MS = 600; // be polite to the Commons API between agencies
 const THUMB_WIDTH = 1600; // downloaded size — enough for a hover card AND a large profile image, not the raw original
 const MIN_LONG_EDGE = 700; // reject anything smaller than this on its longest side
 
-// Filenames/titles containing these are essentially never the building we want.
+// Filenames/titles containing these are essentially never the building we
+// want. This list is intentionally broad — a false rejection just means an
+// agency lands in "manual review" instead of getting the wrong picture,
+// which is the outcome we actually want.
 const BLOCK_KEYWORDS = [
+  // logos / branding / heraldry
   'logo', 'flag', 'emblem', 'seal', 'insignia', 'patch', 'coat of arms', 'crest',
-  'portrait', 'astronaut', 'cosmonaut', 'crew photo', 'headshot',
-  'rocket', 'launch of', 'liftoff', 'booster', 'capsule', 'spacecraft',
+  'badge', 'plaque', 'monument', 'statue', 'bust', 'trophy', 'medal', 'certificate',
+  // people — portraits, meetings, ceremonies, diplomacy
+  'portrait', 'astronaut', 'cosmonaut', 'crew photo', 'headshot', 'group photo',
+  'official photo', 'delegation', 'delegates', 'meeting', 'meets', 'meeting with',
+  'visit', 'visits', 'visiting', 'tour of', 'sign', 'signing', 'signed', 'signature',
+  'mou', 'memorandum', 'agreement', 'cooperation', 'ceremony', 'handshake',
+  'press conference', 'conference', 'summit', 'forum', 'symposium', 'briefing',
+  'interview', 'testimony', 'hearing', 'cabinet', 'parliament', 'congress',
+  'minister', 'secretary', 'ambassador', 'president', 'chairman', 'chairwoman',
+  'director general', 'administrator', 'award', 'gala', 'dinner', 'reception',
+  'bilateral', 'state visit', 'welcomes', 'welcoming',
+  // hardware / mission imagery (belongs on the Rockets/Spacecraft/Missions tabs, not here)
+  'rocket', 'launch of', 'liftoff', 'booster', 'capsule', 'spacecraft', 'satellite',
+  'rover', 'probe', 'mission patch',
+  // documents / artwork / misc non-photographic
   'map of', 'diagram', 'chart', 'graph', 'icon', 'symbol', 'silhouette',
-  'stamp', 'banknote', 'coin', 'medal', 'poster', 'illustration', 'render', 'cgi',
+  'stamp', 'banknote', 'coin', 'poster', 'illustration', 'render', 'cgi',
+  'painting', 'engraving', 'drawing', 'sketch', 'cartoon', 'caricature',
+  'manuscript', 'library', 'archive', 'book', 'publication', 'newspaper',
+  'postcard', 'exhibition', 'museum display', 'model of', 'replica',
 ];
 
-// Filenames/titles containing these are a strong positive signal.
+// Filenames/titles containing these are a strong positive signal that the
+// image is actually of a building/site rather than of people or paperwork.
 const BOOST_KEYWORDS = [
   'headquarters', 'head office', 'head-quarters', 'hq', 'campus', 'building',
   'center', 'centre', 'facility', 'complex', 'tower', 'offices', 'office',
   'space centre', 'space center', 'research centre', 'research center',
+  'aerial view', 'exterior', 'facade', 'entrance', 'skyline', 'campus view',
 ];
 
 function sleep(ms) {
@@ -132,13 +154,19 @@ function scoreCandidate(candidate) {
 
   if (BLOCK_KEYWORDS.some((kw) => titleLower.includes(kw))) return null;
 
-  let score = 0;
-  BOOST_KEYWORDS.forEach((kw) => {
-    if (titleLower.includes(kw)) score += 10;
-  });
+  const boostHits = BOOST_KEYWORDS.filter((kw) => titleLower.includes(kw)).length;
+  // This is the important part: a candidate is only accepted if its own
+  // filename/title actually says it's a building/HQ/facility. Without this,
+  // an agency with no good Commons results would still get "the least bad"
+  // photo instead of correctly being flagged for manual review — which is
+  // how portraits, signing ceremonies, and even a library book scan ended up
+  // as agency "HQ" images before this fix.
+  if (boostHits === 0) return null;
 
-  // Mild preference for photographs over renders/documents, and for
-  // reasonably large images without needing the absolute original.
+  let score = boostHits * 10;
+
+  // Mild preference for higher resolution once a candidate has already
+  // qualified on subject matter — never used to rescue an off-topic image.
   score += Math.min(longEdge, 4000) / 500;
 
   return score;
