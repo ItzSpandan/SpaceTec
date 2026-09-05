@@ -9,7 +9,7 @@
 export function XIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" {...props}>
-      <path d="M5 5L19 19M19 5L5 19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M4.5 3.2H8.6L12 8.1L15.9 3.2H18.7L13.2 10L19.3 20.8H15.2L11.5 15.3L7.1 20.8H4.3L10.3 13.4L4.5 3.2Z" fill="currentColor" />
     </svg>
   );
 }
