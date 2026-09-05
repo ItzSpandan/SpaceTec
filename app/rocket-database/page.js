@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import RequireAuth from '../components/RequireAuth';
 
 const ENTER_DELAY_MS = 2000;
 const PAGE_SIZE = 20;
@@ -19,7 +20,7 @@ function fmt(value, unit = '') {
   return `${value}${unit}`;
 }
 
-export default function RocketDatabasePage() {
+function RocketDatabaseContent() {
   const [entered, setEntered] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [rockets, setRockets] = useState([]);
@@ -437,5 +438,13 @@ export default function RocketDatabasePage() {
         }
       `}</style>
     </main>
+  );
+}
+
+export default function RocketDatabasePage() {
+  return (
+    <RequireAuth>
+      <RocketDatabaseContent />
+    </RequireAuth>
   );
 }
