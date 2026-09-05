@@ -6,6 +6,7 @@ import Image from 'next/image';
 import OrbitalGlobe from './OrbitalGlobe';
 import GlobalSearch from './GlobalSearch';
 import { supabase } from './supabase';
+import { useAuth } from './lib/AuthContext';
 import { allAgencies, agencyDirectory } from './space-agencies/agencyData';
 import { AllAgenciesPage, findLaunchpadForAgency } from './space-agencies/AgencyDirectory';
 
@@ -117,6 +118,7 @@ function IconClose(props) {
 }
 
 export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) {
+  const { user, profile, requireAuth, openAuthModal } = useAuth();
   const [entered, setEntered] = useState(false);
   const [heroPhraseIndex, setHeroPhraseIndex] = useState(0);
 
@@ -281,12 +283,14 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
   };
 
   const handleOpenAllLaunchpads = (pad) => {
-    setPendingPadTarget(pad || null);
-    setIsTransitioningLaunchpads(true);
-    setTimeout(() => {
-      setIsTransitioningLaunchpads(false);
-      setShowAllLaunchpadsPage(true);
-    }, 3500);
+    requireAuth(() => {
+      setPendingPadTarget(pad || null);
+      setIsTransitioningLaunchpads(true);
+      setTimeout(() => {
+        setIsTransitioningLaunchpads(false);
+        setShowAllLaunchpadsPage(true);
+      }, 3500);
+    });
   };
 
   const scrollToSection = (id) => {
@@ -537,20 +541,24 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
 
 
   const handleOpenAllAgencies = (agency) => {
-    setPendingAgencyTarget(agency || null);
-    setIsTransitioningAgencies(true);
-    setTimeout(() => {
-      setIsTransitioningAgencies(false);
-      setShowAllAgenciesPage(true);
-    }, 3500);
+    requireAuth(() => {
+      setPendingAgencyTarget(agency || null);
+      setIsTransitioningAgencies(true);
+      setTimeout(() => {
+        setIsTransitioningAgencies(false);
+        setShowAllAgenciesPage(true);
+      }, 3500);
+    });
   };
   const handleOpenSatelliteWiki = (searchTerm) => {
-    setSatelliteWikiInitialSearch(searchTerm || '');
-    setIsTransitioningWiki(true);
-    setTimeout(() => {
-      setIsTransitioningWiki(false);
-      setShowSatelliteWikiPage(true);
-    }, 3500);
+    requireAuth(() => {
+      setSatelliteWikiInitialSearch(searchTerm || '');
+      setIsTransitioningWiki(true);
+      setTimeout(() => {
+        setIsTransitioningWiki(false);
+        setShowSatelliteWikiPage(true);
+      }, 3500);
+    });
   };
 
   // Used by the Agency Profile's "VIEW LAUNCH PADS" button. Reuses the
@@ -1010,7 +1018,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
               style={{
                 position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 260,
                 width: 'min(420px, 92vw)',
-                backgroundColor: '#07080a',
+                backgroundColor: '#050505',
                 borderLeft: '1px solid rgba(255,255,255,0.12)',
                 display: 'flex', flexDirection: 'column',
                 overflow: 'hidden',
@@ -1032,8 +1040,17 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                 />
               )}
 
-              {/* spacing to clear the fixed header height */}
-              <div style={{ height: '5rem', flexShrink: 0, position: 'relative', zIndex: 1 }} />
+              {/* Small brand/navigation heading — fills the space that used
+                  to feel too empty without turning into a dashboard. */}
+              <div style={{ padding: '5.5rem 1.75rem 1rem', flexShrink: 0, position: 'relative', zIndex: 1 }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 900, letterSpacing: '5px', color: '#ffffff' }}>
+                  SPACETEC
+                </div>
+                <div style={{ fontSize: '0.62rem', fontWeight: 600, letterSpacing: '3px', color: '#71717a', marginTop: '0.3rem' }}>
+                  NAVIGATION
+                </div>
+                <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', marginTop: '1.1rem' }} />
+              </div>
 
               {/* ZONE 1 — main feature navigation, the ONLY scrollable area */}
               <nav
@@ -1173,15 +1190,29 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                 </button>
               </div>
 
-              {/* ZONE 3 — Sign In, pinned to the absolute bottom */}
+              {/* ZONE 3 — account state, pinned to the absolute bottom */}
               <div style={{ flexShrink: 0, padding: '1rem 1.75rem', borderTop: '1px solid rgba(255,255,255,0.1)', position: 'relative', zIndex: 1 }}>
-                <button
-                  className="sidebar-secondary-row"
-                  style={{ ...sidebarSecondaryRowStyle, cursor: 'default' }}
-                  onClick={() => alert('Sign In coming soon!')}
-                >
-                  <IconProfile /> Sign In
-                </button>
+                {user ? (
+                  <button
+                    className="sidebar-secondary-row"
+                    style={{ ...sidebarSecondaryRowStyle, alignItems: 'flex-start' }}
+                    onClick={() => closeSidebarThen(() => openAuthModal('account'))}
+                  >
+                    <IconProfile style={{ marginTop: '0.15rem', flexShrink: 0 }} />
+                    <span style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                      <span>{profile?.display_name || 'SpaceTec Member'}</span>
+                      <span style={{ fontSize: '0.6rem', letterSpacing: '2px', color: '#71717a', fontWeight: 600 }}>ACCOUNT</span>
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    className="sidebar-secondary-row"
+                    style={sidebarSecondaryRowStyle}
+                    onClick={() => closeSidebarThen(() => openAuthModal('signin'))}
+                  >
+                    <IconProfile /> Sign In
+                  </button>
+                )}
               </div>
             </motion.aside>
           </>
