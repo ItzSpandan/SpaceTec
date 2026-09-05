@@ -45,6 +45,77 @@ function formatTimeAgo(dateStr) {
 
 const HERO_ROTATING_PHRASES = ['ORGANIZED.', 'CONNECTED.', 'AT A GLANCE.', 'IN FOCUS.', 'IN MOTION.', 'IN REAL TIME.'];
 
+// Shared style objects for the sidebar nav rows — defined once at module
+// scope since none of them depend on component state (per-row overrides,
+// e.g. removing the last border, are spread on top at the call site).
+const sidebarRowStyle = {
+  width: '100%', background: 'none', border: 'none',
+  borderBottom: '1px solid rgba(255,255,255,0.07)',
+  color: '#d4d4d8', padding: '0.9rem 0', textAlign: 'left',
+  fontSize: '0.75rem', letterSpacing: '2px', textTransform: 'uppercase',
+  fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit',
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+};
+const sidebarSubRowStyle = {
+  width: '100%', background: 'none', border: 'none',
+  borderBottom: '1px solid rgba(255,255,255,0.05)',
+  color: '#9ca3af', padding: '0.7rem 0 0.7rem 1.25rem', textAlign: 'left',
+  fontSize: '0.68rem', letterSpacing: '1.5px', textTransform: 'uppercase',
+  fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', display: 'block',
+};
+const sidebarSecondaryRowStyle = {
+  width: '100%', background: 'none', border: 'none',
+  color: '#d4d4d8', padding: '0.6rem 0', textAlign: 'left',
+  fontSize: '0.72rem', letterSpacing: '2px', textTransform: 'uppercase',
+  fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit',
+  display: 'flex', alignItems: 'center', gap: '0.65rem',
+};
+
+// Small monochrome outline icons for the sidebar's secondary items only
+// (About SpaceTec / Help & Review / Donate / Sign In) — the main feature
+// list intentionally stays icon-free per the design spec.
+function IconInfo(props) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <line x1="12" y1="11" x2="12" y2="16.5" />
+      <circle cx="12" cy="7.5" r="0.9" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+function IconHelp(props) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.3 9.3a2.7 2.7 0 1 1 3.9 2.4c-.9.5-1.2 1-1.2 2" />
+      <circle cx="12" cy="16.7" r="0.9" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+function IconHeart(props) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M12 20.2s-7.6-4.6-9.9-9.2C0.7 7.6 2.3 4.4 5.4 3.7c2-.4 3.9.5 5 2.1 1.1-1.6 3-2.5 5-2.1 3.1.7 4.7 3.9 3.3 7.3-2.3 4.6-9.9 9.2-9.9 9.2Z" />
+    </svg>
+  );
+}
+function IconProfile(props) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="12" cy="8.2" r="3.6" />
+      <path d="M4.5 20c1.1-3.6 4-5.6 7.5-5.6s6.4 2 7.5 5.6" />
+    </svg>
+  );
+}
+function IconClose(props) {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" {...props}>
+      <line x1="5" y1="5" x2="19" y2="19" />
+      <line x1="19" y1="5" x2="5" y2="19" />
+    </svg>
+  );
+}
+
 export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) {
   const [entered, setEntered] = useState(false);
   const [heroPhraseIndex, setHeroPhraseIndex] = useState(0);
@@ -91,6 +162,11 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
   const [showTelemetryDropdown, setShowTelemetryDropdown] = useState(false);
   const [showDatabaseDropdown, setShowDatabaseDropdown] = useState(false);
   const [showHamburgerMenu, setShowHamburgerMenu] = useState(false);
+  // Which sidebar dropdown (if any) is expanded inline — 'telemetry' | 'database' | null.
+  // Kept separate from the header's own dropdown state above; the header
+  // dropdowns only ever apply while the sidebar is closed.
+  const [sidebarExpandedSection, setSidebarExpandedSection] = useState(null);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   // Live Space Intelligence strip (section directly below the hero)
   const [liveSatelliteCount, setLiveSatelliteCount] = useState(null);
@@ -222,6 +298,51 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
     setShowDatabaseDropdown(false);
     setShowHamburgerMenu(false);
   };
+
+  // Closes the sidebar and runs a navigation/action callback right after —
+  // used by every sidebar nav item so opening the sidebar never leaves two
+  // navigation systems visibly active at once.
+  const closeSidebarThen = (action) => {
+    setShowHamburgerMenu(false);
+    setSidebarExpandedSection(null);
+    if (action) action();
+  };
+
+  // Respects prefers-reduced-motion for the sidebar's slide/sweep animation.
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReducedMotion(query.matches);
+    const handleChange = (e) => setPrefersReducedMotion(e.matches);
+    query.addEventListener('change', handleChange);
+    return () => query.removeEventListener('change', handleChange);
+  }, []);
+
+  // Page scroll lock while the sidebar is open — locks/restores document
+  // scrolling without ever touching scrollTop, so the page's exact scroll
+  // position is preserved when the sidebar closes again.
+  useEffect(() => {
+    if (showHamburgerMenu) {
+      const previousOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = previousOverflow;
+      };
+    }
+  }, [showHamburgerMenu]);
+
+  // Escape closes the sidebar; also collapse any expanded inline dropdown
+  // (Live Telemetry / Database) inside it when the sidebar itself closes.
+  useEffect(() => {
+    if (!showHamburgerMenu) {
+      setSidebarExpandedSection(null);
+      return;
+    }
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setShowHamburgerMenu(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showHamburgerMenu]);
 
   useEffect(() => {
     const bgTimer = setInterval(() => {
@@ -500,6 +621,40 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
           color: #ffffff;
         }
 
+        /* Sidebar (redesigned hamburger menu) */
+        .sidebar-row:hover, .sidebar-row:focus-visible {
+          color: #ffffff;
+        }
+        .sidebar-subrow:hover, .sidebar-subrow:focus-visible {
+          color: #ffffff;
+        }
+        .sidebar-secondary-row:hover, .sidebar-secondary-row:focus-visible {
+          color: #ffffff;
+        }
+        .sidebar-row:focus-visible, .sidebar-subrow:focus-visible, .sidebar-secondary-row:focus-visible {
+          outline: 1px solid rgba(255,255,255,0.4);
+          outline-offset: 2px;
+        }
+        .sidebar-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255,255,255,0.18) transparent;
+        }
+        .sidebar-scroll::-webkit-scrollbar {
+          width: 5px;
+        }
+        .sidebar-scroll::-webkit-scrollbar-thumb {
+          background-color: rgba(255,255,255,0.18);
+          border-radius: 3px;
+        }
+        .sidebar-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .sidebar-row, .sidebar-subrow, .sidebar-secondary-row {
+            transition: none !important;
+          }
+        }
+
         .brand-link {
           background: none;
           border: none;
@@ -626,7 +781,15 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.8rem', position: 'relative' }}>
+          <div
+            style={{
+              display: 'flex', alignItems: 'center', gap: '1.8rem', position: 'relative',
+              opacity: showHamburgerMenu ? 0 : 1,
+              pointerEvents: showHamburgerMenu ? 'none' : 'auto',
+              transition: 'opacity 0.25s ease',
+            }}
+            aria-hidden={showHamburgerMenu}
+          >
             
             {/* Live Telemetry Dropdown Menu */}
             <div style={{ position: 'relative' }}>
@@ -798,127 +961,232 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
               )}
             </div>
 
-            <span style={{ width: '1px', height: '12px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
-
-            {/* Hamburger Menu - remaining secondary features */}
-            <div style={{ position: 'relative' }}>
-              <button 
-                className="nav-link" 
-                onClick={() => {
-                  setShowHamburgerMenu(!showHamburgerMenu);
-                  setShowTelemetryDropdown(false);
-                  setShowDatabaseDropdown(false);
-                }}
-                style={{ fontSize: '1.1rem', letterSpacing: '1px' }}
-              >
-                ☰
-              </button>
-
-              {showHamburgerMenu && (
-                <div 
-                  className="glass-card" 
-                  style={{
-                    position: 'absolute',
-                    top: '2.5rem',
-                    right: 0,
-                    width: '220px',
-                    padding: '0.8rem 0',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    zIndex: 200,
-                    border: '1px solid rgba(255,255,255,0.2)'
-                  }}
-                >
-                  <div 
-                    style={{ color: '#fff', padding: '0.6rem 1rem', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', fontWeight: '700', cursor: 'default', borderBottom: '1px solid rgba(255,255,255,0.1)' }}
-                  >
-                    Shortcuts & Features
-                  </div>
-                  <button 
-                    onClick={() => {
-                      setShowHamburgerMenu(false);
-                      handleOpenAllLaunchpads();
-                    }} 
-                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
-                  >
-                    Launchpad Directory
-                  </button>
-                  <button 
-                    onClick={() => alert('Space Encyclopedia feature coming soon!')} 
-                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
-                  >
-                    Space Encyclopedia
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setShowHamburgerMenu(false);
-                      window.location.href = '/space-weather';
-                    }} 
-                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
-                  >
-                    Space Weather
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setShowHamburgerMenu(false);
-                      window.location.href = '/astronomy-tonight';
-                    }} 
-                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
-                  >
-                    Astronomy Tonight
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setShowHamburgerMenu(false);
-                      window.location.href = '/space-news';
-                    }} 
-                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
-                  >
-                    Space News
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setShowHamburgerMenu(false);
-                      window.location.href = '/space-statistics';
-                    }} 
-                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
-                  >
-                    Space Statistics
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setShowHamburgerMenu(false);
-                      window.location.href = '/help-review';
-                    }} 
-                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
-                  >
-                    Help &amp; Review
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setShowHamburgerMenu(false);
-                      window.location.href = '/about-spacetec';
-                    }} 
-                    style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
-                  >
-                    About SpaceTec
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setShowHamburgerMenu(false);
-                      alert('Sign In coming soon!');
-                    }} 
-                    style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
-                  >
-                    Sign In
-                  </button>
-                </div>
-              )}
-            </div>
-
           </div>
+
+          {/* Hamburger toggle — always visible. Opens the right-side sidebar
+              overlay rendered just below the header (see AnimatePresence
+              block right after </motion.header>). */}
+          <button
+            aria-label={showHamburgerMenu ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={showHamburgerMenu}
+            className="nav-link"
+            onClick={() => {
+              setShowTelemetryDropdown(false);
+              setShowDatabaseDropdown(false);
+              setShowHamburgerMenu(!showHamburgerMenu);
+            }}
+            style={{ fontSize: '1.1rem', letterSpacing: '1px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '1.8rem', height: '1.8rem' }}
+          >
+            {showHamburgerMenu ? <IconClose /> : '☰'}
+          </button>
+
         </div>
       </motion.header>
+
+      {/* RIGHT-SIDE NAVIGATION SIDEBAR (redesigned hamburger menu) */}
+      <AnimatePresence>
+        {showHamburgerMenu && (
+          <>
+            {/* Backdrop — click-to-close only, page underneath is never resized or scrolled */}
+            <motion.div
+              key="sidebar-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: prefersReducedMotion ? 0.01 : 0.25 }}
+              onClick={() => setShowHamburgerMenu(false)}
+              style={{ position: 'fixed', inset: 0, zIndex: 250, background: 'rgba(0,0,0,0.55)' }}
+            />
+
+            <motion.aside
+              key="sidebar-panel"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Site navigation"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={prefersReducedMotion ? { duration: 0.01 } : { duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+              style={{
+                position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 260,
+                width: 'min(420px, 92vw)',
+                backgroundColor: '#07080a',
+                borderLeft: '1px solid rgba(255,255,255,0.12)',
+                display: 'flex', flexDirection: 'column',
+                overflow: 'hidden',
+                boxShadow: '-24px 0 60px rgba(0,0,0,0.5)',
+              }}
+            >
+              {/* Subtle bottom-to-top white sweep, behind the content, once per open */}
+              {!prefersReducedMotion && (
+                <motion.div
+                  key="sidebar-sweep"
+                  initial={{ y: '100%', opacity: 0 }}
+                  animate={{ y: '-120%', opacity: [0, 0.5, 0] }}
+                  transition={{ duration: 0.9, ease: [0.4, 0, 0.2, 1] }}
+                  style={{
+                    position: 'absolute', left: 0, right: 0, height: '55%',
+                    background: 'linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0) 100%)',
+                    zIndex: 0, pointerEvents: 'none',
+                  }}
+                />
+              )}
+
+              {/* spacing to clear the fixed header height */}
+              <div style={{ height: '5rem', flexShrink: 0, position: 'relative', zIndex: 1 }} />
+
+              {/* ZONE 1 — main feature navigation, the ONLY scrollable area */}
+              <nav
+                className="sidebar-scroll"
+                style={{ flex: 1, overflowY: 'auto', padding: '0.5rem 1.75rem 1rem', position: 'relative', zIndex: 1 }}
+              >
+                {/* Live Telemetry (expandable) */}
+                <div>
+                  <button
+                    className="sidebar-row"
+                    aria-expanded={sidebarExpandedSection === 'telemetry'}
+                    onClick={() => setSidebarExpandedSection((cur) => (cur === 'telemetry' ? null : 'telemetry'))}
+                    style={sidebarRowStyle}
+                  >
+                    Live Telemetry
+                    <span style={{ display: 'inline-block', transition: 'transform 0.25s ease', transform: sidebarExpandedSection === 'telemetry' ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {sidebarExpandedSection === 'telemetry' && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: prefersReducedMotion ? 0.01 : 0.3, ease: [0.16, 1, 0.3, 1] }}
+                        style={{ overflow: 'hidden' }}
+                      >
+                        <button
+                          className="sidebar-subrow"
+                          style={sidebarSubRowStyle}
+                          onClick={() => closeSidebarThen(() => {
+                            setGlobeViewMode((current) => ({ mode: 'satellites', requestId: current.requestId + 1 }));
+                            scrollToSection('orbital-map');
+                          })}
+                        >
+                          Live Satellite Tracking
+                        </button>
+                        <button
+                          className="sidebar-subrow"
+                          style={sidebarSubRowStyle}
+                          onClick={() => closeSidebarThen(() => scrollToSection('orbital-map'))}
+                        >
+                          Launchpad Location
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                <button className="sidebar-row" style={sidebarRowStyle} onClick={() => closeSidebarThen(() => scrollToSection('agencies'))}>
+                  Agencies
+                </button>
+
+                <button className="sidebar-row" style={sidebarRowStyle} onClick={() => closeSidebarThen(() => scrollToSection('launchpads'))}>
+                  Launchpads
+                </button>
+
+                <button className="sidebar-row" style={sidebarRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/iss-tracker'; })}>
+                  ISS Tracker
+                </button>
+
+                {/* Database (expandable) */}
+                <div>
+                  <button
+                    className="sidebar-row"
+                    aria-expanded={sidebarExpandedSection === 'database'}
+                    onClick={() => setSidebarExpandedSection((cur) => (cur === 'database' ? null : 'database'))}
+                    style={sidebarRowStyle}
+                  >
+                    Database
+                    <span style={{ display: 'inline-block', transition: 'transform 0.25s ease', transform: sidebarExpandedSection === 'database' ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {sidebarExpandedSection === 'database' && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: prefersReducedMotion ? 0.01 : 0.3, ease: [0.16, 1, 0.3, 1] }}
+                        style={{ overflow: 'hidden' }}
+                      >
+                        <button className="sidebar-subrow" style={sidebarSubRowStyle} onClick={() => closeSidebarThen(() => handleOpenSatelliteWiki())}>
+                          Satellite Database
+                        </button>
+                        <button className="sidebar-subrow" style={sidebarSubRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/rocket-database'; })}>
+                          Rocket Database
+                        </button>
+                        <button className="sidebar-subrow" style={sidebarSubRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/celestial-database'; })}>
+                          Celestial Database
+                        </button>
+                        <button className="sidebar-subrow" style={sidebarSubRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/mission-database'; })}>
+                          Mission Database
+                        </button>
+                        <button className="sidebar-subrow" style={sidebarSubRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/astronaut-database'; })}>
+                          Astronaut Database
+                        </button>
+                        <button className="sidebar-subrow" style={sidebarSubRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/spacecraft-database'; })}>
+                          Spacecraft Database
+                        </button>
+                        <button className="sidebar-subrow" style={{ ...sidebarSubRowStyle, borderBottom: 'none' }} onClick={() => closeSidebarThen(() => scrollToSection('launches'))}>
+                          Launch Database
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                <button className="sidebar-row" style={sidebarRowStyle} onClick={() => closeSidebarThen(() => handleOpenAllLaunchpads())}>
+                  Launchpad Directory
+                </button>
+                <button className="sidebar-row" style={sidebarRowStyle} onClick={() => closeSidebarThen(() => alert('Space Encyclopedia feature coming soon!'))}>
+                  Space Encyclopedia
+                </button>
+                <button className="sidebar-row" style={sidebarRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/space-weather'; })}>
+                  Space Weather
+                </button>
+                <button className="sidebar-row" style={sidebarRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/astronomy-tonight'; })}>
+                  Astronomy Tonight
+                </button>
+                <button className="sidebar-row" style={sidebarRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/space-news'; })}>
+                  Space News
+                </button>
+                <button className="sidebar-row" style={{ ...sidebarRowStyle, borderBottom: 'none' }} onClick={() => closeSidebarThen(() => { window.location.href = '/space-statistics'; })}>
+                  Space Statistics
+                </button>
+              </nav>
+
+              {/* ZONE 2 — secondary SpaceTec actions, always visible, never scrolls */}
+              <div style={{ flexShrink: 0, padding: '1rem 1.75rem', borderTop: '1px solid rgba(255,255,255,0.1)', position: 'relative', zIndex: 1 }}>
+                <button className="sidebar-secondary-row" style={sidebarSecondaryRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/about-spacetec'; })}>
+                  <IconInfo /> About SpaceTec
+                </button>
+                <button className="sidebar-secondary-row" style={sidebarSecondaryRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/help-review'; })}>
+                  <IconHelp /> Help &amp; Review
+                </button>
+                <button className="sidebar-secondary-row" style={{ ...sidebarSecondaryRowStyle, cursor: 'default' }} onClick={() => alert('Donate coming soon!')}>
+                  <IconHeart /> Donate
+                </button>
+              </div>
+
+              {/* ZONE 3 — Sign In, pinned to the absolute bottom */}
+              <div style={{ flexShrink: 0, padding: '1rem 1.75rem', borderTop: '1px solid rgba(255,255,255,0.1)', position: 'relative', zIndex: 1 }}>
+                <button
+                  className="sidebar-secondary-row"
+                  style={{ ...sidebarSecondaryRowStyle, cursor: 'default' }}
+                  onClick={() => alert('Sign In coming soon!')}
+                >
+                  <IconProfile /> Sign In
+                </button>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* INTRO SCREEN (3.5 SECONDS) */}
       <AnimatePresence>
