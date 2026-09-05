@@ -118,7 +118,7 @@ function IconClose(props) {
 }
 
 export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) {
-  const { user, profile, requireAuth, openAuthModal } = useAuth();
+  const { user, profile, requireAuth, openAuthModal, resumeIntent, clearResumeIntent } = useAuth();
   const [entered, setEntered] = useState(false);
   const [heroPhraseIndex, setHeroPhraseIndex] = useState(0);
 
@@ -290,7 +290,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
         setIsTransitioningLaunchpads(false);
         setShowAllLaunchpadsPage(true);
       }, 3500);
-    });
+    }, { type: 'action', key: 'launchpads' });
   };
 
   const scrollToSection = (id) => {
@@ -548,7 +548,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
         setIsTransitioningAgencies(false);
         setShowAllAgenciesPage(true);
       }, 3500);
-    });
+    }, { type: 'action', key: 'agencies' });
   };
   const handleOpenSatelliteWiki = (searchTerm) => {
     requireAuth(() => {
@@ -558,8 +558,34 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
         setIsTransitioningWiki(false);
         setShowSatelliteWikiPage(true);
       }, 3500);
-    });
+    }, { type: 'action', key: 'satellite-database' });
   };
+
+  // Resumes whatever the visitor was trying to do before an email
+  // confirmation redirect sent them back to the homepage (see
+  // AuthContext's resumeIntent / RequireAuth's rememberIntent). Only runs
+  // once a real session exists. A 'route' intent (one of the four
+  // account-required database pages) sends them onward; an 'action'
+  // intent re-invokes the matching homepage handler directly — losing any
+  // specific agency/pad target that was mid-click when they signed up is
+  // an acceptable trade-off for resuming correctly after a full reload.
+  useEffect(() => {
+    if (!user || !resumeIntent) return;
+    if (resumeIntent.type === 'route' && resumeIntent.path) {
+      clearResumeIntent();
+      if (resumeIntent.path !== window.location.pathname) {
+        window.location.href = resumeIntent.path;
+      }
+      return;
+    }
+    if (resumeIntent.type === 'action') {
+      clearResumeIntent();
+      if (resumeIntent.key === 'agencies') handleOpenAllAgencies();
+      else if (resumeIntent.key === 'launchpads') handleOpenAllLaunchpads();
+      else if (resumeIntent.key === 'satellite-database') handleOpenSatelliteWiki();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, resumeIntent, clearResumeIntent]);
 
   // Used by the Agency Profile's "VIEW LAUNCH PADS" button. Reuses the
   // existing launchpad directory/transition rather than building a new one.
