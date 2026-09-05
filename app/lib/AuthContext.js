@@ -20,6 +20,54 @@ import { supabase } from '../supabase';
 
 const AuthContext = createContext(null);
 
+// Production confirmation-link target. Supabase requires this URL to be
+// present in the project's Auth → URL Configuration allow list. Localhost
+// is only used as a fallback while actually running the dev server, so a
+// developer testing signup locally still gets redirected back to
+// localhost instead of the production domain.
+function getEmailRedirectTo() {
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return window.location.origin;
+  }
+  return 'https://spacetec.vercel.app';
+}
+
+// The email-confirmation link always causes a full page reload (it's a
+// plain browser navigation, not a client-side route change), which wipes
+// any in-memory `pendingAction`. So the "return to what I was trying to
+// do" behavior also needs a durable copy of the intent that survives that
+// reload — sessionStorage, cleared the moment it's actually consumed.
+const RESUME_INTENT_KEY = 'spacetec:pendingIntent';
+
+function readResumeIntent() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.sessionStorage.getItem(RESUME_INTENT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeResumeIntent(intent) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.setItem(RESUME_INTENT_KEY, JSON.stringify(intent));
+  } catch {
+    // sessionStorage can throw in locked-down/private-browsing contexts —
+    // the in-memory pendingAction still covers the same-tab, no-reload case.
+  }
+}
+
+function clearStoredResumeIntent() {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.removeItem(RESUME_INTENT_KEY);
+  } catch {
+    // no-op
+  }
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -28,6 +76,10 @@ export function AuthProvider({ children }) {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('signin'); // 'signin' | 'signup' | 'account'
   const [pendingAction, setPendingAction] = useState(null);
+  // Populated once, at startup, only if a real session already exists AND a
+  // durable intent was left behind by a previous requireAuth()/RequireAuth
+  // gate — this is what a returning-from-email-confirmation page load reads.
+  const [resumeIntent, setResumeIntent] = useState(null);
 
   const loadProfile = useCallback(async (userId) => {
     if (!userId) {
@@ -48,6 +100,10 @@ export function AuthProvider({ children }) {
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       setSession(data.session || null);
+      if (data.session?.user) {
+        const storedIntent = readResumeIntent();
+        if (storedIntent) setResumeIntent(storedIntent);
+      }
       loadProfile(data.session?.user?.id).finally(() => {
         if (mounted) setLoading(false);
       });
@@ -86,16 +142,37 @@ export function AuthProvider({ children }) {
   }, [logActivity]);
 
   const signUp = useCallback(async (email, password, displayName) => {
-    // Signup itself (profile row + the 'signup' activity record) is handled
-    // server-side by a Postgres trigger on auth.users — see
-    // supabase/schema.sql — so no service-role key is ever needed here.
-    const { error } = await supabase.auth.signUp({
+    // Profile row + the 'signup' activity record are handled server-side
+    // by a Postgres trigger on auth.users — see supabase/schema.sql — so
+    // no service-role key is ever needed here.
+    //
+    // IMPORTANT: with Supabase email confirmation enabled, a successful
+    // signUp() call returns `data.user` but `data.session` is null until
+    // the confirmation link is clicked. Callers MUST check `session` here
+    // — not just the absence of an error — before treating this as an
+    // authenticated login. This context's own `session`/`user` state is
+    // never touched by this call; it only ever updates from a real
+    // getSession()/onAuthStateChange() result, so the hamburger and any
+    // requireAuth() gate stay correctly locked out until confirmation.
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: displayName } },
+      options: {
+        data: { display_name: displayName },
+        emailRedirectTo: getEmailRedirectTo(),
+      },
     });
-    if (error) return { error };
-    return { error: null };
+    if (error) return { error, session: null, user: null };
+    return { error: null, session: data.session || null, user: data.user || null };
+  }, []);
+
+  const resendConfirmation = useCallback(async (email) => {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: getEmailRedirectTo() },
+    });
+    return { error: error || null };
   }, []);
 
   const signOut = useCallback(async () => {
@@ -103,16 +180,28 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut();
   }, [logActivity]);
 
-  const requireAuth = useCallback((action) => {
+  const requireAuth = useCallback((action, intent) => {
     if (session?.user) {
       if (action) action();
       return true;
     }
     setPendingAction(() => action || null);
+    if (intent) writeResumeIntent(intent);
     setAuthModalMode('signin');
     setAuthModalOpen(true);
     return false;
   }, [session]);
+
+  // Used by <RequireAuth> (full-page gates) which has no in-memory action
+  // to run — only a route to come back to after email confirmation.
+  const rememberIntent = useCallback((intent) => {
+    writeResumeIntent(intent);
+  }, []);
+
+  const clearResumeIntent = useCallback(() => {
+    clearStoredResumeIntent();
+    setResumeIntent(null);
+  }, []);
 
   const openAuthModal = useCallback((mode = 'signin') => {
     setAuthModalMode(mode);
@@ -127,6 +216,7 @@ export function AuthProvider({ children }) {
   // Called by AuthModal right after a successful sign-in/sign-up.
   const handleAuthSuccess = useCallback(() => {
     setAuthModalOpen(false);
+    clearStoredResumeIntent();
     setPendingAction((current) => {
       if (current) current();
       return null;
@@ -136,13 +226,15 @@ export function AuthProvider({ children }) {
   const value = useMemo(() => ({
     session, user, profile, loading,
     authModalOpen, authModalMode, pendingAction,
+    resumeIntent, rememberIntent, clearResumeIntent,
     openAuthModal, closeAuthModal, handleAuthSuccess, requireAuth,
-    signIn, signUp, signOut,
+    signIn, signUp, signOut, resendConfirmation,
   }), [
     session, user, profile, loading,
     authModalOpen, authModalMode, pendingAction,
+    resumeIntent, rememberIntent, clearResumeIntent,
     openAuthModal, closeAuthModal, handleAuthSuccess, requireAuth,
-    signIn, signUp, signOut,
+    signIn, signUp, signOut, resendConfirmation,
   ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
