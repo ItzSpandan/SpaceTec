@@ -149,20 +149,22 @@ export const FEATURE_GROUPS = [
   },
 ];
 
-// --- SpaceTec network (Section: connection diagram around a central node) -
+// --- SpaceTec network (Section: connected-ecosystem assembly) -------------
 // Each node links to the real route/anchor it represents (same hrefs used
 // in the tile streams and feature groups above), so the network is an
 // actually-navigable map of the ecosystem rather than pure decoration.
+// `pos` places it in a 3x3 editorial grid around the central SPACETEC core
+// (see NetworkAssembly in AboutSpaceTec.js) rather than a circular layout.
 
 export const NETWORK_NODES = [
-  { label: 'SATELLITES', href: '/#orbital-map' },
-  { label: 'MISSIONS', href: '/mission-database' },
-  { label: 'LAUNCHES', href: '/#launches' },
-  { label: 'AGENCIES', href: '/#agencies' },
-  { label: 'ASTRONAUTS', href: '/astronaut-database' },
-  { label: 'SPACECRAFT', href: '/spacecraft-database' },
-  { label: 'SPACE WEATHER', href: '/space-weather' },
-  { label: 'ASTRONOMY', href: '/astronomy-tonight' },
+  { label: 'SATELLITES', href: '/#orbital-map', pos: 'tl' },
+  { label: 'MISSIONS', href: '/mission-database', pos: 'tc' },
+  { label: 'LAUNCHES', href: '/#launches', pos: 'tr' },
+  { label: 'SPACECRAFT', href: '/spacecraft-database', pos: 'ml' },
+  { label: 'AGENCIES', href: '/#agencies', pos: 'mr' },
+  { label: 'ASTRONAUTS', href: '/astronaut-database', pos: 'bl' },
+  { label: 'SPACE WEATHER', href: '/space-weather', pos: 'bc' },
+  { label: 'ASTRONOMY', href: '/astronomy-tonight', pos: 'br' },
 ];
 
 // --- SpaceTec in motion (Section: small traveling modules) ----------------
