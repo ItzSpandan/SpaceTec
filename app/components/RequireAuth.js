@@ -9,6 +9,7 @@
 // component simply re-renders its children in place, which is what makes
 // "return the visitor to the feature they wanted" work for free.
 
+import { useEffect } from 'react';
 import { useAuth } from '../lib/AuthContext';
 
 const primaryBtnStyle = {
@@ -23,7 +24,17 @@ const secondaryBtnStyle = {
 };
 
 export default function RequireAuth({ children }) {
-  const { user, loading, openAuthModal } = useAuth();
+  const { user, loading, openAuthModal, rememberIntent } = useAuth();
+
+  // Remember which route this was so that, if the visitor goes on to
+  // create an account (email confirmation redirects here via the
+  // homepage), SpaceTecHub can send them back to this exact page once a
+  // real session exists — see AuthContext's resumeIntent.
+  useEffect(() => {
+    if (!loading && !user && typeof window !== 'undefined') {
+      rememberIntent({ type: 'route', path: window.location.pathname });
+    }
+  }, [loading, user, rememberIntent]);
 
   if (loading) {
     return (
