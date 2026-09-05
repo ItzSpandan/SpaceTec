@@ -3,6 +3,8 @@ export const metadata = {
   description: 'Multi-agency space tracker for NASA, ISRO, SpaceX, and ESA.',
 };
 
+import Providers from './components/Providers';
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
@@ -15,7 +17,7 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body style={{ margin: 0, padding: 0, backgroundColor: '#000000', fontFamily: '"Space Grotesk", -apple-system, sans-serif' }}>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
