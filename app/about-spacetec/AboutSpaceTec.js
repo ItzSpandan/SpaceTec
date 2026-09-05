@@ -53,9 +53,9 @@ const BG_ROTATE_MS = 7000;
 // --- Section kicker/heading, matching the restrained label style used
 // across the rest of SpaceTec's dedicated pages (uppercase, letter-spaced,
 // small monospace-ish kicker above a larger heading). -----------------------
-function SectionHead({ kicker, title, sub }) {
+function SectionHead({ kicker, title, sub, centered }) {
   return (
-    <div className="as-section-head">
+    <div className={`as-section-head${centered ? ' as-section-head-center' : ''}`}>
       <span className="as-kicker">{kicker}</span>
       <h2>{title}</h2>
       {sub && <p>{sub}</p>}
@@ -115,85 +115,91 @@ function MotionRow() {
   );
 }
 
-// --- SpaceTec network diagram: a central core with connected feature nodes.
-// Layout math is static (computed once from the node list); the only things
-// that move are cheap CSS transforms/opacity on the center ring and native
-// SVG <animateMotion> pulses along each line — no per-frame JS, and both
-// are gated off entirely once the section leaves the viewport (via
-// useInView) or when the visitor prefers reduced motion. Nodes are real
-// links to the feature they represent, and react on hover.
-function NetworkDiagram({ reducedMotion }) {
+// --- SpaceTec network — "the ecosystem coming together" -------------------
+// Not a circle: eight feature modules sit in a fixed editorial arrangement
+// around a central SPACETEC core. On first scroll into view the modules
+// settle into place, then a thin trace draws from each one back to the
+// core, and the core itself settles in last — a single one-time sequence
+// (useInView with `once: true`), not a loop. Layout math is a handful of
+// constants (no per-frame JS); the only animation is Framer Motion's
+// opacity/transform/pathLength, which is GPU-cheap and fully skipped for
+// `prefers-reduced-motion` and whenever the section is off-screen.
+const ASSEMBLY_POS = {
+  tl: { x: 16.67, y: 16.67 },
+  tc: { x: 50, y: 16.67 },
+  tr: { x: 83.33, y: 16.67 },
+  ml: { x: 16.67, y: 50 },
+  mr: { x: 83.33, y: 50 },
+  bl: { x: 16.67, y: 83.33 },
+  bc: { x: 50, y: 83.33 },
+  br: { x: 83.33, y: 83.33 },
+};
+const ASSEMBLY_CORE = { x: 50, y: 50 };
+
+function NetworkAssembly({ reducedMotion }) {
   const wrapRef = useRef(null);
-  const inView = useInView(wrapRef, { amount: 0.4, margin: '0px 0px -10% 0px' });
-  const active = inView && !reducedMotion;
+  const inView = useInView(wrapRef, { amount: 0.4, once: true, margin: '0px 0px -10% 0px' });
+  const [hovered, setHovered] = useState(null);
+  const play = inView || reducedMotion;
 
-  const size = 560;
-  const center = size / 2;
-  const orbitRadius = size * 0.38;
+  const points = NETWORK_NODES.map((node) => ({
+    ...node,
+    ...(ASSEMBLY_POS[node.pos] || ASSEMBLY_CORE),
+  }));
 
-  const points = NETWORK_NODES.map((node, i) => {
-    const angle = (i / NETWORK_NODES.length) * Math.PI * 2 - Math.PI / 2;
-    return {
-      ...node,
-      x: center + orbitRadius * Math.cos(angle),
-      y: center + orbitRadius * Math.sin(angle),
-    };
-  });
+  const nodeDelay = (i) => 0.15 + i * 0.11;
+  const lineDelay = (i) => 0.95 + i * 0.09;
+  const coreDelay = 0.95 + points.length * 0.09 + 0.3;
+  const t = (delay) => (reducedMotion ? { duration: 0 } : { duration: 0.75, delay, ease: [0.16, 1, 0.3, 1] });
 
   return (
-    <div className={`as-network-wrap${active ? ' is-active' : ''}`} ref={wrapRef}>
-      <svg viewBox={`0 0 ${size} ${size}`} className="as-network-svg" preserveAspectRatio="xMidYMid meet">
-        {/* faint orbit ring the nodes sit on, for hierarchy rather than a flat scatter */}
-        <circle cx={center} cy={center} r={orbitRadius} className="as-network-orbit" />
-
+    <div className="as-assembly-wrap" ref={wrapRef}>
+      <svg viewBox="0 0 100 100" className="as-assembly-svg" preserveAspectRatio="xMidYMid meet">
         {points.map((p, i) => (
-          <line key={`line-${i}`} x1={center} y1={center} x2={p.x} y2={p.y} className="as-network-line" />
+          <motion.line
+            key={`line-${i}`}
+            x1={ASSEMBLY_CORE.x}
+            y1={ASSEMBLY_CORE.y}
+            x2={p.x}
+            y2={p.y}
+            className={`as-assembly-line${hovered === i ? ' is-highlighted' : ''}`}
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={play ? { pathLength: 1, opacity: 1 } : { pathLength: 0, opacity: 0 }}
+            transition={t(lineDelay(i))}
+          />
         ))}
-
-        {/* slow-moving data pulses — native SMIL animation, no JS loop, only
-            rendered while the section is in view and motion isn't reduced */}
-        {active &&
-          points.map((p, i) => (
-            <circle key={`pulse-${i}`} r="2.6" className="as-network-pulse">
-              <animateMotion
-                dur={`${5.5 + i * 0.55}s`}
-                repeatCount="indefinite"
-                path={`M${center},${center} L${p.x},${p.y}`}
-              />
-              <animate
-                attributeName="opacity"
-                values="0;1;1;0"
-                keyTimes="0;0.15;0.85;1"
-                dur={`${5.5 + i * 0.55}s`}
-                repeatCount="indefinite"
-              />
-            </circle>
-          ))}
-
-        {points.map((p, i) => (
-          <circle key={`dot-${i}`} cx={p.x} cy={p.y} r="3" className="as-network-dot" />
-        ))}
-
-        {/* pulsing rings around the core — pure CSS, paused when not visible */}
-        <circle cx={center} cy={center} r="16" className="as-network-ring as-network-ring-1" />
-        <circle cx={center} cy={center} r="16" className="as-network-ring as-network-ring-2" />
-        <circle cx={center} cy={center} r="5" className="as-network-center-dot" />
       </svg>
 
-      <div className="as-network-center-label">
-        <span>SPACETEC</span>
-      </div>
-
       {points.map((p, i) => (
-        <a
-          key={`node-${i}`}
-          href={p.href}
-          className="as-network-node"
-          style={{ left: `${(p.x / size) * 100}%`, top: `${(p.y / size) * 100}%` }}
-        >
-          {p.label}
-        </a>
+        <div key={`slot-${i}`} className="as-assembly-node-slot" style={{ left: `${p.x}%`, top: `${p.y}%` }}>
+          <motion.a
+            href={p.href}
+            className="as-assembly-node"
+            onMouseEnter={() => setHovered(i)}
+            onMouseLeave={() => setHovered((h) => (h === i ? null : h))}
+            initial={{ opacity: 0, x: (p.x - ASSEMBLY_CORE.x) * 1.1, y: (p.y - ASSEMBLY_CORE.y) * 1.1 }}
+            animate={
+              play
+                ? { opacity: 1, x: 0, y: 0 }
+                : { opacity: 0, x: (p.x - ASSEMBLY_CORE.x) * 1.1, y: (p.y - ASSEMBLY_CORE.y) * 1.1 }
+            }
+            transition={t(nodeDelay(i))}
+          >
+            {p.label}
+          </motion.a>
+        </div>
       ))}
+
+      <div className="as-assembly-core-slot" style={{ left: `${ASSEMBLY_CORE.x}%`, top: `${ASSEMBLY_CORE.y}%` }}>
+        <motion.div
+          className="as-assembly-core"
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={play ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.85 }}
+          transition={t(coreDelay)}
+        >
+          <span className="as-assembly-core-label">SPACETEC</span>
+        </motion.div>
+      </div>
     </div>
   );
 }
@@ -484,9 +490,9 @@ export default function AboutSpaceTec() {
           <SectionHead
             kicker="ONE CONNECTED SYSTEM"
             title="The SpaceTec network"
-            sub="Every area of the ecosystem sits around the same core."
+            sub="Individually, each of these is its own system. Together, they connect back to one core."
           />
-          <NetworkDiagram reducedMotion={reducedMotion} />
+          <NetworkAssembly reducedMotion={reducedMotion} />
         </section>
 
         {/* SPACETEC IN MOTION */}
@@ -521,6 +527,7 @@ export default function AboutSpaceTec() {
             kicker="STAY CONNECTED"
             title="Connect with SpaceTec"
             sub="Follow the project and get involved."
+            centered
           />
           <SocialRow reducedMotion={reducedMotion} />
         </section>
@@ -717,6 +724,12 @@ export default function AboutSpaceTec() {
           color: #a1a1aa;
           font-size: 0.92rem;
           line-height: 1.6;
+        }
+
+        .as-section-head-center {
+          margin-left: auto;
+          margin-right: auto;
+          text-align: center;
         }
 
         /* HERO */
@@ -926,116 +939,77 @@ export default function AboutSpaceTec() {
           padding-left: 0.4rem;
         }
 
-        /* NETWORK DIAGRAM */
-        .as-network-wrap {
+        /* SPACETEC NETWORK ASSEMBLY */
+        .as-assembly-wrap {
           position: relative;
           width: 100%;
-          max-width: 560px;
+          max-width: 720px;
           aspect-ratio: 1 / 1;
           margin: 0 auto;
         }
 
-        .as-network-svg {
+        .as-assembly-svg {
+          position: absolute;
+          inset: 0;
           width: 100%;
           height: 100%;
           display: block;
         }
 
-        .as-network-orbit {
-          fill: none;
-          stroke: rgba(255, 255, 255, 0.07);
-          stroke-width: 1;
+        .as-assembly-line {
+          stroke: rgba(255, 255, 255, 0.18);
+          stroke-width: 0.35;
+          vector-effect: non-scaling-stroke;
+          transition: stroke 0.35s ease, stroke-width 0.35s ease;
         }
 
-        .as-network-line {
-          stroke: rgba(255, 255, 255, 0.16);
-          stroke-width: 1;
-          transition: stroke 0.4s ease;
+        .as-assembly-line.is-highlighted {
+          stroke: rgba(56, 189, 248, 0.6);
         }
 
-        .as-network-wrap.is-active .as-network-line {
-          stroke: rgba(255, 255, 255, 0.22);
-        }
-
-        .as-network-pulse {
-          fill: #38bdf8;
-          filter: drop-shadow(0 0 1.5px rgba(56, 189, 248, 0.6));
-        }
-
-        .as-network-dot {
-          fill: rgba(56, 189, 248, 0.85);
-        }
-
-        .as-network-center-dot {
-          fill: #ffffff;
-        }
-
-        .as-network-ring {
-          fill: none;
-          stroke: rgba(56, 189, 248, 0.45);
-          stroke-width: 1;
-          opacity: 0;
-          transform-origin: 50% 50%;
-        }
-
-        .as-network-wrap.is-active .as-network-ring-1 {
-          animation: as-ring-pulse 4s ease-out infinite;
-        }
-
-        .as-network-wrap.is-active .as-network-ring-2 {
-          animation: as-ring-pulse 4s ease-out infinite;
-          animation-delay: 2s;
-        }
-
-        @keyframes as-ring-pulse {
-          0% {
-            transform: scale(1);
-            opacity: 0.55;
-          }
-          70% {
-            opacity: 0;
-          }
-          100% {
-            transform: scale(2.6);
-            opacity: 0;
-          }
-        }
-
-        .as-network-center-label {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          text-align: center;
-          font-size: 0.85rem;
-          font-weight: 900;
-          letter-spacing: 3px;
-          color: #ffffff;
-          background: #000000;
-          padding: 0.5rem 0.9rem;
-          border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .as-network-node {
+        .as-assembly-node-slot,
+        .as-assembly-core-slot {
           position: absolute;
           transform: translate(-50%, -50%);
-          font-size: 0.62rem;
+        }
+
+        .as-assembly-node {
+          display: inline-block;
+          font-size: 0.66rem;
           font-weight: 700;
-          letter-spacing: 1.5px;
+          letter-spacing: 1.4px;
           color: #a1a1aa;
           text-decoration: none;
           background: #000000;
-          padding: 0.3rem 0.6rem;
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          padding: 0.55rem 0.85rem;
+          border: 1px solid rgba(255, 255, 255, 0.12);
           white-space: nowrap;
-          transition: color 0.25s ease, border-color 0.25s ease, transform 0.25s ease, background 0.25s ease;
+          transition: color 0.25s ease, border-color 0.25s ease, background 0.25s ease, transform 0.25s ease;
         }
 
-        .as-network-node:hover {
+        .as-assembly-node:hover {
           color: #ffffff;
           border-color: rgba(56, 189, 248, 0.5);
           background: rgba(56, 189, 248, 0.08);
-          transform: translate(-50%, -50%) scale(1.08);
+          transform: translateY(-2px);
+        }
+
+        .as-assembly-core {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 130px;
+          min-height: 62px;
+          padding: 0.8rem 1.4rem;
+          background: #000000;
+          border: 1px solid rgba(255, 255, 255, 0.28);
+        }
+
+        .as-assembly-core-label {
+          font-size: 0.95rem;
+          font-weight: 900;
+          letter-spacing: 3px;
+          color: #ffffff;
         }
 
         /* SPACETEC IN MOTION */
@@ -1138,7 +1112,9 @@ export default function AboutSpaceTec() {
         .as-social-row {
           display: flex;
           flex-wrap: wrap;
+          justify-content: center;
           gap: 1rem;
+          margin: 0 auto;
         }
 
         .as-social-item {
@@ -1148,8 +1124,8 @@ export default function AboutSpaceTec() {
         .as-social-btn {
           display: flex;
           align-items: center;
-          gap: 0.6rem;
-          padding: 0.8rem 1.2rem;
+          gap: 0.75rem;
+          padding: 0.8rem 1.3rem;
           background: rgba(255, 255, 255, 0.02);
           border: 1px solid rgba(255, 255, 255, 0.12);
           color: #a1a1aa;
@@ -1222,14 +1198,6 @@ export default function AboutSpaceTec() {
           background: rgba(255, 255, 255, 0.15);
         }
 
-        @media (prefers-reduced-motion: reduce) {
-          .as-network-ring-1,
-          .as-network-ring-2 {
-            animation: none !important;
-          }
-        }
-
-        /* RESPONSIVE (desktop-first, keep it from breaking below that) */
         @media (max-width: 720px) {
           .as-header {
             padding: 0 1.1rem;
@@ -1243,9 +1211,18 @@ export default function AboutSpaceTec() {
           .as-tile {
             width: 220px;
           }
-          .as-network-node {
+          .as-assembly-node {
             font-size: 0.56rem;
-            padding: 0.22rem 0.4rem;
+            padding: 0.4rem 0.55rem;
+          }
+          .as-assembly-core {
+            min-width: 96px;
+            min-height: 46px;
+            padding: 0.5rem 0.9rem;
+          }
+          .as-assembly-core-label {
+            font-size: 0.72rem;
+            letter-spacing: 2px;
           }
         }
       `}</style>
