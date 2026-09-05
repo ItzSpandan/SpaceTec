@@ -368,17 +368,111 @@ async function findBestImageForAgency(profile) {
   };
 }
 
+// Re-verification check for an ALREADY-ASSIGNED image, run every time this
+// script executes — not just for new candidates. This is what catches a
+// legacy bad image (a people/event/hardware/logo photo assigned before this
+// verification system existed) even in a run where no confident replacement
+// was found. We only have the file title to go on here (that's what
+// attribution.json stores via its Commons source page URL), but the title
+// alone is enough to catch every example named in the original bug report —
+// "Expedition 46 Preflight", "White House ... Event", "Beveridge Bridge",
+// "NASA Headquarters Event with UAE Space Agency Delegation", etc. all fail
+// on title text alone. This function is intentionally simpler than
+// scoreCandidate(): it only asks "is this obviously NOT a building photo?",
+// not "is this confidently THIS agency's HQ?" — a title that merely looks
+// ambiguous (not obviously wrong) is left alone rather than cleared, per the
+// rule that an existing image is only removed when it clearly fails, never
+// swapped out on a mere confidence downgrade.
+function titleFromSourcePage(sourcePageUrl) {
+  if (!sourcePageUrl) return null;
+  const match = sourcePageUrl.match(/\/wiki\/(.+)$/);
+  if (!match) return null;
+  return decodeURIComponent(match[1]).replace(/_/g, ' ').replace(/^File:/i, '');
+}
+
+function existingImageClearlyFailsVerification(title, profile) {
+  if (!title) return { fails: false };
+  const text = normalize(title);
+  if (countHits(text, BLOCK_KEYWORDS_HARD) > 0) return { fails: true, reason: 'logo/emblem/artwork keyword in existing image title' };
+  if (countHits(text, HARDWARE_KEYWORDS) > 0) return { fails: true, reason: 'rocket/spacecraft/hardware/mission keyword in existing image title' };
+  if (countHits(text, PEOPLE_EVENT_KEYWORDS) > 0) return { fails: true, reason: 'people/meeting/event keyword in existing image title' };
+  // Weaker than the full candidate scorer (title only, no description/
+  // categories to check), but the same two requirements: the title must
+  // actually name this agency AND look like a building/facility photo.
+  // Catches things like an unrelated "Beveridge Bridge.jpg" or a generic
+  // mission-name filename that isn't obviously "bad" by keyword alone but
+  // also has nothing to do with the agency or its headquarters.
+  if (profile) {
+    const hasIdentity = profile.identityNames.some((name) => text.includes(normalize(name)));
+    if (!hasIdentity) return { fails: true, reason: 'existing image title does not name this agency at all' };
+    if (countHits(text, BUILDING_KEYWORDS) === 0) return { fails: true, reason: 'existing image title has no headquarters/building/facility indication' };
+  }
+  return { fails: false };
+}
+
+// Sets hqImage to an empty string (falsy — triggers the existing UI
+// fallback in AgencyDirectory.js / SpaceTecHub.js) instead of removing the
+// field, so re-running the script later cleanly finds and updates it again.
+function clearHqImageInSource(source, agencyId) {
+  const idMarker = `id: '${agencyId}'`;
+  const idIdx = source.indexOf(idMarker);
+  if (idIdx === -1) return null;
+
+  const openIdx = source.lastIndexOf('{', idIdx);
+  let depth = 0;
+  let closeIdx = -1;
+  for (let i = openIdx; i < source.length; i++) {
+    if (source[i] === '{') depth++;
+    else if (source[i] === '}') {
+      depth--;
+      if (depth === 0) { closeIdx = i; break; }
+    }
+  }
+  if (closeIdx === -1) return null;
+
+  const objectText = source.slice(openIdx, closeIdx + 1);
+  const hqImageFieldRegex = /hqImage:\s*'[^']*'/;
+  if (!hqImageFieldRegex.test(objectText)) return source; // nothing to clear
+  const newObjectText = objectText.replace(hqImageFieldRegex, `hqImage: ''`);
+  return source.slice(0, openIdx) + newObjectText + source.slice(closeIdx + 1);
+}
+
 function extensionForMime(mime) {
   if (mime === 'image/png') return 'png';
   if (mime === 'image/webp') return 'webp';
   return 'jpg'; // image/jpeg and any other photographic fallback
 }
 
-async function downloadImage(url, destPath) {
-  const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
-  if (!res.ok) throw new Error(`download failed (HTTP ${res.status})`);
-  const buffer = Buffer.from(await res.arrayBuffer());
-  fs.writeFileSync(destPath, buffer);
+async function fetchImageBuffer(url) {
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': USER_AGENT,
+      // Some Commons/Wikimedia edge endpoints 403 requests with no Referer
+      // at all (seen intermittently on thumbnail URLs from CI runners) —
+      // sending one costs nothing and fixes it.
+      Referer: 'https://commons.wikimedia.org/',
+    },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
+// Downloads the resized thumbnail; if that specific URL is rejected (403s
+// have been observed intermittently against thumb URLs from CI runners),
+// retries once against the original full-resolution file before giving up.
+async function downloadImage(thumbUrl, fallbackFullUrl, destPath) {
+  try {
+    fs.writeFileSync(destPath, await fetchImageBuffer(thumbUrl));
+  } catch (thumbErr) {
+    if (!fallbackFullUrl || fallbackFullUrl === thumbUrl) {
+      throw new Error(`download failed (${thumbErr.message})`);
+    }
+    try {
+      fs.writeFileSync(destPath, await fetchImageBuffer(fallbackFullUrl));
+    } catch (fullErr) {
+      throw new Error(`download failed (thumb: ${thumbErr.message}; full: ${fullErr.message})`);
+    }
+  }
 }
 
 // Finds the agency object in agencyData.js by its `id: '<id>'` marker,
@@ -453,12 +547,39 @@ async function main() {
 
   let agencySource = fs.readFileSync(AGENCY_DATA_PATH, 'utf8');
 
-  // Carry over attribution for any agency we are NOT re-processing this run
-  // (e.g. a --only= partial run), so attribution.json never loses history.
+  // Load prior attribution once, both to (a) carry forward records for
+  // agencies we're not re-processing this run, and (b) re-verify the
+  // EXISTING image for agencies we ARE processing but don't find a
+  // confident replacement for — see existingImageClearlyFailsVerification().
+  const existingAttributionByAgencyId = new Map();
   if (fs.existsSync(ATTRIBUTION_PATH)) {
     const existing = JSON.parse(fs.readFileSync(ATTRIBUTION_PATH, 'utf8'));
     const processedIds = new Set(targets.map((a) => a.id));
-    existing.filter((rec) => !processedIds.has(rec.agencyId)).forEach((rec) => attributionRecords.push(rec));
+    existing.forEach((rec) => {
+      existingAttributionByAgencyId.set(rec.agencyId, rec);
+      if (!processedIds.has(rec.agencyId)) attributionRecords.push(rec);
+    });
+  }
+
+  // Clears a stale/wrong existing image for an agency that didn't get a
+  // fresh confident replacement this run. Only called when the existing
+  // image clearly fails the same hard-reject rules new candidates are held
+  // to — an image that's merely "not re-confirmed" is left alone.
+  function reverifyExistingImage(agency, profile) {
+    const existingRec = existingAttributionByAgencyId.get(agency.id);
+    if (!existingRec) return null;
+    const title = titleFromSourcePage(existingRec.sourcePage);
+    const verdict = existingImageClearlyFailsVerification(title, profile);
+    if (!verdict.fails) return null;
+
+    const cleared = clearHqImageInSource(agencySource, agency.id);
+    if (cleared) agencySource = cleared;
+    const existingFilePath = path.join(OUTPUT_DIR, existingRec.localFilename);
+    if (fs.existsSync(existingFilePath)) fs.unlinkSync(existingFilePath);
+    // Drop its attribution record — it no longer represents a real image on disk.
+    const idx = attributionRecords.findIndex((r) => r.agencyId === agency.id);
+    if (idx !== -1) attributionRecords.splice(idx, 1);
+    return verdict.reason;
   }
 
   for (const agency of targets) {
@@ -472,10 +593,12 @@ async function main() {
       const { totalCandidatesSeen, totalQualified, winner, runnerUp } = await findBestImageForAgency(profile);
 
       if (!winner) {
-        console.log('no qualified candidate \u2014 MANUAL REVIEW');
+        const clearedReason = reverifyExistingImage(agency, profile);
+        console.log(clearedReason ? `no qualified candidate \u2014 MANUAL REVIEW (existing image cleared: ${clearedReason})` : 'no qualified candidate \u2014 MANUAL REVIEW');
         reportLines.push('\u26a0 MANUAL REVIEW');
         reportLines.push(`reason: no candidate passed identity + building verification (${totalCandidatesSeen} results scanned, 0 qualified)`);
-        manualReview.push({ id: agency.id, name: agency.name, reason: `no verified headquarters/facility image found (${totalCandidatesSeen} candidates scanned)` });
+        if (clearedReason) reportLines.push(`existing image REJECTED on re-verification and cleared: ${clearedReason}`);
+        manualReview.push({ id: agency.id, name: agency.name, reason: `no verified headquarters/facility image found (${totalCandidatesSeen} candidates scanned)`, existingImageCleared: Boolean(clearedReason) });
         await sleep(REQUEST_DELAY_MS);
         continue;
       }
@@ -484,14 +607,17 @@ async function main() {
       const confident = winner.score >= MIN_ACCEPT_SCORE && margin >= MIN_MARGIN;
 
       if (!confident) {
-        console.log(`low confidence (score ${winner.score}, margin ${margin.toFixed(1)}) \u2014 MANUAL REVIEW`);
+        const clearedReason = reverifyExistingImage(agency, profile);
+        console.log(`low confidence (score ${winner.score}, margin ${margin.toFixed(1)}) \u2014 MANUAL REVIEW${clearedReason ? ` (existing image cleared: ${clearedReason})` : ''}`);
         reportLines.push('\u26a0 MANUAL REVIEW');
         reportLines.push(`confidence: LOW (score ${winner.score} / margin ${margin.toFixed(1)} \u2014 below threshold)`);
         reportLines.push(`best candidate: ${winner.candidate.title}`);
+        if (clearedReason) reportLines.push(`existing image REJECTED on re-verification and cleared: ${clearedReason}`);
         manualReview.push({
           id: agency.id,
           name: agency.name,
           reason: `best candidate scored ${winner.score} with margin ${margin.toFixed(1)} over runner-up (below confidence threshold: needs >=${MIN_ACCEPT_SCORE} score and >=${MIN_MARGIN} margin)`,
+          existingImageCleared: Boolean(clearedReason),
         });
         await sleep(REQUEST_DELAY_MS);
         continue;
@@ -503,7 +629,7 @@ async function main() {
       const destPath = path.join(OUTPUT_DIR, localFilename);
       const publicPath = `/agency-hq/${localFilename}`;
 
-      await downloadImage(best.thumbUrl, destPath);
+      await downloadImage(best.thumbUrl, best.fullUrl, destPath);
 
       const updatedSource = setHqImageInSource(agencySource, agency.id, publicPath);
       if (!updatedSource) {
@@ -534,10 +660,12 @@ async function main() {
       reportLines.push(`reason: ${winner.reasons.join('; ')} (score ${winner.score}, margin ${margin.toFixed(1)} over runner-up, ${totalQualified} qualified of ${totalCandidatesSeen} scanned)`);
       successes.push({ id: agency.id, name: agency.name, filename: localFilename, score: winner.score });
     } catch (err) {
-      console.log(`failed (${err.message})`);
+      const clearedReason = reverifyExistingImage(agency, profile);
+      console.log(`failed (${err.message})${clearedReason ? ` (existing image cleared: ${clearedReason})` : ''}`);
       reportLines.push('\u26a0 MANUAL REVIEW');
       reportLines.push(`reason: ${err.message}`);
-      manualReview.push({ id: agency.id, name: agency.name, reason: err.message });
+      if (clearedReason) reportLines.push(`existing image REJECTED on re-verification and cleared: ${clearedReason}`);
+      manualReview.push({ id: agency.id, name: agency.name, reason: err.message, existingImageCleared: Boolean(clearedReason) });
     }
     await sleep(REQUEST_DELAY_MS);
   }
@@ -553,9 +681,11 @@ async function main() {
   console.log('========================================');
   reportLines.forEach((line) => console.log(line));
   console.log('\n========================================');
+  const clearedCount = manualReview.filter((m) => m.existingImageCleared).length;
   console.log(`TOTAL AGENCIES: ${targets.length}`);
   console.log(`ACCEPTED: ${successes.length}`);
   console.log(`MANUAL REVIEW: ${manualReview.length}`);
+  console.log(`  (of which, existing WRONG image cleared this run: ${clearedCount})`);
   console.log('========================================\n');
 }
 
