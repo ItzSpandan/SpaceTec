@@ -150,16 +150,19 @@ export const FEATURE_GROUPS = [
 ];
 
 // --- SpaceTec network (Section: connection diagram around a central node) -
+// Each node links to the real route/anchor it represents (same hrefs used
+// in the tile streams and feature groups above), so the network is an
+// actually-navigable map of the ecosystem rather than pure decoration.
 
 export const NETWORK_NODES = [
-  'SATELLITES',
-  'MISSIONS',
-  'LAUNCHES',
-  'AGENCIES',
-  'ASTRONAUTS',
-  'SPACECRAFT',
-  'SPACE WEATHER',
-  'ASTRONOMY',
+  { label: 'SATELLITES', href: '/#orbital-map' },
+  { label: 'MISSIONS', href: '/mission-database' },
+  { label: 'LAUNCHES', href: '/#launches' },
+  { label: 'AGENCIES', href: '/#agencies' },
+  { label: 'ASTRONAUTS', href: '/astronaut-database' },
+  { label: 'SPACECRAFT', href: '/spacecraft-database' },
+  { label: 'SPACE WEATHER', href: '/space-weather' },
+  { label: 'ASTRONOMY', href: '/astronomy-tonight' },
 ];
 
 // --- SpaceTec in motion (Section: small traveling modules) ----------------
@@ -190,6 +193,21 @@ export const CONNECTION_CHAINS = [
     title: 'AN ORBITAL OBJECT, FOLLOWED THROUGH',
     steps: ['SATELLITE', 'ORBIT CLASS', 'ORBITAL MAP', 'SATELLITE DATABASE'],
   },
+];
+
+// --- Stay connected (Section: social links) --------------------------------
+// No official SpaceTec X/Discord/YouTube/Instagram accounts exist in the
+// project, so those stay href: null (rendered as non-functional buttons,
+// per the brief — no invented URLs). GitHub reuses the project's own real
+// repository URL, already present in app/api/rocket-database/route.js's
+// User-Agent string, rather than a new/invented link.
+
+export const SOCIAL_LINKS = [
+  { id: 'x', label: 'X', href: null },
+  { id: 'discord', label: 'Discord', href: null },
+  { id: 'youtube', label: 'YouTube', href: null },
+  { id: 'instagram', label: 'Instagram', href: null },
+  { id: 'github', label: 'GitHub', href: 'https://github.com/ItzSpandan/SpaceTec' },
 ];
 
 // --- What is SpaceTec (Section: textual explanation) -----------------------
