@@ -1,5 +1,10 @@
 import MissionDatabase from './MissionDatabase';
+import RequireAuth from '../components/RequireAuth';
 
 export default function MissionDatabasePage() {
-  return <MissionDatabase />;
+  return (
+    <RequireAuth>
+      <MissionDatabase />
+    </RequireAuth>
+  );
 }
