@@ -886,7 +886,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                     Space Statistics
                   </button>
                   <button 
-                    onClick={() => alert('About SpaceTec feature coming soon!')} 
+                    onClick={() => {
+                      setShowHamburgerMenu(false);
+                      window.location.href = '/about-spacetec';
+                    }} 
                     style={{ background: 'none', border: 'none', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
                     About SpaceTec
