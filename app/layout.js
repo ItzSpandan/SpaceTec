@@ -1,6 +1,6 @@
 export const metadata = {
-  title: 'SpaceTec - Global Space Hub',
-  description: 'Multi-agency space tracker for NASA, ISRO, SpaceX, and ESA.',
+  title: 'SpaceTec - Global Space Intelligence Hub',
+  description: 'Explore satellites, launches, missions, spacecraft, rockets, astronauts, space agencies, astronomy, space weather, and space news in one unified platform.',
 };
 
 import Providers from './components/Providers';
