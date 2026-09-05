@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useInView } from 'framer-motion';
 import {
   TILE_ROW_1,
   TILE_ROW_2,
@@ -9,8 +9,32 @@ import {
   NETWORK_NODES,
   MOTION_MODULES,
   CONNECTION_CHAINS,
+  SOCIAL_LINKS,
   WHAT_IS_SPACETEC,
 } from './aboutData';
+import { XIcon, DiscordIcon, YouTubeIcon, InstagramIcon, GitHubIcon } from './SocialIcons';
+
+const SOCIAL_ICONS = {
+  x: XIcon,
+  discord: DiscordIcon,
+  youtube: YouTubeIcon,
+  instagram: InstagramIcon,
+  github: GitHubIcon,
+};
+
+// Small helper so both the network diagram's live pulses and the social
+// entrance animation can back off for people who've asked for less motion.
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReduced(mq.matches);
+    const handler = (e) => setReduced(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return reduced;
+}
 
 const ENTER_DELAY_MS = 2000;
 
@@ -91,38 +115,68 @@ function MotionRow() {
   );
 }
 
-// --- SpaceTec network diagram: a central node with thin lines out to the
-// ecosystem's areas. Static layout (no animation loop), restrained styling.
-function NetworkDiagram() {
+// --- SpaceTec network diagram: a central core with connected feature nodes.
+// Layout math is static (computed once from the node list); the only things
+// that move are cheap CSS transforms/opacity on the center ring and native
+// SVG <animateMotion> pulses along each line — no per-frame JS, and both
+// are gated off entirely once the section leaves the viewport (via
+// useInView) or when the visitor prefers reduced motion. Nodes are real
+// links to the feature they represent, and react on hover.
+function NetworkDiagram({ reducedMotion }) {
+  const wrapRef = useRef(null);
+  const inView = useInView(wrapRef, { amount: 0.4, margin: '0px 0px -10% 0px' });
+  const active = inView && !reducedMotion;
+
   const size = 560;
   const center = size / 2;
-  const radius = size * 0.38;
+  const orbitRadius = size * 0.38;
 
-  const points = NETWORK_NODES.map((label, i) => {
+  const points = NETWORK_NODES.map((node, i) => {
     const angle = (i / NETWORK_NODES.length) * Math.PI * 2 - Math.PI / 2;
     return {
-      label,
-      x: center + radius * Math.cos(angle),
-      y: center + radius * Math.sin(angle),
+      ...node,
+      x: center + orbitRadius * Math.cos(angle),
+      y: center + orbitRadius * Math.sin(angle),
     };
   });
 
   return (
-    <div className="as-network-wrap">
+    <div className={`as-network-wrap${active ? ' is-active' : ''}`} ref={wrapRef}>
       <svg viewBox={`0 0 ${size} ${size}`} className="as-network-svg" preserveAspectRatio="xMidYMid meet">
+        {/* faint orbit ring the nodes sit on, for hierarchy rather than a flat scatter */}
+        <circle cx={center} cy={center} r={orbitRadius} className="as-network-orbit" />
+
         {points.map((p, i) => (
-          <line
-            key={`line-${i}`}
-            x1={center}
-            y1={center}
-            x2={p.x}
-            y2={p.y}
-            className="as-network-line"
-          />
+          <line key={`line-${i}`} x1={center} y1={center} x2={p.x} y2={p.y} className="as-network-line" />
         ))}
+
+        {/* slow-moving data pulses — native SMIL animation, no JS loop, only
+            rendered while the section is in view and motion isn't reduced */}
+        {active &&
+          points.map((p, i) => (
+            <circle key={`pulse-${i}`} r="2.6" className="as-network-pulse">
+              <animateMotion
+                dur={`${5.5 + i * 0.55}s`}
+                repeatCount="indefinite"
+                path={`M${center},${center} L${p.x},${p.y}`}
+              />
+              <animate
+                attributeName="opacity"
+                values="0;1;1;0"
+                keyTimes="0;0.15;0.85;1"
+                dur={`${5.5 + i * 0.55}s`}
+                repeatCount="indefinite"
+              />
+            </circle>
+          ))}
+
         {points.map((p, i) => (
           <circle key={`dot-${i}`} cx={p.x} cy={p.y} r="3" className="as-network-dot" />
         ))}
+
+        {/* pulsing rings around the core — pure CSS, paused when not visible */}
+        <circle cx={center} cy={center} r="16" className="as-network-ring as-network-ring-1" />
+        <circle cx={center} cy={center} r="16" className="as-network-ring as-network-ring-2" />
         <circle cx={center} cy={center} r="5" className="as-network-center-dot" />
       </svg>
 
@@ -131,13 +185,14 @@ function NetworkDiagram() {
       </div>
 
       {points.map((p, i) => (
-        <div
-          key={`label-${i}`}
-          className="as-network-node-label"
+        <a
+          key={`node-${i}`}
+          href={p.href}
+          className="as-network-node"
           style={{ left: `${(p.x / size) * 100}%`, top: `${(p.y / size) * 100}%` }}
         >
           {p.label}
-        </div>
+        </a>
       ))}
     </div>
   );
@@ -160,11 +215,77 @@ function ConnectionChain({ chain }) {
   );
 }
 
+// --- Stay connected: staggered, one-time entrance so every icon gets seen
+// before the row settles — no looping, no re-hiding once shown. -----------
+const socialContainerVariants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.35, delayChildren: 0.1 } },
+};
+
+const socialItemVariants = {
+  hidden: { opacity: 0, y: 16 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } },
+};
+
+const socialContainerVariantsReduced = {
+  hidden: { opacity: 1 },
+  show: { opacity: 1 },
+};
+
+const socialItemVariantsReduced = {
+  hidden: { opacity: 1, y: 0 },
+  show: { opacity: 1, y: 0 },
+};
+
+function SocialButton({ social, variants }) {
+  const Icon = SOCIAL_ICONS[social.id];
+  const content = (
+    <>
+      <Icon className="as-social-icon" />
+      <span className="as-social-label">{social.label}</span>
+    </>
+  );
+
+  return (
+    <motion.div className="as-social-item" variants={variants}>
+      {social.href ? (
+        <a href={social.href} target="_blank" rel="noopener noreferrer" className="as-social-btn">
+          {content}
+        </a>
+      ) : (
+        <button type="button" className="as-social-btn" onClick={(e) => e.preventDefault()}>
+          {content}
+        </button>
+      )}
+    </motion.div>
+  );
+}
+
+function SocialRow({ reducedMotion }) {
+  const containerVariants = reducedMotion ? socialContainerVariantsReduced : socialContainerVariants;
+  const itemVariants = reducedMotion ? socialItemVariantsReduced : socialItemVariants;
+
+  return (
+    <motion.div
+      className="as-social-row"
+      initial="hidden"
+      whileInView="show"
+      viewport={{ once: true, amount: 0.5 }}
+      variants={containerVariants}
+    >
+      {SOCIAL_LINKS.map((social) => (
+        <SocialButton social={social} variants={itemVariants} key={social.id} />
+      ))}
+    </motion.div>
+  );
+}
+
 export default function AboutSpaceTec() {
   const [entered, setEntered] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [bgIndex, setBgIndex] = useState(0);
   const canvasRef = useRef(null);
+  const reducedMotion = usePrefersReducedMotion();
 
   // Intro hold, then dock the SPACETEC wordmark into the header — same
   // pattern as space-weather/page.js, astronomy-tonight/page.js, etc.
@@ -365,7 +486,7 @@ export default function AboutSpaceTec() {
             title="The SpaceTec network"
             sub="Every area of the ecosystem sits around the same core."
           />
-          <NetworkDiagram />
+          <NetworkDiagram reducedMotion={reducedMotion} />
         </section>
 
         {/* SPACETEC IN MOTION */}
@@ -394,14 +515,21 @@ export default function AboutSpaceTec() {
           </div>
         </section>
 
+        {/* STAY CONNECTED */}
+        <section className="as-section as-social">
+          <SectionHead
+            kicker="STAY CONNECTED"
+            title="Connect with SpaceTec"
+            sub="Follow the project and get involved."
+          />
+          <SocialRow reducedMotion={reducedMotion} />
+        </section>
+
         {/* EXPLORE SPACETEC / FINAL CTA */}
         <section className="as-section as-cta">
           <h2>Explore SpaceTec</h2>
           <p>Start anywhere — every part of the system connects back to the rest.</p>
           <div className="as-cta-actions">
-            <a href="/" className="as-cta-primary">
-              GO TO THE MAIN HUB →
-            </a>
             <button type="button" className="as-cta-secondary" onClick={goHome}>
               [← BACK TO MAIN]
             </button>
@@ -813,9 +941,25 @@ export default function AboutSpaceTec() {
           display: block;
         }
 
+        .as-network-orbit {
+          fill: none;
+          stroke: rgba(255, 255, 255, 0.07);
+          stroke-width: 1;
+        }
+
         .as-network-line {
           stroke: rgba(255, 255, 255, 0.16);
           stroke-width: 1;
+          transition: stroke 0.4s ease;
+        }
+
+        .as-network-wrap.is-active .as-network-line {
+          stroke: rgba(255, 255, 255, 0.22);
+        }
+
+        .as-network-pulse {
+          fill: #38bdf8;
+          filter: drop-shadow(0 0 1.5px rgba(56, 189, 248, 0.6));
         }
 
         .as-network-dot {
@@ -824,6 +968,37 @@ export default function AboutSpaceTec() {
 
         .as-network-center-dot {
           fill: #ffffff;
+        }
+
+        .as-network-ring {
+          fill: none;
+          stroke: rgba(56, 189, 248, 0.45);
+          stroke-width: 1;
+          opacity: 0;
+          transform-origin: 50% 50%;
+        }
+
+        .as-network-wrap.is-active .as-network-ring-1 {
+          animation: as-ring-pulse 4s ease-out infinite;
+        }
+
+        .as-network-wrap.is-active .as-network-ring-2 {
+          animation: as-ring-pulse 4s ease-out infinite;
+          animation-delay: 2s;
+        }
+
+        @keyframes as-ring-pulse {
+          0% {
+            transform: scale(1);
+            opacity: 0.55;
+          }
+          70% {
+            opacity: 0;
+          }
+          100% {
+            transform: scale(2.6);
+            opacity: 0;
+          }
         }
 
         .as-network-center-label {
@@ -841,17 +1016,26 @@ export default function AboutSpaceTec() {
           border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
-        .as-network-node-label {
+        .as-network-node {
           position: absolute;
           transform: translate(-50%, -50%);
           font-size: 0.62rem;
           font-weight: 700;
           letter-spacing: 1.5px;
           color: #a1a1aa;
+          text-decoration: none;
           background: #000000;
           padding: 0.3rem 0.6rem;
           border: 1px solid rgba(255, 255, 255, 0.1);
           white-space: nowrap;
+          transition: color 0.25s ease, border-color 0.25s ease, transform 0.25s ease, background 0.25s ease;
+        }
+
+        .as-network-node:hover {
+          color: #ffffff;
+          border-color: rgba(56, 189, 248, 0.5);
+          background: rgba(56, 189, 248, 0.08);
+          transform: translate(-50%, -50%) scale(1.08);
         }
 
         /* SPACETEC IN MOTION */
@@ -950,6 +1134,51 @@ export default function AboutSpaceTec() {
           padding: 0.2rem 0 0.2rem 0.9rem;
         }
 
+        /* STAY CONNECTED */
+        .as-social-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 1rem;
+        }
+
+        .as-social-item {
+          flex: 0 0 auto;
+        }
+
+        .as-social-btn {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          padding: 0.8rem 1.2rem;
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          color: #a1a1aa;
+          cursor: pointer;
+          font-family: inherit;
+          text-decoration: none;
+          transition: border-color 0.25s ease, color 0.25s ease, background 0.25s ease, transform 0.25s ease;
+        }
+
+        .as-social-btn:hover {
+          border-color: rgba(255, 255, 255, 0.35);
+          color: #ffffff;
+          background: rgba(255, 255, 255, 0.05);
+          transform: translateY(-2px);
+        }
+
+        .as-social-icon {
+          width: 18px;
+          height: 18px;
+          flex-shrink: 0;
+        }
+
+        .as-social-label {
+          font-size: 0.7rem;
+          font-weight: 700;
+          letter-spacing: 1.5px;
+          text-transform: uppercase;
+        }
+
         /* CTA */
         .as-cta {
           text-align: center;
@@ -976,23 +1205,6 @@ export default function AboutSpaceTec() {
           flex-wrap: wrap;
         }
 
-        .as-cta-primary {
-          display: inline-block;
-          padding: 0.9rem 1.6rem;
-          background: #ffffff;
-          color: #000000;
-          text-decoration: none;
-          font-size: 0.75rem;
-          font-weight: 800;
-          letter-spacing: 2px;
-          text-transform: uppercase;
-          transition: opacity 0.25s ease;
-        }
-
-        .as-cta-primary:hover {
-          opacity: 0.85;
-        }
-
         .as-cta-secondary {
           background: rgba(255, 255, 255, 0.08);
           border: 1px solid rgba(255, 255, 255, 0.3);
@@ -1010,6 +1222,13 @@ export default function AboutSpaceTec() {
           background: rgba(255, 255, 255, 0.15);
         }
 
+        @media (prefers-reduced-motion: reduce) {
+          .as-network-ring-1,
+          .as-network-ring-2 {
+            animation: none !important;
+          }
+        }
+
         /* RESPONSIVE (desktop-first, keep it from breaking below that) */
         @media (max-width: 720px) {
           .as-header {
@@ -1024,7 +1243,7 @@ export default function AboutSpaceTec() {
           .as-tile {
             width: 220px;
           }
-          .as-network-node-label {
+          .as-network-node {
             font-size: 0.56rem;
             padding: 0.22rem 0.4rem;
           }
