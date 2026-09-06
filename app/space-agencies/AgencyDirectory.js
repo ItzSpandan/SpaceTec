@@ -118,7 +118,7 @@ export function AllAgenciesPage({ agencies, spaceBackgrounds, onClose, onOpenSat
       {/* STICKY SPACETEC HEADER — reused for both the directory grid and an open profile, so it never scrolls away. */}
       <div style={{ position: 'sticky', top: 0, zIndex: 20, backgroundColor: '#000000', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', padding: '1.5rem 2rem' }}>
-          <motion.span layoutId="spacetec-brand" style={{ fontSize: '1.25rem' }} className="spacetec-wordmark">SPACETEC</motion.span>
+          <motion.span layoutId="agency-dir-brand" style={{ fontSize: '1.25rem', display: 'inline-block', whiteSpace: 'nowrap' }} className="spacetec-wordmark">SPACETEC</motion.span>
           <button
             onClick={() => (selectedAgency ? setSelectedAgency(null) : handleBackToMain())}
             style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '0.8rem 1.5rem', cursor: 'pointer', fontSize: '0.75rem', letterSpacing: '2px', fontWeight: '700', textTransform: 'uppercase' }}
@@ -206,7 +206,7 @@ export function AllAgenciesPage({ agencies, spaceBackgrounds, onClose, onOpenSat
         {isReturningMain && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} style={{ position: 'fixed', inset: 0, zIndex: 999999, display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000' }}>
             <div style={{ textAlign: 'center' }}>
-              <motion.h1 layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0 }} className="spacetec-wordmark">SPACETEC</motion.h1>
+              <motion.h1 layoutId="agency-dir-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0 }} className="spacetec-wordmark">SPACETEC</motion.h1>
               <p style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>CONNECTING TO MAIN...</p>
             </div>
           </motion.div>
