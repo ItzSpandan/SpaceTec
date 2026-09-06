@@ -813,11 +813,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
               <button className="brand-link" onClick={() => scrollToSection('hero')}>
                 <motion.span
                   layoutId="spacetec-brand"
-                  transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                  style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}
-                >
-                  SPACETEC
-                </motion.span>
+                  transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }} style={{ fontSize: '1.25rem', display: 'inline-block' }} className="spacetec-wordmark">SPACETEC</motion.span>
               </button>
             )}
           </div>
@@ -1076,9 +1072,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
               {/* Small brand/navigation heading — fills the space that used
                   to feel too empty without turning into a dashboard. */}
               <div style={{ padding: '5.5rem 1.75rem 1rem', flexShrink: 0, position: 'relative', zIndex: 1 }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 900, letterSpacing: '5px', color: '#ffffff' }}>
-                  SPACETEC
-                </div>
+                <div style={{ fontSize: '0.85rem' }} className="spacetec-wordmark">SPACETEC</div>
                 <div style={{ fontSize: '0.62rem', fontWeight: 600, letterSpacing: '3px', color: '#71717a', marginTop: '0.3rem' }}>
                   NAVIGATION
                 </div>
@@ -1272,9 +1266,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                 initial={{ opacity: 0, scale: 0.9, letterSpacing: '0.12em' }}
                 animate={{ opacity: 1, scale: 1, letterSpacing: '0.22em' }}
               >
-                <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff' }}>
-                  SPACETEC
-                </h1>
+                <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0, letterSpacing: 'inherit' }} className="spacetec-wordmark">SPACETEC</h1>
               </motion.div>
 
               <motion.p
@@ -1339,11 +1331,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
             />
             <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}>
               <motion.h1
-                layoutId="spacetec-brand"
-                style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}
-              >
-                SPACETEC
-              </motion.h1>
+                layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0 }} className="spacetec-wordmark">SPACETEC</motion.h1>
               <motion.p
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1363,7 +1351,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
           <motion.div key="past-launches-transition" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000', padding: '2rem' }}>
             {spaceBackgrounds.map((bgUrl, idx) => <div key={`past-trans-bg-${idx}`} style={{ position: 'fixed', inset: 0, backgroundImage: `url('${bgUrl}')`, backgroundSize: 'cover', backgroundPosition: 'center', zIndex: 0, opacity: bgIndex === idx ? 1 : 0, transition: 'opacity 1.8s ease-in-out', filter: 'brightness(0.4) contrast(1.25)', pointerEvents: 'none' }} />)}
             <div style={{ position: 'fixed', inset: 0, background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)', zIndex: 1, pointerEvents: 'none' }} />
-            <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}><motion.h1 layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}>SPACETEC</motion.h1><motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>LOADING GLOBAL LAUNCH ARCHIVE...</motion.p></div>
+            <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}><motion.h1 layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0 }} className="spacetec-wordmark">SPACETEC</motion.h1><motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>LOADING GLOBAL LAUNCH ARCHIVE...</motion.p></div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1374,7 +1362,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
           <motion.div key="agencies-transition" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000', padding: '2rem' }}>
             {spaceBackgrounds.map((bgUrl, idx) => <div key={`agencies-trans-bg-${idx}`} style={{ position: 'fixed', inset: 0, backgroundImage: `url('${bgUrl}')`, backgroundSize: 'cover', backgroundPosition: 'center', zIndex: 0, opacity: bgIndex === idx ? 1 : 0, transition: 'opacity 1.8s ease-in-out', filter: 'brightness(0.4) contrast(1.25)', pointerEvents: 'none' }} />)}
             <div style={{ position: 'fixed', inset: 0, background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)', zIndex: 1, pointerEvents: 'none' }} />
-            <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}><motion.h1 layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}>SPACETEC</motion.h1><motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>LOADING GLOBAL AGENCY DIRECTORY...</motion.p></div>
+            <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}><motion.h1 layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0 }} className="spacetec-wordmark">SPACETEC</motion.h1><motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>LOADING GLOBAL AGENCY DIRECTORY...</motion.p></div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1384,7 +1372,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
           <motion.div key="launchpads-transition" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000', padding: '2rem' }}>
             {spaceBackgrounds.map((bgUrl, idx) => <div key={`launchpads-trans-bg-${idx}`} style={{ position: 'fixed', inset: 0, backgroundImage: `url('${bgUrl}')`, backgroundSize: 'cover', backgroundPosition: 'center', zIndex: 0, opacity: bgIndex === idx ? 1 : 0, transition: 'opacity 1.8s ease-in-out', filter: 'brightness(0.4) contrast(1.25)', pointerEvents: 'none' }} />)}
             <div style={{ position: 'fixed', inset: 0, background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)', zIndex: 1, pointerEvents: 'none' }} />
-            <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}><motion.h1 layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}>SPACETEC</motion.h1><motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>LOADING GLOBAL LAUNCHPAD DIRECTORY...</motion.p></div>
+            <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}><motion.h1 layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0 }} className="spacetec-wordmark">SPACETEC</motion.h1><motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>LOADING GLOBAL LAUNCHPAD DIRECTORY...</motion.p></div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1437,11 +1425,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
             />
             <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}>
               <motion.h1
-                layoutId="spacetec-brand"
-                style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}
-              >
-                SPACETEC
-              </motion.h1>
+                layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0 }} className="spacetec-wordmark">SPACETEC</motion.h1>
               <motion.p
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -2299,7 +2283,7 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose, initialSearch = '' }) {
 
       <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 3 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <motion.span layoutId="spacetec-brand" style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}>SPACETEC</motion.span>
+          <motion.span layoutId="spacetec-brand" style={{ fontSize: '1.25rem', display: 'inline-block' }} className="spacetec-wordmark">SPACETEC</motion.span>
           <button onClick={handleBackToMainWithTransition} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '0.8rem 1.5rem', cursor: 'pointer', fontSize: '0.75rem', letterSpacing: '2px', fontWeight: '700', textTransform: 'uppercase' }}>[← BACK TO MAIN]</button>
         </div>
 
@@ -2423,7 +2407,7 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose, initialSearch = '' }) {
       </AnimatePresence>
 
       <AnimatePresence>
-        {isReturningMain && <motion.div key="returning-main-wiki" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} style={{ position: 'fixed', inset: 0, zIndex: 999999, display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000' }}><div style={{ textAlign: 'center' }}><motion.h1 layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}>SPACETEC</motion.h1><p style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>CONNECTING TO MAIN...</p></div></motion.div>}
+        {isReturningMain && <motion.div key="returning-main-wiki" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} style={{ position: 'fixed', inset: 0, zIndex: 999999, display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000' }}><div style={{ textAlign: 'center' }}><motion.h1 layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0 }} className="spacetec-wordmark">SPACETEC</motion.h1><p style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>CONNECTING TO MAIN...</p></div></motion.div>}
       </AnimatePresence>
     </motion.div>
   );
@@ -2469,7 +2453,7 @@ function AllLaunchpadsPage({ launchpads, weatherById, getStatusColor, spaceBackg
       <div style={{ position: 'fixed', inset: 0, zIndex: 1, pointerEvents: 'none', background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)' }} />
       <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 3 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
-          <motion.span layoutId="spacetec-brand" style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase' }}>SPACETEC</motion.span>
+          <motion.span layoutId="spacetec-brand" style={{ fontSize: '1.25rem' }} className="spacetec-wordmark">SPACETEC</motion.span>
           <button onClick={handleBackToMain} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '0.8rem 1.5rem', cursor: 'pointer', fontSize: '0.75rem', letterSpacing: '2px', fontWeight: '700', textTransform: 'uppercase' }}>[← BACK TO MAIN]</button>
         </div>
         <div style={{ borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: '2rem', marginBottom: '2rem' }}>
@@ -2572,7 +2556,7 @@ function AllLaunchpadsPage({ launchpads, weatherById, getStatusColor, spaceBackg
           })()}
         </AnimatePresence>
       </div>
-      <AnimatePresence>{isReturningMain && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} style={{ position: 'fixed', inset: 0, zIndex: 999999, display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000' }}><div style={{ textAlign: 'center' }}><motion.h1 layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}>SPACETEC</motion.h1><p style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>CONNECTING TO MAIN...</p></div></motion.div>}</AnimatePresence>
+      <AnimatePresence>{isReturningMain && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} style={{ position: 'fixed', inset: 0, zIndex: 999999, display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000' }}><div style={{ textAlign: 'center' }}><motion.h1 layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0 }} className="spacetec-wordmark">SPACETEC</motion.h1><p style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>CONNECTING TO MAIN...</p></div></motion.div>}</AnimatePresence>
     </motion.div>
   );
 }
@@ -2710,11 +2694,7 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch, 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
           <div>
             <motion.span 
-              layoutId="spacetec-brand"
-              style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}
-            >
-              SPACETEC
-            </motion.span>
+              layoutId="spacetec-brand" style={{ fontSize: '1.25rem', display: 'inline-block' }} className="spacetec-wordmark">SPACETEC</motion.span>
           </div>
 
           <button 
@@ -2879,11 +2859,7 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch, 
             />
             <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}>
               <motion.h1
-                layoutId="spacetec-brand"
-                style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff', letterSpacing: '0.22em' }}
-              >
-                SPACETEC
-              </motion.h1>
+                layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0 }} className="spacetec-wordmark">SPACETEC</motion.h1>
               <motion.p
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -3044,9 +3020,7 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '2.5rem', gap: '2rem' }}>
           <div style={{ flex: 1 }}>
             <div style={{ marginBottom: '1rem' }}>
-              <span style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}>
-                SPACETEC
-              </span>
+              <span style={{ fontSize: '1.25rem', display: 'inline-block' }} className="spacetec-wordmark">SPACETEC</span>
             </div>
             <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
               // FULL MISSION TELEMETRY & PAD ENVIRONMENT
