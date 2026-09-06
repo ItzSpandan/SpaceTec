@@ -181,9 +181,7 @@ export default function SpaceStatistics() {
               initial={{ scale: 0.9, letterSpacing: '0.12em' }}
               animate={{ scale: 1, letterSpacing: '0.22em' }}
             >
-              <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff' }}>
-                SPACETEC
-              </h1>
+              <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0, letterSpacing: 'inherit' }} className="spacetec-wordmark">SPACETEC</h1>
             </motion.div>
             <motion.p
               initial={{ opacity: 0, y: 15 }}
@@ -476,7 +474,7 @@ export default function SpaceStatistics() {
         }
 
         .stat-brand-link { background: none; border: none; cursor: pointer; padding: 0; }
-        .stat-brand-text { display: inline-block; color: #fff; font-weight: 800; font-size: 1rem; letter-spacing: 3px; text-transform: uppercase; }
+        .stat-brand-text { display: inline-block; font-size: 1rem; font-family: var(--wordmark-font-family); font-weight: var(--wordmark-font-weight); letter-spacing: var(--wordmark-letter-spacing); text-transform: uppercase; color: var(--wordmark-color); }
 
         .stat-back-btn {
           background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.3); color: #fff;
@@ -545,7 +543,9 @@ export default function SpaceStatistics() {
         @media (max-width: 640px) {
           .stat-overview { grid-template-columns: 1fr; }
           .stat-hero h1 { font-size: 2.2rem; }
-          .stat-brand-text { font-size: 0.85rem; letter-spacing: 4px; }
+          .stat-brand-text {
+            font-size: 0.85rem;
+          }
           .stat-bar-row { grid-template-columns: 90px 1fr 46px; }
         }
       `}</style>
