@@ -251,7 +251,7 @@ export default function CelestialDatabase() {
         }
 
         .cd-brand-link { background: none; border: none; cursor: pointer; padding: 0; }
-        .cd-brand-text { display: inline-block; font-size: 1rem; font-family: var(--wordmark-font-family); font-weight: var(--wordmark-font-weight); letter-spacing: var(--wordmark-letter-spacing); text-transform: uppercase; color: var(--wordmark-color); }
+        .cd-brand-text { display: inline-block; font-size: 1.25rem; font-family: var(--wordmark-font-family); font-weight: var(--wordmark-font-weight); letter-spacing: var(--wordmark-letter-spacing); text-transform: uppercase; color: var(--wordmark-color); white-space: nowrap; }
         .cd-header-status { color: #64748b; font: 600 0.58rem/1 monospace; letter-spacing: 2px; }
         .cd-back-home {
           background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.3); color: #fff;
@@ -333,7 +333,6 @@ export default function CelestialDatabase() {
         @media (max-width: 640px) {
           .cd-grid { grid-template-columns: 1fr; }
           .cd-hero h1 { font-size: 2.4rem; }
-          .cd-brand-text { font-size: 0.85rem; }
         }
       `}</style>
     </main>
