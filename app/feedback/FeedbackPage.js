@@ -48,6 +48,11 @@ export default function FeedbackPage() {
 
   const [entered, setEntered] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
+  // Safety net only — the intro above already transitions on its own after
+  // ENTER_DELAY_MS. If that timer is ever prevented from firing (a slow
+  // network, a stalled tab, anything we can't predict from here), this
+  // gives people a manual way through instead of a permanent dead end.
+  const [showSkip, setShowSkip] = useState(false);
 
   const [rating, setRating] = useState(0);
   const [category, setCategory] = useState('');
@@ -62,7 +67,12 @@ export default function FeedbackPage() {
       setShowIntro(false);
       setEntered(true);
     }, ENTER_DELAY_MS);
-    return () => clearTimeout(t);
+    // Only shows if the line above hasn't already gotten us in by then.
+    const skipTimer = setTimeout(() => setShowSkip(true), ENTER_DELAY_MS + 2500);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(skipTimer);
+    };
   }, []);
 
   // If a visitor lands here logged out and goes on to create an account,
@@ -185,6 +195,18 @@ export default function FeedbackPage() {
             >
               FEEDBACK
             </motion.p>
+            {showSkip && (
+              <motion.button
+                type="button"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5 }}
+                className="fb-intro-skip"
+                onClick={() => { setShowIntro(false); setEntered(true); }}
+              >
+                Tap to continue →
+              </motion.button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -321,6 +343,12 @@ export default function FeedbackPage() {
           font-size: calc(0.7rem + 0.3vw); letter-spacing: 12px; color: #ffffff; text-transform: uppercase;
           margin-top: 1.5rem; font-weight: 500; text-align: center;
         }
+        .fb-intro-skip {
+          margin-top: 2.5rem; background: transparent; border: 1px solid rgba(255,255,255,0.35);
+          color: #fff; padding: 0.7rem 1.4rem; font-size: 0.7rem; letter-spacing: 2px;
+          text-transform: uppercase; font-weight: 700; font-family: inherit; cursor: pointer;
+        }
+        .fb-intro-skip:hover { background: rgba(255,255,255,0.1); }
 
         .fb-content {
           position: relative; z-index: 3; max-width: 560px; margin: 0 auto;
