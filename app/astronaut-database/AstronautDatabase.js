@@ -336,7 +336,7 @@ export default function AstronautDatabase() {
         }
 
         .crew-brand-link { background: none; border: none; cursor: pointer; padding: 0; }
-        .crew-brand-text { display: inline-block; font-size: 1rem; font-family: var(--wordmark-font-family); font-weight: var(--wordmark-font-weight); letter-spacing: var(--wordmark-letter-spacing); text-transform: uppercase; color: var(--wordmark-color); }
+        .crew-brand-text { display: inline-block; font-size: 1.25rem; font-family: var(--wordmark-font-family); font-weight: var(--wordmark-font-weight); letter-spacing: var(--wordmark-letter-spacing); text-transform: uppercase; color: var(--wordmark-color); white-space: nowrap; }
         .crew-header-status { color: #64748b; font: 600 0.58rem/1 monospace; letter-spacing: 2px; }
 
         .crew-content { position: relative; z-index: 5; max-width: 1240px; margin: 0 auto; padding: 60px 30px 90px; }
@@ -435,9 +435,6 @@ export default function AstronautDatabase() {
         @media (max-width: 640px) {
           .crew-grid { grid-template-columns: 1fr; }
           .crew-hero h1 { font-size: 2.4rem; }
-          .crew-brand-text {
-            font-size: 0.85rem;
-          }
           .crew-mission-fields { grid-template-columns: 1fr; }
         }
       `}</style>
