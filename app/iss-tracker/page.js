@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   eciToGeodetic,
   gstime,
@@ -10,6 +11,12 @@ import {
   degreesLat,
   degreesLong,
 } from 'satellite.js';
+
+// Same "big centered SPACETEC, holds, then docks into the header" entry
+// transition used by the other dedicated SpaceTec pages (astronomy-tonight,
+// space-weather, rocket-database, ...). It plays automatically — it is not
+// gated on a click — while the ISS telemetry loads underneath in parallel.
+const ENTER_DELAY_MS = 2000;
 
 const ReactGlobe = dynamic(() => import('react-globe.gl'), {
   ssr: false,
@@ -220,6 +227,17 @@ function getPass(satrec, lat, lon, now) {
 
 export default function ISSTrackerPage() {
   const globeRef = useRef(null);
+
+  const [showIntro, setShowIntro] = useState(true);
+  const [entered, setEntered] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setShowIntro(false);
+      setEntered(true);
+    }, ENTER_DELAY_MS);
+    return () => clearTimeout(t);
+  }, []);
 
   const [satrec, setSatrec] = useState(null);
   const [state, setState] = useState(null);
@@ -586,16 +604,25 @@ export default function ISSTrackerPage() {
           type="button"
           className="iss-brand"
           onClick={() => {
-            window.location.href =
-              '/';
+            if (entered) window.location.href = '/';
           }}
+          style={{ pointerEvents: entered ? 'auto' : 'none' }}
         >
-          <span className="spacetec-wordmark">SPACETEC</span>
+          <motion.span
+            layoutId="spacetec-brand"
+            transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+            className="spacetec-wordmark"
+          >
+            SPACETEC
+          </motion.span>
           <span>//</span>
           ISS
         </button>
 
-        <div className="iss-header-status">
+        <div
+          className="iss-header-status"
+          style={{ opacity: entered ? 1 : 0, transition: 'opacity 0.6s ease' }}
+        >
           <span
             className={`status-dot ${status.toLowerCase()}`}
           />
@@ -611,9 +638,9 @@ export default function ISSTrackerPage() {
           type="button"
           className="iss-back"
           onClick={() => {
-            window.location.href =
-              '/';
+            if (entered) window.location.href = '/';
           }}
+          style={{ opacity: entered ? 1 : 0, transition: 'opacity 0.6s ease', pointerEvents: entered ? 'auto' : 'none' }}
         >
           ← SPACE TEC
         </button>
@@ -1050,6 +1077,37 @@ export default function ISSTrackerPage() {
           </div>
         </aside>
       </section>
+
+      {/* ENTRY TRANSITION: SPACETEC big & centered, holds, then docks into the header — same pattern as the other dedicated SpaceTec pages. Plays automatically; the ISS telemetry above loads in parallel underneath. */}
+      <AnimatePresence>
+        {showIntro && (
+          <motion.div
+            key="iss-intro"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            style={{ position: 'fixed', inset: 0, zIndex: 999999, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000', padding: '2rem' }}
+          >
+            <motion.div
+              layoutId="spacetec-brand"
+              transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ scale: 0.9, letterSpacing: '0.12em' }}
+              animate={{ scale: 1, letterSpacing: '0.22em' }}
+            >
+              <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0, letterSpacing: 'inherit' }} className="spacetec-wordmark">SPACETEC</h1>
+            </motion.div>
+            <motion.p
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              style={{ fontSize: 'calc(0.7rem + 0.3vw)', letterSpacing: '12px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '500' }}
+            >
+              ACQUIRING ORBITAL TELEMETRY...
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <style jsx global>{`
         * {
