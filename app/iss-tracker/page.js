@@ -590,7 +590,7 @@ export default function ISSTrackerPage() {
               '/';
           }}
         >
-          SPACETEC
+          <span className="spacetec-wordmark">SPACETEC</span>
           <span>//</span>
           ISS
         </button>
