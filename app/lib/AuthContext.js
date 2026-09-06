@@ -95,13 +95,18 @@ export function AuthProvider({ children }) {
       return;
     }
     setProfileLoading(true);
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, display_name, created_at')
-      .eq('id', userId)
-      .maybeSingle();
-    if (!error) setProfile(data || null);
-    setProfileLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, display_name, created_at')
+        .eq('id', userId)
+        .maybeSingle();
+      if (!error) setProfile(data || null);
+    } catch (err) {
+      console.error('SpaceTec loadProfile failed:', err);
+    } finally {
+      setProfileLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -113,13 +118,18 @@ export function AuthProvider({ children }) {
       // resolve it immediately. Profile data is fetched separately below
       // and tracked by its own `profileLoading` flag, so it can no longer
       // hold up this decision.
-      setSession(data.session || null);
+      setSession(data?.session || null);
       setLoading(false);
-      if (data.session?.user) {
+      if (data?.session?.user) {
         const storedIntent = readResumeIntent();
         if (storedIntent) setResumeIntent(storedIntent);
       }
-      loadProfile(data.session?.user?.id);
+      loadProfile(data?.session?.user?.id);
+    }).catch((err) => {
+      console.error('SpaceTec getSession failed:', err);
+      if (!mounted) return;
+      setSession(null);
+      setLoading(false);
     });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
