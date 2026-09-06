@@ -612,15 +612,7 @@ export default function AboutSpaceTec() {
           padding: 0;
         }
 
-        .as-brand-text {
-          display: inline-block;
-          color: #ffffff;
-          font-weight: 900;
-          font-size: 1.25rem;
-          letter-spacing: 8px;
-          text-transform: uppercase;
-          white-space: nowrap;
-        }
+        .as-brand-text { display: inline-block; font-size: 1.25rem; font-family: var(--wordmark-font-family); font-weight: var(--wordmark-font-weight); letter-spacing: var(--wordmark-letter-spacing); text-transform: uppercase; color: var(--wordmark-color); white-space: nowrap; }
 
         .as-header-tag {
           color: #64748b;
@@ -665,10 +657,11 @@ export default function AboutSpaceTec() {
 
         .as-intro-title {
           font-size: calc(3.5rem + 4vw);
-          font-weight: 900;
+          font-family: var(--wordmark-font-family);
+          font-weight: var(--wordmark-font-weight);
           margin: 0;
           text-transform: uppercase;
-          color: #ffffff;
+          color: var(--wordmark-color);
         }
 
         .as-intro-tagline {
@@ -1007,9 +1000,11 @@ export default function AboutSpaceTec() {
 
         .as-assembly-core-label {
           font-size: 0.95rem;
-          font-weight: 900;
-          letter-spacing: 3px;
-          color: #ffffff;
+          font-family: var(--wordmark-font-family);
+          font-weight: var(--wordmark-font-weight);
+          letter-spacing: var(--wordmark-letter-spacing);
+          text-transform: uppercase;
+          color: var(--wordmark-color);
         }
 
         /* SPACETEC IN MOTION */
@@ -1222,7 +1217,6 @@ export default function AboutSpaceTec() {
           }
           .as-assembly-core-label {
             font-size: 0.72rem;
-            letter-spacing: 2px;
           }
         }
       `}</style>
