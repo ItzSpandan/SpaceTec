@@ -67,6 +67,7 @@ function DetailView({ object, onBack }) {
 export default function CelestialDatabase() {
   const [entered, setEntered] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
+  const [showSkip, setShowSkip] = useState(false);
   const [query, setQuery] = useState('');
   const [activeType, setActiveType] = useState('ALL');
   const [activeDomain, setActiveDomain] = useState('ALL');
@@ -77,7 +78,11 @@ export default function CelestialDatabase() {
       setShowIntro(false);
       setEntered(true);
     }, ENTER_DELAY_MS);
-    return () => clearTimeout(shrinkTimer);
+    const skipTimer = setTimeout(() => setShowSkip(true), ENTER_DELAY_MS + 2500);
+    return () => {
+      clearTimeout(shrinkTimer);
+      clearTimeout(skipTimer);
+    };
   }, []);
 
   // Deep link from Global Search: /celestial-database?id=<object-id>
@@ -166,6 +171,22 @@ export default function CelestialDatabase() {
             >
               INDEXING KNOWN OBJECTS...
             </motion.p>
+            {showSkip && (
+              <motion.button
+                type="button"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5 }}
+                onClick={() => { setShowIntro(false); setEntered(true); }}
+                style={{
+                  marginTop: '2.5rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.35)',
+                  color: '#fff', padding: '0.7rem 1.4rem', fontSize: '0.7rem', letterSpacing: '2px',
+                  textTransform: 'uppercase', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
+                }}
+              >
+                Tap to continue →
+              </motion.button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

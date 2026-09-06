@@ -137,6 +137,7 @@ function DetailView({ astronaut, onBack }) {
 export default function AstronautDatabase() {
   const [entered, setEntered] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
+  const [showSkip, setShowSkip] = useState(false);
   const [query, setQuery] = useState('');
   const [activeAgency, setActiveAgency] = useState('ALL');
   const [activeNationality, setActiveNationality] = useState('ALL');
@@ -150,7 +151,11 @@ export default function AstronautDatabase() {
       setShowIntro(false);
       setEntered(true);
     }, ENTER_DELAY_MS);
-    return () => clearTimeout(shrinkTimer);
+    const skipTimer = setTimeout(() => setShowSkip(true), ENTER_DELAY_MS + 2500);
+    return () => {
+      clearTimeout(shrinkTimer);
+      clearTimeout(skipTimer);
+    };
   }, []);
 
   // Deep link from Global Search: /astronaut-database?id=<astronaut-id>
@@ -238,6 +243,22 @@ export default function AstronautDatabase() {
             >
               INDEXING FLIGHT CREW RECORDS...
             </motion.p>
+            {showSkip && (
+              <motion.button
+                type="button"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5 }}
+                onClick={() => { setShowIntro(false); setEntered(true); }}
+                style={{
+                  marginTop: '2.5rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.35)',
+                  color: '#fff', padding: '0.7rem 1.4rem', fontSize: '0.7rem', letterSpacing: '2px',
+                  textTransform: 'uppercase', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
+                }}
+              >
+                Tap to continue →
+              </motion.button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

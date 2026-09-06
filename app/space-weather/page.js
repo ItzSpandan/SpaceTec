@@ -118,6 +118,7 @@ function Sparkline({ data, color = '#38bdf8', useLog = false }) {
 export default function SpaceWeatherPage() {
   const [entered, setEntered] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
+  const [showSkip, setShowSkip] = useState(false);
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('ACQUIRING'); // ACQUIRING | LIVE | DELAYED
   const [lastUpdate, setLastUpdate] = useState(null);
@@ -133,7 +134,11 @@ export default function SpaceWeatherPage() {
       setShowIntro(false);
       setEntered(true);
     }, ENTER_DELAY_MS);
-    return () => clearTimeout(shrinkTimer);
+    const skipTimer = setTimeout(() => setShowSkip(true), ENTER_DELAY_MS + 2500);
+    return () => {
+      clearTimeout(shrinkTimer);
+      clearTimeout(skipTimer);
+    };
   }, []);
 
   const load = useCallback(async () => {
@@ -260,6 +265,22 @@ export default function SpaceWeatherPage() {
             >
               CONNECTING TO SPACE WEATHER NETWORK...
             </motion.p>
+            {showSkip && (
+              <motion.button
+                type="button"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5 }}
+                onClick={() => { setShowIntro(false); setEntered(true); }}
+                style={{
+                  marginTop: '2.5rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.35)',
+                  color: '#fff', padding: '0.7rem 1.4rem', fontSize: '0.7rem', letterSpacing: '2px',
+                  textTransform: 'uppercase', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
+                }}
+              >
+                Tap to continue →
+              </motion.button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
