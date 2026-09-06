@@ -66,7 +66,7 @@ export default function RequireAuth({
           fontFamily: '"Space Grotesk", -apple-system, sans-serif',
         }}
       >
-        <span style={{ fontSize: '1rem', fontWeight: 900, letterSpacing: '6px', color: '#fff' }}>SPACETEC</span>
+        <span style={{ fontSize: '1rem' }} className="spacetec-wordmark">SPACETEC</span>
         <h1 style={{ color: '#fff', fontSize: '1.7rem', margin: '1.4rem 0 0.6rem', textTransform: 'uppercase', letterSpacing: '2px' }}>
           {title}
         </h1>
