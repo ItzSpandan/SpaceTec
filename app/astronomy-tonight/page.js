@@ -195,11 +195,7 @@ export default function AstronomyTonightPage() {
             >
               <motion.span
                 layoutId="spacetec-brand"
-                transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
-                style={{ fontSize: '1.25rem', fontWeight: '900', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', display: 'inline-block' }}
-              >
-                SPACETEC
-              </motion.span>
+                transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }} style={{ fontSize: '1.25rem', display: 'inline-block' }} className="spacetec-wordmark">SPACETEC</motion.span>
             </button>
           </div>
           <button
@@ -330,9 +326,7 @@ export default function AstronomyTonightPage() {
               initial={{ scale: 0.9, letterSpacing: '0.12em' }}
               animate={{ scale: 1, letterSpacing: '0.22em' }}
             >
-              <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff' }}>
-                SPACETEC
-              </h1>
+              <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0, letterSpacing: 'inherit' }} className="spacetec-wordmark">SPACETEC</h1>
             </motion.div>
             <motion.p
               initial={{ opacity: 0, y: 15 }}
