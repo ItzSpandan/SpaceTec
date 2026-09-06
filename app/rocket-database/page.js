@@ -144,8 +144,8 @@ function RocketDatabaseContent() {
               style={{ pointerEvents: entered ? 'auto' : 'none' }}
             >
               <motion.span
-                layoutId="spacetec-brand"
-                transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }} style={{ fontSize: '1.25rem', display: 'inline-block' }} className="spacetec-wordmark">SPACETEC</motion.span>
+                layoutId="rocket-brand"
+                transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }} style={{ fontSize: '1.25rem', display: 'inline-block', whiteSpace: 'nowrap' }} className="spacetec-wordmark">SPACETEC</motion.span>
             </button>
           </div>
           <button
@@ -377,7 +377,7 @@ function RocketDatabaseContent() {
             style={{ position: 'fixed', inset: 0, zIndex: 999999, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000', padding: '2rem' }}
           >
             <motion.div
-              layoutId="spacetec-brand"
+              layoutId="rocket-brand"
               transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
               initial={{ scale: 0.9, letterSpacing: '0.12em' }}
               animate={{ scale: 1, letterSpacing: '0.22em' }}
