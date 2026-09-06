@@ -23,7 +23,12 @@ const secondaryBtnStyle = {
   textTransform: 'uppercase', fontWeight: 700, cursor: 'pointer',
 };
 
-export default function RequireAuth({ children }) {
+export default function RequireAuth({
+  children,
+  title = 'Sign In To Continue',
+  message = 'Create a SpaceTec account to explore this feature.',
+  showCreateAccount = true,
+}) {
   const { user, loading, openAuthModal, rememberIntent } = useAuth();
 
   // Remember which route this was so that, if the visitor goes on to
@@ -63,14 +68,16 @@ export default function RequireAuth({ children }) {
       >
         <span style={{ fontSize: '1rem', fontWeight: 900, letterSpacing: '6px', color: '#fff' }}>SPACETEC</span>
         <h1 style={{ color: '#fff', fontSize: '1.7rem', margin: '1.4rem 0 0.6rem', textTransform: 'uppercase', letterSpacing: '2px' }}>
-          Sign In To Continue
+          {title}
         </h1>
         <p style={{ color: '#9ca3af', maxWidth: '420px', margin: '0 0 2rem', fontSize: '0.85rem', lineHeight: 1.6 }}>
-          Create a SpaceTec account to explore this feature.
+          {message}
         </p>
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
           <button style={primaryBtnStyle} onClick={() => openAuthModal('signin')}>Sign In</button>
-          <button style={secondaryBtnStyle} onClick={() => openAuthModal('signup')}>Create Account</button>
+          {showCreateAccount && (
+            <button style={secondaryBtnStyle} onClick={() => openAuthModal('signup')}>Create Account</button>
+          )}
         </div>
       </main>
     );
