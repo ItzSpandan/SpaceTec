@@ -72,6 +72,13 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Whether "is there a Supabase session?" is known and whether the
+  // (separate, secondary) profile row has finished loading are two
+  // different questions — see the note above the provider. `loading`
+  // answers only the first one, so protected pages resolve their
+  // "LOADING SESSION..." gate the moment Supabase's session state is
+  // known, instead of waiting on the profile fetch too.
+  const [profileLoading, setProfileLoading] = useState(true);
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('signin'); // 'signin' | 'signup' | 'account'
@@ -84,14 +91,17 @@ export function AuthProvider({ children }) {
   const loadProfile = useCallback(async (userId) => {
     if (!userId) {
       setProfile(null);
+      setProfileLoading(false);
       return;
     }
+    setProfileLoading(true);
     const { data, error } = await supabase
       .from('profiles')
       .select('id, display_name, created_at')
       .eq('id', userId)
       .maybeSingle();
     if (!error) setProfile(data || null);
+    setProfileLoading(false);
   }, []);
 
   useEffect(() => {
@@ -99,14 +109,17 @@ export function AuthProvider({ children }) {
 
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
+      // The authenticated/unauthenticated session state is now known —
+      // resolve it immediately. Profile data is fetched separately below
+      // and tracked by its own `profileLoading` flag, so it can no longer
+      // hold up this decision.
       setSession(data.session || null);
+      setLoading(false);
       if (data.session?.user) {
         const storedIntent = readResumeIntent();
         if (storedIntent) setResumeIntent(storedIntent);
       }
-      loadProfile(data.session?.user?.id).finally(() => {
-        if (mounted) setLoading(false);
-      });
+      loadProfile(data.session?.user?.id);
     });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
@@ -224,13 +237,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   const value = useMemo(() => ({
-    session, user, profile, loading,
+    session, user, profile, loading, profileLoading,
     authModalOpen, authModalMode, pendingAction,
     resumeIntent, rememberIntent, clearResumeIntent,
     openAuthModal, closeAuthModal, handleAuthSuccess, requireAuth,
     signIn, signUp, signOut, resendConfirmation,
   }), [
-    session, user, profile, loading,
+    session, user, profile, loading, profileLoading,
     authModalOpen, authModalMode, pendingAction,
     resumeIntent, rememberIntent, clearResumeIntent,
     openAuthModal, closeAuthModal, handleAuthSuccess, requireAuth,
