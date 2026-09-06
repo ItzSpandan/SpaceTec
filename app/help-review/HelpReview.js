@@ -161,15 +161,7 @@ export default function HelpReview() {
           padding: 0;
         }
 
-        .hr-brand-text {
-          display: inline-block;
-          color: #ffffff;
-          font-weight: 900;
-          font-size: 1.25rem;
-          letter-spacing: 8px;
-          text-transform: uppercase;
-          white-space: nowrap;
-        }
+        .hr-brand-text { display: inline-block; font-size: 1.25rem; font-family: var(--wordmark-font-family); font-weight: var(--wordmark-font-weight); letter-spacing: var(--wordmark-letter-spacing); text-transform: uppercase; color: var(--wordmark-color); white-space: nowrap; }
 
         .hr-header-tag {
           color: #64748b;
@@ -212,10 +204,11 @@ export default function HelpReview() {
 
         .hr-intro-title {
           font-size: calc(3.5rem + 4vw);
-          font-weight: 900;
+          font-family: var(--wordmark-font-family);
+          font-weight: var(--wordmark-font-weight);
           margin: 0;
           text-transform: uppercase;
-          color: #ffffff;
+          color: var(--wordmark-color);
         }
 
         .hr-intro-tagline {
