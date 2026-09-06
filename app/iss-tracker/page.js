@@ -609,9 +609,10 @@ export default function ISSTrackerPage() {
           style={{ pointerEvents: entered ? 'auto' : 'none' }}
         >
           <motion.span
-            layoutId="spacetec-brand"
+            layoutId="iss-brand"
             transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
             className="spacetec-wordmark"
+            style={{ fontSize: '1.25rem', display: 'inline-block', whiteSpace: 'nowrap' }}
           >
             SPACETEC
           </motion.span>
@@ -1090,7 +1091,7 @@ export default function ISSTrackerPage() {
             style={{ position: 'fixed', inset: 0, zIndex: 999999, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000', padding: '2rem' }}
           >
             <motion.div
-              layoutId="spacetec-brand"
+              layoutId="iss-brand"
               transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
               initial={{ scale: 0.9, letterSpacing: '0.12em' }}
               animate={{ scale: 1, letterSpacing: '0.22em' }}
@@ -1191,14 +1192,14 @@ export default function ISSTrackerPage() {
         }
 
         .iss-brand {
+          display: flex;
+          align-items: center;
           color: #fff;
-
-          font:
-            800 1.25rem/1
-            'Space Grotesk',
-            sans-serif;
-
-          letter-spacing: 3px;
+          font-family: 'Space Grotesk', sans-serif;
+          font-weight: 700;
+          font-size: 0.9rem;
+          letter-spacing: 2px;
+          padding: 0;
         }
 
         .iss-brand span {
