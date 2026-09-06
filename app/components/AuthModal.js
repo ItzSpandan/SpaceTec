@@ -248,7 +248,7 @@ export default function AuthModal() {
             ✕
           </button>
 
-          <span style={{ fontSize: '0.9rem', fontWeight: 900, letterSpacing: '6px', color: '#fff' }}>SPACETEC</span>
+          <span style={{ fontSize: '0.9rem' }} className="spacetec-wordmark">SPACETEC</span>
 
           {mode === 'account' && (
             <>
