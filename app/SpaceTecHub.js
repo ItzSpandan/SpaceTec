@@ -100,6 +100,13 @@ function IconHeart(props) {
     </svg>
   );
 }
+function IconFeedback(props) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M4 5.5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9l-4.2 3.4a.5.5 0 0 1-.8-.4V16.5H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1Z" />
+    </svg>
+  );
+}
 function IconProfile(props) {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -1208,8 +1215,11 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                 <button className="sidebar-secondary-row" style={sidebarSecondaryRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/about-spacetec'; })}>
                   <IconInfo /> About SpaceTec
                 </button>
-                <button className="sidebar-secondary-row" style={sidebarSecondaryRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/help-review'; })}>
-                  <IconHelp /> Help &amp; Review
+                <button className="sidebar-secondary-row" style={sidebarSecondaryRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/help'; })}>
+                  <IconHelp /> Help
+                </button>
+                <button className="sidebar-secondary-row" style={sidebarSecondaryRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/feedback'; })}>
+                  <IconFeedback /> Feedback
                 </button>
                 <button className="sidebar-secondary-row" style={{ ...sidebarSecondaryRowStyle, cursor: 'default' }} onClick={() => alert('Donate coming soon!')}>
                   <IconHeart /> Donate
