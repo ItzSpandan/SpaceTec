@@ -242,17 +242,8 @@ export default function SpaceWeatherPage() {
               initial={{ scale: 0.9, letterSpacing: '0.12em' }}
               animate={{ scale: 1, letterSpacing: '0.22em' }}
             >
-              <h1
-                style={{
-                  fontSize: 'calc(3.5rem + 4vw)',
-                  fontWeight: '900',
-                  margin: 0,
-                  textTransform: 'uppercase',
-                  color: '#ffffff',
-                }}
-              >
-                SPACETEC
-              </h1>
+              <h1 style={{ fontSize: 'calc(3.5rem + 4vw)',
+                  margin: 0, letterSpacing: 'inherit' }} className="spacetec-wordmark">SPACETEC</h1>
             </motion.div>
             <motion.p
               initial={{ opacity: 0, y: 15 }}
@@ -483,15 +474,7 @@ export default function SpaceWeatherPage() {
           padding: 0;
         }
 
-        .sw-brand-text {
-          display: inline-block;
-          color: #ffffff;
-          font-weight: 900;
-          font-size: 1.25rem;
-          letter-spacing: 8px;
-          text-transform: uppercase;
-          white-space: nowrap;
-        }
+        .sw-brand-text { display: inline-block; font-size: 1.25rem; font-family: var(--wordmark-font-family); font-weight: var(--wordmark-font-weight); letter-spacing: var(--wordmark-letter-spacing); text-transform: uppercase; color: var(--wordmark-color); white-space: nowrap; }
 
         .sw-back {
           background: rgba(255, 255, 255, 0.08);
@@ -781,7 +764,6 @@ export default function SpaceWeatherPage() {
 
           .sw-brand-text {
             font-size: 0.85rem;
-            letter-spacing: 4px;
           }
         }
       `}</style>
