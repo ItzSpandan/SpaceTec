@@ -228,9 +228,7 @@ export default function SpacecraftDatabase() {
               initial={{ scale: 0.9, letterSpacing: '0.12em' }}
               animate={{ scale: 1, letterSpacing: '0.22em' }}
             >
-              <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff' }}>
-                SPACETEC
-              </h1>
+              <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0, letterSpacing: 'inherit' }} className="spacetec-wordmark">SPACETEC</h1>
             </motion.div>
             <motion.p
               initial={{ opacity: 0, y: 15 }}
@@ -334,7 +332,7 @@ export default function SpacecraftDatabase() {
         }
 
         .sc-brand-link { background: none; border: none; cursor: pointer; padding: 0; }
-        .sc-brand-text { display: inline-block; color: #fff; font-weight: 800; font-size: 1rem; letter-spacing: 3px; text-transform: uppercase; }
+        .sc-brand-text { display: inline-block; font-size: 1rem; font-family: var(--wordmark-font-family); font-weight: var(--wordmark-font-weight); letter-spacing: var(--wordmark-letter-spacing); text-transform: uppercase; color: var(--wordmark-color); }
         .sc-header-status { color: #64748b; font: 600 0.58rem/1 monospace; letter-spacing: 2px; }
 
         .sc-content { position: relative; z-index: 5; max-width: 1240px; margin: 0 auto; padding: 60px 30px 90px; }
@@ -436,7 +434,9 @@ export default function SpacecraftDatabase() {
         @media (max-width: 640px) {
           .sc-grid { grid-template-columns: 1fr; }
           .sc-hero h1 { font-size: 2.4rem; }
-          .sc-brand-text { font-size: 0.85rem; letter-spacing: 4px; }
+          .sc-brand-text {
+            font-size: 0.85rem;
+          }
           .sc-mission-fields { grid-template-columns: 1fr; }
         }
       `}</style>
