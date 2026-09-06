@@ -111,8 +111,10 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let mounted = true;
+    let sessionSettled = false;
 
     supabase.auth.getSession().then(({ data }) => {
+      sessionSettled = true;
       if (!mounted) return;
       // The authenticated/unauthenticated session state is now known —
       // resolve it immediately. Profile data is fetched separately below
@@ -126,19 +128,36 @@ export function AuthProvider({ children }) {
       }
       loadProfile(data?.session?.user?.id);
     }).catch((err) => {
+      sessionSettled = true;
       console.error('SpaceTec getSession failed:', err);
       if (!mounted) return;
       setSession(null);
       setLoading(false);
     });
 
+    // getSession() is normally near-instant, but supabase-js can leave it
+    // hanging on a Web Locks deadlock (see supabase.js) rather than ever
+    // resolving or rejecting. Don't let that leave the whole page stuck on
+    // "LOADING SESSION..." forever — stop blocking after a timeout. The
+    // call above keeps running in the background and will still correct
+    // `session`/`profile` if it eventually does resolve, and
+    // onAuthStateChange below will also catch up once Supabase unblocks.
+    const unstickTimer = setTimeout(() => {
+      if (!mounted || sessionSettled) return;
+      console.error('SpaceTec getSession() timed out — unblocking the UI; it will self-correct once the check actually completes.');
+      setLoading(false);
+    }, 6000);
+
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      sessionSettled = true;
       setSession(newSession);
+      setLoading(false);
       loadProfile(newSession?.user?.id);
     });
 
     return () => {
       mounted = false;
+      clearTimeout(unstickTimer);
       subscription.subscription.unsubscribe();
     };
   }, [loadProfile]);
