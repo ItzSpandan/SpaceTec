@@ -289,6 +289,10 @@ function SocialRow({ reducedMotion }) {
 export default function AboutSpaceTec() {
   const [entered, setEntered] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
+  // Safety net only — see the matching note in FeedbackPage.js. The intro
+  // already transitions on its own after ENTER_DELAY_MS; this only shows
+  // up if that never happened.
+  const [showSkip, setShowSkip] = useState(false);
   const [bgIndex, setBgIndex] = useState(0);
   const canvasRef = useRef(null);
   const reducedMotion = usePrefersReducedMotion();
@@ -300,7 +304,11 @@ export default function AboutSpaceTec() {
       setShowIntro(false);
       setEntered(true);
     }, ENTER_DELAY_MS);
-    return () => clearTimeout(t);
+    const skipTimer = setTimeout(() => setShowSkip(true), ENTER_DELAY_MS + 2500);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(skipTimer);
+    };
   }, []);
 
   // Rotating dimmed background photo, same interval as the homepage.
@@ -434,6 +442,18 @@ export default function AboutSpaceTec() {
             >
               THIS IS WHAT SPACETEC IS
             </motion.p>
+            {showSkip && (
+              <motion.button
+                type="button"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5 }}
+                className="as-intro-skip"
+                onClick={() => { setShowIntro(false); setEntered(true); }}
+              >
+                Tap to continue →
+              </motion.button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -673,6 +693,21 @@ export default function AboutSpaceTec() {
           font-weight: 500;
           text-align: center;
         }
+
+        .as-intro-skip {
+          margin-top: 2.5rem;
+          background: transparent;
+          border: 1px solid rgba(255, 255, 255, 0.35);
+          color: #fff;
+          padding: 0.7rem 1.4rem;
+          font-size: 0.7rem;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          font-weight: 700;
+          font-family: inherit;
+          cursor: pointer;
+        }
+        .as-intro-skip:hover { background: rgba(255, 255, 255, 0.1); }
 
         .as-content {
           position: relative;
