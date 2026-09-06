@@ -342,7 +342,7 @@ export default function SpaceNewsPage() {
           background: rgba(255, 255, 255, 0.14);
         }
 
-        .sn-brand-text { display: inline-block; font-size: 1rem; font-family: var(--wordmark-font-family); font-weight: var(--wordmark-font-weight); letter-spacing: var(--wordmark-letter-spacing); text-transform: uppercase; color: var(--wordmark-color); }
+        .sn-brand-text { display: inline-block; font-size: 1.25rem; font-family: var(--wordmark-font-family); font-weight: var(--wordmark-font-weight); letter-spacing: var(--wordmark-letter-spacing); text-transform: uppercase; color: var(--wordmark-color); white-space: nowrap; }
 
         .sn-header-status {
           min-width: 110px;
@@ -663,10 +663,6 @@ export default function SpaceNewsPage() {
           .sn-header-status {
             min-width: 0;
             font-size: 0.5rem;
-          }
-
-          .sn-brand-text {
-            font-size: 0.85rem;
           }
 
           .sn-hero h1 {
