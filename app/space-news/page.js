@@ -194,9 +194,7 @@ export default function SpaceNewsPage() {
               initial={{ scale: 0.9, letterSpacing: '0.12em' }}
               animate={{ scale: 1, letterSpacing: '0.22em' }}
             >
-              <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', fontWeight: '900', margin: 0, textTransform: 'uppercase', color: '#ffffff' }}>
-                SPACETEC
-              </h1>
+              <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0, letterSpacing: 'inherit' }} className="spacetec-wordmark">SPACETEC</h1>
             </motion.div>
             <motion.p
               initial={{ opacity: 0, y: 15 }}
@@ -344,14 +342,7 @@ export default function SpaceNewsPage() {
           background: rgba(255, 255, 255, 0.14);
         }
 
-        .sn-brand-text {
-          display: inline-block;
-          color: #fff;
-          font-weight: 800;
-          font-size: 1rem;
-          letter-spacing: 3px;
-          text-transform: uppercase;
-        }
+        .sn-brand-text { display: inline-block; font-size: 1rem; font-family: var(--wordmark-font-family); font-weight: var(--wordmark-font-weight); letter-spacing: var(--wordmark-letter-spacing); text-transform: uppercase; color: var(--wordmark-color); }
 
         .sn-header-status {
           min-width: 110px;
@@ -676,7 +667,6 @@ export default function SpaceNewsPage() {
 
           .sn-brand-text {
             font-size: 0.85rem;
-            letter-spacing: 4px;
           }
 
           .sn-hero h1 {
