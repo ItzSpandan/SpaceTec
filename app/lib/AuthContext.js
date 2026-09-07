@@ -113,7 +113,7 @@ export function AuthProvider({ children }) {
     let mounted = true;
     let sessionSettled = false;
 
-    supabase.auth.getSession().then(({ data }) => {
+    const resolveSession = ({ data } = {}) => {
       sessionSettled = true;
       if (!mounted) return;
       // The authenticated/unauthenticated session state is now known —
@@ -127,7 +127,9 @@ export function AuthProvider({ children }) {
         if (storedIntent) setResumeIntent(storedIntent);
       }
       loadProfile(data?.session?.user?.id);
-    }).catch((err) => {
+    };
+
+    supabase.auth.getSession().then(resolveSession).catch((err) => {
       sessionSettled = true;
       console.error('SpaceTec getSession failed:', err);
       if (!mounted) return;
@@ -136,11 +138,25 @@ export function AuthProvider({ children }) {
     });
 
     // getSession() is normally near-instant, but supabase-js can leave it
-    // hanging on a Web Locks deadlock (see supabase.js) rather than ever
-    // resolving or rejecting. Don't let that leave the whole page stuck on
-    // "LOADING SESSION..." forever — stop blocking after a timeout. The
-    // call above keeps running in the background and will still correct
-    // `session`/`profile` if it eventually does resolve, and
+    // hanging (a Web Locks deadlock — see supabase.js — or, in some
+    // browsers, a privacy/ad-block/VPN layer holding the request until it
+    // sees a genuine user gesture). If the very first interaction on the
+    // page happens while we're still waiting, re-issue the call right
+    // then instead of making people wait out the full timeout below —
+    // this is exactly the "it unsticks the moment I click" behavior
+    // reported in the field, just handled automatically rather than
+    // requiring someone to notice and click the dead screen.
+    const retryOnInteraction = () => {
+      if (sessionSettled) return;
+      supabase.auth.getSession().then(resolveSession).catch(() => {});
+    };
+    window.addEventListener('pointerdown', retryOnInteraction, { once: true });
+    window.addEventListener('keydown', retryOnInteraction, { once: true });
+
+    // Absolute ceiling regardless of interaction: don't let the whole page
+    // stay stuck on "LOADING SESSION..." forever even with zero clicks.
+    // The call above keeps running in the background and will still
+    // correct `session`/`profile` if it eventually does resolve, and
     // onAuthStateChange below will also catch up once Supabase unblocks.
     const unstickTimer = setTimeout(() => {
       if (!mounted || sessionSettled) return;
@@ -157,6 +173,8 @@ export function AuthProvider({ children }) {
 
     return () => {
       mounted = false;
+      window.removeEventListener('pointerdown', retryOnInteraction);
+      window.removeEventListener('keydown', retryOnInteraction);
       clearTimeout(unstickTimer);
       subscription.subscription.unsubscribe();
     };
