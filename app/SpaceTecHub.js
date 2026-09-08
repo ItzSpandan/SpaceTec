@@ -1082,7 +1082,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
               {/* ZONE 1 — main feature navigation, the ONLY scrollable area */}
               <nav
                 className="sidebar-scroll"
-                style={{ flex: 1, overflowY: 'auto', padding: '0.5rem 1.75rem 1rem', position: 'relative', zIndex: 1 }}
+                style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0.5rem 1.75rem 1rem', position: 'relative', zIndex: 1 }}
               >
                 {/* Live Telemetry (expandable) */}
                 <div>
