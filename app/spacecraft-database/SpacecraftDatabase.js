@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SPACECRAFT, TYPE_VALUES, STATUS_VALUES } from './spacecraftData';
 import {
@@ -139,6 +140,7 @@ function DetailView({ craft, onBack }) {
 }
 
 export default function SpacecraftDatabase() {
+  const router = useRouter();
   const [entered, setEntered] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [showSkip, setShowSkip] = useState(false);
@@ -196,7 +198,7 @@ export default function SpacecraftDatabase() {
           <button
             type="button"
             className="sc-brand-link"
-            onClick={() => { if (entered) window.location.href = '/'; }}
+            onClick={() => { if (entered) router.push('/'); }}
             style={{ pointerEvents: entered ? 'auto' : 'none' }}
           >
             <motion.span

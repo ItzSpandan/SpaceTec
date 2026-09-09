@@ -10,7 +10,7 @@
     "fetch:agency-images": "node scripts/fetch_agency_hq_images.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.39.0",
+    "@supabase/supabase-js": "2.95.0",
     "framer-motion": "^11.0.0",
     "globe.gl": "^2.26.0",
     "next": "14.2.0",

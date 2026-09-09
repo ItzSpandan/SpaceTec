@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import {
   TILE_ROW_1,
@@ -287,6 +288,7 @@ function SocialRow({ reducedMotion }) {
 }
 
 export default function AboutSpaceTec() {
+  const router = useRouter();
   const [entered, setEntered] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [bgIndex, setBgIndex] = useState(0);
@@ -360,7 +362,7 @@ export default function AboutSpaceTec() {
   }, []);
 
   const goHome = () => {
-    window.location.href = '/';
+    router.push('/');
   };
 
   return (

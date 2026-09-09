@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HELP_SECTIONS } from './helpContent';
 
@@ -11,6 +12,7 @@ function normalize(text) {
 }
 
 export default function HelpCenter() {
+  const router = useRouter();
   const [entered, setEntered] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [showSkip, setShowSkip] = useState(false);
@@ -40,7 +42,7 @@ export default function HelpCenter() {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  const goHome = () => { window.location.href = '/'; };
+  const goHome = () => { router.push('/'); };
 
   const filteredSections = useMemo(() => {
     const q = normalize(query.trim());

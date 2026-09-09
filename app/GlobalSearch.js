@@ -26,6 +26,7 @@
 // the right feature/section rather than a specific profile.
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from './supabase';
 import { CELESTIAL_OBJECTS } from './celestial-database/celestialData';
 import { MISSIONS } from './mission-database/missionData';
@@ -175,6 +176,7 @@ export default function GlobalSearch({
   onOpenLaunchpads,
   onOpenSatelliteWiki,
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
   const [open, setOpen] = useState(false);
@@ -349,9 +351,12 @@ export default function GlobalSearch({
     newsResults.length +
     (spaceWeatherMatch ? 1 : 0);
 
+  // Client-side route change — these are all internal SpaceTec routes, so
+  // this avoids a full document reload (and the AuthProvider/animation
+  // state reset that comes with one).
   const goTo = useCallback((href) => {
-    window.location.href = href;
-  }, []);
+    router.push(href);
+  }, [router]);
 
   const handleSelect = useCallback(
     (action) => {

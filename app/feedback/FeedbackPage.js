@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../supabase';
 import { useAuth } from '../lib/AuthContext';
@@ -44,6 +45,7 @@ function StarRating({ value, onChange }) {
 }
 
 export default function FeedbackPage() {
+  const router = useRouter();
   const { user, profile, loading: authLoading, openAuthModal, rememberIntent } = useAuth();
 
   const [entered, setEntered] = useState(false);
@@ -74,7 +76,7 @@ export default function FeedbackPage() {
     }
   }, [authLoading, user, rememberIntent]);
 
-  const goHome = () => { window.location.href = '/'; };
+  const goHome = () => { router.push('/'); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();

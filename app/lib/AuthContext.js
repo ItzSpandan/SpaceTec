@@ -7,6 +7,23 @@
 // requirement: components call useAuth() rather than each re-implementing
 // session checks.
 //
+// LIFECYCLE (see the two effects below):
+//   1. AUTH INITIALIZING  — one getSession() call, once, on mount.
+//   2. SESSION RESOLVED   — `loading` becomes false the moment Supabase
+//      tells us whether a session exists. onAuthStateChange keeps this in
+//      sync afterwards but never does anything beyond updating state —
+//      no database calls happen inside that callback, because Supabase
+//      Auth callbacks can deadlock if another Supabase-async call is made
+//      directly inside them.
+//   3. PROFILE LOADING    — a second, independent effect watches the
+//      resolved user id and loads the profile row. It is keyed on the id
+//      itself, so switching users (or signing out) cancels any in-flight
+//      request for the previous id instead of letting it overwrite newer
+//      state, and a failed/slow profile fetch can never block `loading`
+//      or leave the rest of the site stuck.
+//   4. READY              — `loading` is false; `profileLoading` tracks
+//      the profile fetch on its own.
+//
 // requireAuth(action) is the gate used by "account-required" features
 // (full agency exploration, launchpad directory, satellite database, ...):
 // if the visitor is already signed in it just runs `action` immediately;
@@ -74,11 +91,15 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   // Whether "is there a Supabase session?" is known and whether the
   // (separate, secondary) profile row has finished loading are two
-  // different questions — see the note above the provider. `loading`
-  // answers only the first one, so protected pages resolve their
-  // "LOADING SESSION..." gate the moment Supabase's session state is
-  // known, instead of waiting on the profile fetch too.
+  // different questions. `loading` answers only the first one, so
+  // protected pages resolve their "LOADING SESSION..." gate the moment
+  // Supabase's session state is known, instead of waiting on the profile
+  // fetch too.
   const [profileLoading, setProfileLoading] = useState(true);
+  // A genuine, terminal failure to resolve the session (e.g. Supabase
+  // unreachable). Distinct from `loading`: once this is set, we are done
+  // trying and the UI should say so rather than sit on a spinner forever.
+  const [authError, setAuthError] = useState(null);
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('signin'); // 'signin' | 'signup' | 'account'
@@ -88,104 +109,108 @@ export function AuthProvider({ children }) {
   // gate — this is what a returning-from-email-confirmation page load reads.
   const [resumeIntent, setResumeIntent] = useState(null);
 
-  const loadProfile = useCallback(async (userId) => {
-    if (!userId) {
-      setProfile(null);
-      setProfileLoading(false);
-      return;
-    }
-    setProfileLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, display_name, created_at')
-        .eq('id', userId)
-        .maybeSingle();
-      if (!error) setProfile(data || null);
-    } catch (err) {
-      console.error('SpaceTec loadProfile failed:', err);
-    } finally {
-      setProfileLoading(false);
-    }
-  }, []);
-
+  // ---- 1. Auth initialization + auth-state subscription -----------------
+  // Exactly one getSession() call on mount, exactly one onAuthStateChange
+  // subscription. Neither of them ever calls into the database — they only
+  // ever set `session`/`loading`/`authError`. Profile loading lives in its
+  // own effect below, keyed off the resolved user id.
   useEffect(() => {
     let mounted = true;
-    let sessionSettled = false;
 
-    const resolveSession = ({ data } = {}) => {
-      sessionSettled = true;
-      if (!mounted) return;
-      // The authenticated/unauthenticated session state is now known —
-      // resolve it immediately. Profile data is fetched separately below
-      // and tracked by its own `profileLoading` flag, so it can no longer
-      // hold up this decision.
-      setSession(data?.session || null);
-      setLoading(false);
-      if (data?.session?.user) {
-        const storedIntent = readResumeIntent();
-        if (storedIntent) setResumeIntent(storedIntent);
-      }
-      loadProfile(data?.session?.user?.id);
-    };
-
-    supabase.auth.getSession().then(resolveSession).catch((err) => {
-      sessionSettled = true;
-      console.error('SpaceTec getSession failed:', err);
-      if (!mounted) return;
-      setSession(null);
-      setLoading(false);
-    });
-
-    // getSession() is normally near-instant, but supabase-js can leave it
-    // hanging (a Web Locks deadlock — see supabase.js — or, in some
-    // browsers, a privacy/ad-block/VPN layer holding the request until it
-    // sees a genuine user gesture). If the very first interaction on the
-    // page happens while we're still waiting, re-issue the call right
-    // then instead of making people wait out the full timeout below —
-    // this is exactly the "it unsticks the moment I click" behavior
-    // reported in the field, just handled automatically rather than
-    // requiring someone to notice and click the dead screen.
-    const retryOnInteraction = () => {
-      if (sessionSettled) return;
-      supabase.auth.getSession().then(resolveSession).catch(() => {});
-    };
-    window.addEventListener('pointerdown', retryOnInteraction, { once: true });
-    window.addEventListener('keydown', retryOnInteraction, { once: true });
-
-    // Absolute ceiling regardless of interaction: don't let the whole page
-    // stay stuck on "LOADING SESSION..." forever even with zero clicks.
-    // The call above keeps running in the background and will still
-    // correct `session`/`profile` if it eventually does resolve, and
-    // onAuthStateChange below will also catch up once Supabase unblocks.
-    const unstickTimer = setTimeout(() => {
-      if (!mounted || sessionSettled) return;
-      console.error('SpaceTec getSession() timed out — unblocking the UI; it will self-correct once the check actually completes.');
-      setLoading(false);
-    }, 6000);
+    supabase.auth.getSession()
+      .then(({ data, error }) => {
+        if (!mounted) return;
+        if (error) {
+          console.error('SpaceTec getSession failed:', error);
+          setAuthError(error);
+          setSession(null);
+          setLoading(false);
+          return;
+        }
+        setSession(data?.session || null);
+        setLoading(false);
+        if (data?.session?.user) {
+          const storedIntent = readResumeIntent();
+          if (storedIntent) setResumeIntent(storedIntent);
+        }
+      })
+      .catch((err) => {
+        if (!mounted) return;
+        console.error('SpaceTec getSession failed:', err);
+        setAuthError(err);
+        setSession(null);
+        setLoading(false);
+      });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      sessionSettled = true;
+      if (!mounted) return;
+      // Lightweight only: update auth state and nothing else. No database
+      // reads/writes happen here — see the profile effect below.
       setSession(newSession);
       setLoading(false);
-      loadProfile(newSession?.user?.id);
+      setAuthError(null);
     });
 
     return () => {
       mounted = false;
-      window.removeEventListener('pointerdown', retryOnInteraction);
-      window.removeEventListener('keydown', retryOnInteraction);
-      clearTimeout(unstickTimer);
       subscription.subscription.unsubscribe();
     };
-  }, [loadProfile]);
+  }, []);
+
+  // ---- 2. Profile loading, independent of the auth callback -------------
+  // Re-runs whenever the resolved user id changes (sign-in, sign-out,
+  // switching accounts). The `active` flag guards against a slow request
+  // for a previous id resolving after a newer one has already started —
+  // it simply won't be applied.
+  const userId = session?.user?.id || null;
+
+  useEffect(() => {
+    let active = true;
+
+    if (!userId) {
+      setProfile(null);
+      setProfileLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    setProfileLoading(true);
+    supabase
+      .from('profiles')
+      .select('id, display_name, created_at')
+      .eq('id', userId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) {
+          console.error('SpaceTec loadProfile failed:', error);
+          setProfile(null);
+          return;
+        }
+        setProfile(data || null);
+      })
+      .catch((err) => {
+        if (!active) return;
+        console.error('SpaceTec loadProfile failed:', err);
+        setProfile(null);
+      })
+      .finally(() => {
+        if (active) setProfileLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [userId]);
 
   const user = session?.user || null;
 
-  // Best-effort activity logging — never blocks or fails the actual auth
-  // flow if the insert has trouble (e.g. a transient network hiccup).
-  const logActivity = useCallback(async (eventType, userId) => {
-    const id = userId || session?.user?.id;
+  // Best-effort activity logging — secondary telemetry. Never allowed to
+  // block or fail the actual auth flow: any error here is swallowed after
+  // being logged to the console.
+  const logActivity = useCallback(async (eventType, userIdOverride) => {
+    const id = userIdOverride || session?.user?.id;
     if (!id) return;
     try {
       await supabase.from('account_activity').insert({ user_id: id, event_type: eventType });
@@ -195,6 +220,9 @@ export function AuthProvider({ children }) {
   }, [session]);
 
   const signIn = useCallback(async (email, password) => {
+    // 1. Authenticate. 2. Auth state updates via onAuthStateChange above.
+    // 3. Log activity — best-effort, never blocks or reverses a successful
+    // sign-in even if this insert fails.
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error };
     await logActivity('signin');
@@ -236,6 +264,9 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // Logging is attempted but never allowed to prevent sign-out: it's
+    // wrapped in try/catch inside logActivity, and we sign out regardless
+    // of whether it succeeded.
     await logActivity('signout');
     await supabase.auth.signOut();
   }, [logActivity]);
@@ -284,13 +315,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   const value = useMemo(() => ({
-    session, user, profile, loading, profileLoading,
+    session, user, profile, loading, profileLoading, authError,
     authModalOpen, authModalMode, pendingAction,
     resumeIntent, rememberIntent, clearResumeIntent,
     openAuthModal, closeAuthModal, handleAuthSuccess, requireAuth,
     signIn, signUp, signOut, resendConfirmation,
   }), [
-    session, user, profile, loading, profileLoading,
+    session, user, profile, loading, profileLoading, authError,
     authModalOpen, authModalMode, pendingAction,
     resumeIntent, rememberIntent, clearResumeIntent,
     openAuthModal, closeAuthModal, handleAuthSuccess, requireAuth,

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import CelestialBackground from '../celestial-database/CelestialBackground';
 import { fetchSpaceStatistics } from './statisticsData';
@@ -99,6 +100,7 @@ function filterByYearRange(entries, rangeId) {
 }
 
 export default function SpaceStatistics() {
+  const router = useRouter();
   const [entered, setEntered] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [showSkip, setShowSkip] = useState(false);
@@ -144,7 +146,7 @@ export default function SpaceStatistics() {
           <button
             type="button"
             className="stat-brand-link"
-            onClick={() => { if (entered) window.location.href = '/'; }}
+            onClick={() => { if (entered) router.push('/'); }}
             style={{ pointerEvents: entered ? 'auto' : 'none' }}
           >
             <motion.span
@@ -159,7 +161,7 @@ export default function SpaceStatistics() {
         <button
           type="button"
           className="stat-back-btn"
-          onClick={() => { window.location.href = '/'; }}
+          onClick={() => { router.push('/'); }}
           style={{ opacity: entered ? 1 : 0, pointerEvents: entered ? 'auto' : 'none', transition: 'opacity 0.6s ease' }}
         >
           [← BACK TO MAIN]

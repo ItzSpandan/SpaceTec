@@ -7,6 +7,7 @@
 // <AllAgenciesPage />, exactly as it did when it lived inline.
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- AGENCY PROFILE HELPERS (used only by the Agency Directory / Agency Profile) ---
@@ -255,15 +256,17 @@ function DatabaseLinkButton({ label, onClick }) {
 }
 
 function AgencyProfile({ agency, onOpenSatelliteWiki, onOpenLaunchpads }) {
+  const router = useRouter();
   const identity = getAgencyIdentity(agency);
   const capabilities = getAgencyCapabilities(agency);
 
   // These separate databases live on their own routes in this project, so a
-  // profile link does a normal navigation to the existing page rather than
-  // re-implementing it here. The `agency` query param is passed along so
-  // that page can apply an agency filter if/where it already supports one.
+  // profile link does a client-side navigation to the existing page rather
+  // than re-implementing it here. The `agency` query param is passed along
+  // so that page can apply an agency filter if/where it already supports
+  // one.
   const goToDatabase = (path) => {
-    window.location.href = `${path}?agency=${encodeURIComponent(agency.id)}`;
+    router.push(`${path}?agency=${encodeURIComponent(agency.id)}`);
   };
 
   return (

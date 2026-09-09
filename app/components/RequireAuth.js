@@ -29,7 +29,7 @@ export default function RequireAuth({
   message = 'Create a SpaceTec account to explore this feature.',
   showCreateAccount = true,
 }) {
-  const { user, loading, openAuthModal, rememberIntent } = useAuth();
+  const { user, loading, authError, openAuthModal, rememberIntent } = useAuth();
 
   // Remember which route this was so that, if the visitor goes on to
   // create an account (email confirmation redirects here via the
@@ -73,6 +73,11 @@ export default function RequireAuth({
         <p style={{ color: '#9ca3af', maxWidth: '420px', margin: '0 0 2rem', fontSize: '0.85rem', lineHeight: 1.6 }}>
           {message}
         </p>
+        {authError && (
+          <p style={{ color: '#f87171', maxWidth: '420px', margin: '-1.4rem 0 2rem', fontSize: '0.72rem', letterSpacing: '1px', lineHeight: 1.6 }}>
+            We couldn&apos;t reach the session service just now — sign in still works below.
+          </p>
+        )}
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
           <button style={primaryBtnStyle} onClick={() => openAuthModal('signin')}>Sign In</button>
           {showCreateAccount && (

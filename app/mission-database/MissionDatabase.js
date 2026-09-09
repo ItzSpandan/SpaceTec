@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MISSIONS, MISSION_TYPES, MISSION_STATUSES } from './missionData';
 import {
@@ -185,6 +186,7 @@ function DetailView({ mission, onBack, onSelectMission }) {
 }
 
 export default function MissionDatabase() {
+  const router = useRouter();
   const [entered, setEntered] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [showSkip, setShowSkip] = useState(false);
@@ -253,7 +255,7 @@ export default function MissionDatabase() {
           <button
             type="button"
             className="msn-brand-link"
-            onClick={() => { if (entered) window.location.href = '/'; }}
+            onClick={() => { if (entered) router.push('/'); }}
             style={{ pointerEvents: entered ? 'auto' : 'none' }}
           >
             <motion.span

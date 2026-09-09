@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -226,6 +227,7 @@ function getPass(satrec, lat, lon, now) {
 }
 
 export default function ISSTrackerPage() {
+  const router = useRouter();
   const globeRef = useRef(null);
 
   const [showIntro, setShowIntro] = useState(true);
@@ -609,7 +611,7 @@ export default function ISSTrackerPage() {
           type="button"
           className="iss-brand"
           onClick={() => {
-            if (entered) window.location.href = '/';
+            if (entered) router.push('/');
           }}
           style={{ pointerEvents: entered ? 'auto' : 'none' }}
         >
@@ -644,7 +646,7 @@ export default function ISSTrackerPage() {
           type="button"
           className="iss-back"
           onClick={() => {
-            if (entered) window.location.href = '/';
+            if (entered) router.push('/');
           }}
           style={{ opacity: entered ? 1 : 0, transition: 'opacity 0.6s ease', pointerEvents: entered ? 'auto' : 'none' }}
         >

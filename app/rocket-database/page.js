@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import RequireAuth from '../components/RequireAuth';
 
@@ -21,6 +22,7 @@ function fmt(value, unit = '') {
 }
 
 function RocketDatabaseContent() {
+  const router = useRouter();
   const [entered, setEntered] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [showSkip, setShowSkip] = useState(false);
@@ -145,7 +147,7 @@ function RocketDatabaseContent() {
           <div style={{ minWidth: '180px' }}>
             <button
               className="brand-link"
-              onClick={() => { if (entered) window.location.href = '/'; }}
+              onClick={() => { if (entered) router.push('/'); }}
               style={{ pointerEvents: entered ? 'auto' : 'none' }}
             >
               <motion.span
@@ -154,7 +156,7 @@ function RocketDatabaseContent() {
             </button>
           </div>
           <button
-            onClick={() => { window.location.href = '/'; }}
+            onClick={() => { router.push('/'); }}
             style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '0.8rem 1.5rem', cursor: 'pointer', fontSize: '0.75rem', letterSpacing: '2px', fontWeight: '700', textTransform: 'uppercase', opacity: entered ? 1 : 0, transition: 'opacity 0.6s ease', pointerEvents: entered ? 'auto' : 'none' }}
           >
             [← BACK TO MAIN]

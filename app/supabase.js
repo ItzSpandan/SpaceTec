@@ -13,12 +13,16 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 // "stuck on LOADING SESSION" pattern reported against this app: it's a
 // lock, not the network, so it doesn't reproduce the same way every time.
 // Caching a single instance avoids creating the duplicate client at all.
+//
+// This caching must happen in every environment, not just dev: Next.js can
+// still evaluate this module more than once in production (multiple entry
+// points/chunks referencing it), so gating the cache write behind a
+// NODE_ENV check would leave production exposed to the exact duplicate-
+// client problem this is meant to prevent.
 const globalForSupabase = globalThis
 
 export const supabase =
   globalForSupabase.__spacetecSupabaseClient ||
   createClient(supabaseUrl, supabaseAnonKey)
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForSupabase.__spacetecSupabaseClient = supabase
-}
+globalForSupabase.__spacetecSupabaseClient = supabase

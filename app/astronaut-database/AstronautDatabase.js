@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ASTRONAUTS, STATUS_VALUES } from './astronautData';
 import {
@@ -135,6 +136,7 @@ function DetailView({ astronaut, onBack }) {
 }
 
 export default function AstronautDatabase() {
+  const router = useRouter();
   const [entered, setEntered] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [showSkip, setShowSkip] = useState(false);
@@ -196,7 +198,7 @@ export default function AstronautDatabase() {
           <button
             type="button"
             className="crew-brand-link"
-            onClick={() => { if (entered) window.location.href = '/'; }}
+            onClick={() => { if (entered) router.push('/'); }}
             style={{ pointerEvents: entered ? 'auto' : 'none' }}
           >
             <motion.span

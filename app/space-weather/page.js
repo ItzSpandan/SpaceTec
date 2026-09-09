@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const POLL_INTERVAL_MS = 60 * 1000;
@@ -116,6 +117,7 @@ function Sparkline({ data, color = '#38bdf8', useLog = false }) {
 // --- page -----------------------------------------------------------------
 
 export default function SpaceWeatherPage() {
+  const router = useRouter();
   const [entered, setEntered] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [showSkip, setShowSkip] = useState(false);
@@ -193,7 +195,7 @@ export default function SpaceWeatherPage() {
           <button
             type="button"
             className="sw-brand-link"
-            onClick={() => { if (entered) window.location.href = '/'; }}
+            onClick={() => { if (entered) router.push('/'); }}
             style={{ pointerEvents: entered ? 'auto' : 'none' }}
           >
             <motion.span
@@ -213,7 +215,7 @@ export default function SpaceWeatherPage() {
         <button
           type="button"
           className="sw-back"
-          onClick={() => { window.location.href = '/'; }}
+          onClick={() => { router.push('/'); }}
           style={{ opacity: entered ? 1 : 0, transition: 'opacity 0.6s ease', pointerEvents: entered ? 'auto' : 'none' }}
         >
           [← BACK TO MAIN]

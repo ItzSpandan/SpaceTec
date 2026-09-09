@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import OrbitalGlobe from './OrbitalGlobe';
@@ -125,6 +126,7 @@ function IconClose(props) {
 }
 
 export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) {
+  const router = useRouter();
   const { user, profile, requireAuth, openAuthModal, resumeIntent, clearResumeIntent } = useAuth();
   const [entered, setEntered] = useState(false);
   const [heroPhraseIndex, setHeroPhraseIndex] = useState(0);
@@ -581,7 +583,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
     if (resumeIntent.type === 'route' && resumeIntent.path) {
       clearResumeIntent();
       if (resumeIntent.path !== window.location.pathname) {
-        window.location.href = resumeIntent.path;
+        router.push(resumeIntent.path);
       }
       return;
     }
@@ -894,7 +896,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
 <button
   className="nav-link"
   onClick={() => {
-    window.location.href = '/iss-tracker';
+    router.push('/iss-tracker');
   }}
 >
   ISS Tracker
@@ -943,7 +945,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                   <button 
                     onClick={() => {
                       setShowDatabaseDropdown(false);
-                      window.location.href = '/rocket-database';
+                      router.push('/rocket-database');
                     }} 
                     style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
@@ -952,7 +954,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                   <button 
                     onClick={() => {
                       setShowDatabaseDropdown(false);
-                      window.location.href = '/celestial-database';
+                      router.push('/celestial-database');
                     }} 
                     style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
@@ -961,7 +963,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                   <button 
                     onClick={() => {
                       setShowDatabaseDropdown(false);
-                      window.location.href = '/mission-database';
+                      router.push('/mission-database');
                     }} 
                     style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
@@ -970,7 +972,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                   <button 
                     onClick={() => {
                       setShowDatabaseDropdown(false);
-                      window.location.href = '/astronaut-database';
+                      router.push('/astronaut-database');
                     }} 
                     style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
@@ -979,7 +981,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                   <button 
                     onClick={() => {
                       setShowDatabaseDropdown(false);
-                      window.location.href = '/spacecraft-database';
+                      router.push('/spacecraft-database');
                     }} 
                     style={{ background: 'none', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.08)', color: '#d4d4d8', padding: '0.6rem 1rem', textAlign: 'left', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase', cursor: 'pointer', fontWeight: '600' }}
                   >
@@ -1134,7 +1136,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                   Launchpads
                 </button>
 
-                <button className="sidebar-row" style={sidebarRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/iss-tracker'; })}>
+                <button className="sidebar-row" style={sidebarRowStyle} onClick={() => closeSidebarThen(() => { router.push('/iss-tracker'); })}>
                   ISS Tracker
                 </button>
 
@@ -1161,19 +1163,19 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                         <button className="sidebar-subrow" style={sidebarSubRowStyle} onClick={() => closeSidebarThen(() => handleOpenSatelliteWiki())}>
                           Satellite Database
                         </button>
-                        <button className="sidebar-subrow" style={sidebarSubRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/rocket-database'; })}>
+                        <button className="sidebar-subrow" style={sidebarSubRowStyle} onClick={() => closeSidebarThen(() => { router.push('/rocket-database'); })}>
                           Rocket Database
                         </button>
-                        <button className="sidebar-subrow" style={sidebarSubRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/celestial-database'; })}>
+                        <button className="sidebar-subrow" style={sidebarSubRowStyle} onClick={() => closeSidebarThen(() => { router.push('/celestial-database'); })}>
                           Celestial Database
                         </button>
-                        <button className="sidebar-subrow" style={sidebarSubRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/mission-database'; })}>
+                        <button className="sidebar-subrow" style={sidebarSubRowStyle} onClick={() => closeSidebarThen(() => { router.push('/mission-database'); })}>
                           Mission Database
                         </button>
-                        <button className="sidebar-subrow" style={sidebarSubRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/astronaut-database'; })}>
+                        <button className="sidebar-subrow" style={sidebarSubRowStyle} onClick={() => closeSidebarThen(() => { router.push('/astronaut-database'); })}>
                           Astronaut Database
                         </button>
-                        <button className="sidebar-subrow" style={sidebarSubRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/spacecraft-database'; })}>
+                        <button className="sidebar-subrow" style={sidebarSubRowStyle} onClick={() => closeSidebarThen(() => { router.push('/spacecraft-database'); })}>
                           Spacecraft Database
                         </button>
                         <button className="sidebar-subrow" style={{ ...sidebarSubRowStyle, borderBottom: 'none' }} onClick={() => closeSidebarThen(() => scrollToSection('launches'))}>
@@ -1190,29 +1192,29 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                 <button className="sidebar-row" style={sidebarRowStyle} onClick={() => closeSidebarThen(() => alert('Space Encyclopedia feature coming soon!'))}>
                   Space Encyclopedia
                 </button>
-                <button className="sidebar-row" style={sidebarRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/space-weather'; })}>
+                <button className="sidebar-row" style={sidebarRowStyle} onClick={() => closeSidebarThen(() => { router.push('/space-weather'); })}>
                   Space Weather
                 </button>
-                <button className="sidebar-row" style={sidebarRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/astronomy-tonight'; })}>
+                <button className="sidebar-row" style={sidebarRowStyle} onClick={() => closeSidebarThen(() => { router.push('/astronomy-tonight'); })}>
                   Astronomy Tonight
                 </button>
-                <button className="sidebar-row" style={sidebarRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/space-news'; })}>
+                <button className="sidebar-row" style={sidebarRowStyle} onClick={() => closeSidebarThen(() => { router.push('/space-news'); })}>
                   Space News
                 </button>
-                <button className="sidebar-row" style={{ ...sidebarRowStyle, borderBottom: 'none' }} onClick={() => closeSidebarThen(() => { window.location.href = '/space-statistics'; })}>
+                <button className="sidebar-row" style={{ ...sidebarRowStyle, borderBottom: 'none' }} onClick={() => closeSidebarThen(() => { router.push('/space-statistics'); })}>
                   Space Statistics
                 </button>
               </nav>
 
               {/* ZONE 2 — secondary SpaceTec actions, always visible, never scrolls */}
               <div style={{ flexShrink: 0, padding: '1rem 1.75rem', borderTop: '1px solid rgba(255,255,255,0.1)', position: 'relative', zIndex: 1 }}>
-                <button className="sidebar-secondary-row" style={sidebarSecondaryRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/about-spacetec'; })}>
+                <button className="sidebar-secondary-row" style={sidebarSecondaryRowStyle} onClick={() => closeSidebarThen(() => { router.push('/about-spacetec'); })}>
                   <IconInfo /> About SpaceTec
                 </button>
-                <button className="sidebar-secondary-row" style={sidebarSecondaryRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/help'; })}>
+                <button className="sidebar-secondary-row" style={sidebarSecondaryRowStyle} onClick={() => closeSidebarThen(() => { router.push('/help'); })}>
                   <IconHelp /> Help
                 </button>
-                <button className="sidebar-secondary-row" style={sidebarSecondaryRowStyle} onClick={() => closeSidebarThen(() => { window.location.href = '/feedback'; })}>
+                <button className="sidebar-secondary-row" style={sidebarSecondaryRowStyle} onClick={() => closeSidebarThen(() => { router.push('/feedback'); })}>
                   <IconFeedback /> Feedback
                 </button>
                 <button className="sidebar-secondary-row" style={{ ...sidebarSecondaryRowStyle, cursor: 'default' }} onClick={() => alert('Donate coming soon!')}>
@@ -2283,7 +2285,7 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose, initialSearch = '' }) {
 
       <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 3 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <motion.span layoutId="spacetec-brand" style={{ fontSize: '1.25rem', display: 'inline-block' }} className="spacetec-wordmark">SPACETEC</motion.span>
+          <motion.span layoutId="wiki-brand" style={{ fontSize: '1.25rem', display: 'inline-block' }} className="spacetec-wordmark">SPACETEC</motion.span>
           <button onClick={handleBackToMainWithTransition} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '0.8rem 1.5rem', cursor: 'pointer', fontSize: '0.75rem', letterSpacing: '2px', fontWeight: '700', textTransform: 'uppercase' }}>[← BACK TO MAIN]</button>
         </div>
 
@@ -2407,7 +2409,7 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose, initialSearch = '' }) {
       </AnimatePresence>
 
       <AnimatePresence>
-        {isReturningMain && <motion.div key="returning-main-wiki" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} style={{ position: 'fixed', inset: 0, zIndex: 999999, display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000' }}><div style={{ textAlign: 'center' }}><motion.h1 layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0 }} className="spacetec-wordmark">SPACETEC</motion.h1><p style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>CONNECTING TO MAIN...</p></div></motion.div>}
+        {isReturningMain && <motion.div key="returning-main-wiki" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} style={{ position: 'fixed', inset: 0, zIndex: 999999, display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000' }}><div style={{ textAlign: 'center' }}><motion.h1 layoutId="wiki-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0 }} className="spacetec-wordmark">SPACETEC</motion.h1><p style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>CONNECTING TO MAIN...</p></div></motion.div>}
       </AnimatePresence>
     </motion.div>
   );
@@ -2453,7 +2455,7 @@ function AllLaunchpadsPage({ launchpads, weatherById, getStatusColor, spaceBackg
       <div style={{ position: 'fixed', inset: 0, zIndex: 1, pointerEvents: 'none', background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)' }} />
       <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 3 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
-          <motion.span layoutId="spacetec-brand" style={{ fontSize: '1.25rem' }} className="spacetec-wordmark">SPACETEC</motion.span>
+          <motion.span layoutId="allpads-brand" style={{ fontSize: '1.25rem' }} className="spacetec-wordmark">SPACETEC</motion.span>
           <button onClick={handleBackToMain} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '0.8rem 1.5rem', cursor: 'pointer', fontSize: '0.75rem', letterSpacing: '2px', fontWeight: '700', textTransform: 'uppercase' }}>[← BACK TO MAIN]</button>
         </div>
         <div style={{ borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: '2rem', marginBottom: '2rem' }}>
@@ -2556,7 +2558,7 @@ function AllLaunchpadsPage({ launchpads, weatherById, getStatusColor, spaceBackg
           })()}
         </AnimatePresence>
       </div>
-      <AnimatePresence>{isReturningMain && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} style={{ position: 'fixed', inset: 0, zIndex: 999999, display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000' }}><div style={{ textAlign: 'center' }}><motion.h1 layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0 }} className="spacetec-wordmark">SPACETEC</motion.h1><p style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>CONNECTING TO MAIN...</p></div></motion.div>}</AnimatePresence>
+      <AnimatePresence>{isReturningMain && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} style={{ position: 'fixed', inset: 0, zIndex: 999999, display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000' }}><div style={{ textAlign: 'center' }}><motion.h1 layoutId="allpads-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0 }} className="spacetec-wordmark">SPACETEC</motion.h1><p style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>CONNECTING TO MAIN...</p></div></motion.div>}</AnimatePresence>
     </motion.div>
   );
 }
@@ -2694,7 +2696,7 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch, 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
           <div>
             <motion.span 
-              layoutId="spacetec-brand" style={{ fontSize: '1.25rem', display: 'inline-block' }} className="spacetec-wordmark">SPACETEC</motion.span>
+              layoutId="alllaunches-brand" style={{ fontSize: '1.25rem', display: 'inline-block' }} className="spacetec-wordmark">SPACETEC</motion.span>
           </div>
 
           <button 
@@ -2859,7 +2861,7 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch, 
             />
             <div style={{ textAlign: 'center', position: 'relative', zIndex: 3 }}>
               <motion.h1
-                layoutId="spacetec-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0 }} className="spacetec-wordmark">SPACETEC</motion.h1>
+                layoutId="alllaunches-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0 }} className="spacetec-wordmark">SPACETEC</motion.h1>
               <motion.p
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}

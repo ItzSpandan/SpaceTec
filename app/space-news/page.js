@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const POLL_INTERVAL_MS = 3 * 60 * 1000;
@@ -66,6 +67,7 @@ function ArticleCard({ article, featured }) {
 }
 
 export default function SpaceNewsPage() {
+  const router = useRouter();
   const [entered, setEntered] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [showSkip, setShowSkip] = useState(false);
@@ -151,7 +153,7 @@ export default function SpaceNewsPage() {
           <button
             type="button"
             className="sn-brand-link"
-            onClick={() => { if (entered) window.location.href = '/'; }}
+            onClick={() => { if (entered) router.push('/'); }}
             style={{ pointerEvents: entered ? 'auto' : 'none' }}
           >
             <motion.span
@@ -171,7 +173,7 @@ export default function SpaceNewsPage() {
         <button
           type="button"
           className="sn-back"
-          onClick={() => { window.location.href = '/'; }}
+          onClick={() => { router.push('/'); }}
           style={{ opacity: entered ? 1 : 0, transition: 'opacity 0.6s ease', pointerEvents: entered ? 'auto' : 'none' }}
         >
           [← BACK TO MAIN]

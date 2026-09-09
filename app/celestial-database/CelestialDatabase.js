@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CELESTIAL_OBJECTS, OBJECT_TYPES } from './celestialData';
 import { computeStats, searchObjects, filterObjects, getDetailFields } from './celestialUtils';
@@ -65,6 +66,7 @@ function DetailView({ object, onBack }) {
 }
 
 export default function CelestialDatabase() {
+  const router = useRouter();
   const [entered, setEntered] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [showSkip, setShowSkip] = useState(false);
@@ -114,7 +116,7 @@ export default function CelestialDatabase() {
           <button
             type="button"
             className="cd-brand-link"
-            onClick={() => { if (entered) window.location.href = '/'; }}
+            onClick={() => { if (entered) router.push('/'); }}
             style={{ pointerEvents: entered ? 'auto' : 'none' }}
           >
             <motion.span
@@ -132,7 +134,7 @@ export default function CelestialDatabase() {
         <button
           type="button"
           className="cd-back-home"
-          onClick={() => { window.location.href = '/'; }}
+          onClick={() => { router.push('/'); }}
           style={{ opacity: entered ? 1 : 0, transition: 'opacity 0.6s ease', pointerEvents: entered ? 'auto' : 'none' }}
         >
           [← BACK TO MAIN]
