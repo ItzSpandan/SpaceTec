@@ -129,6 +129,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
   const router = useRouter();
   const { user, profile, requireAuth, openAuthModal, resumeIntent, clearResumeIntent } = useAuth();
   const [entered, setEntered] = useState(false);
+  // Gates when the intro wordmark is allowed to register Framer Motion's
+  // shared `layoutId`. This is what fixes the "SPACETEC doesn't appear
+  // until I click" bug — see the effect below for why.
+  const [introLayoutReady, setIntroLayoutReady] = useState(false);
   const [heroPhraseIndex, setHeroPhraseIndex] = useState(0);
 
   useEffect(() => {
@@ -452,6 +456,41 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
       setEntered(true);
     }, 3500); 
     return () => clearTimeout(autoEnterTimer);
+  }, []);
+
+  // Root-cause fix for the "SPACETEC intro doesn't visually appear on a
+  // fresh load, then suddenly appears after a random click" bug.
+  //
+  // The intro wordmark carries `layoutId="spacetec-brand"` so it can hand
+  // off into the header wordmark later. Framer Motion takes its FIRST
+  // measurement for a layoutId element in a layout effect immediately on
+  // mount. On a genuinely fresh load, that mount happens during/right
+  // after hydration — before the browser has necessarily finished a real
+  // layout + paint pass for a `position: fixed`, custom-lettered-spaced
+  // heading. If that first measurement is taken against a not-yet-settled
+  // box, Framer can end up projecting the element with a broken transform
+  // (effectively invisible), and it just sits there — because nothing
+  // asks Framer to re-measure again until something else forces the
+  // browser to redo layout (e.g. a click triggering a repaint), which is
+  // exactly the "random click makes it appear" symptom.
+  //
+  // The fix is to not hand Framer the `layoutId` at all until we're sure
+  // a real paint has already happened — two nested requestAnimationFrame
+  // calls guarantee the browser has completed at least one full
+  // layout+paint cycle first. This adds no delay a user could perceive
+  // (well under one frame in practice) and, unlike the old PaintUnstick
+  // workaround, it never forces a repaint at runtime — it just makes sure
+  // Framer's own first measurement happens at a safe, settled moment.
+  useEffect(() => {
+    let raf1;
+    let raf2;
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setIntroLayoutReady(true));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      if (raf2) cancelAnimationFrame(raf2);
+    };
   }, []);
 
   useEffect(() => {
@@ -1263,7 +1302,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
           >
             <div style={{ textAlign: 'center' }}>
               <motion.div
-                layoutId="spacetec-brand"
+                layoutId={introLayoutReady ? 'spacetec-brand' : undefined}
                 transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                 initial={{ opacity: 0, scale: 0.9, letterSpacing: '0.12em' }}
                 animate={{ opacity: 1, scale: 1, letterSpacing: '0.22em' }}
