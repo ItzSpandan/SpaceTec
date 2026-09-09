@@ -4,17 +4,33 @@ export const metadata = {
 };
 
 import Providers from './components/Providers';
+import { Orbitron, Space_Grotesk } from 'next/font/google';
+
+// Self-hosted via next/font instead of a <link> to fonts.googleapis.com.
+// This removes the extra render-blocking network round trip AND — more
+// importantly for the intro bug — next/font computes matched fallback-font
+// metrics (ascent/descent/size-adjust) at build time, so the fallback font
+// occupies the exact same box as the real font before it's ready. There is
+// no font-swap-driven reflow for Framer Motion's layoutId projection to
+// mismeasure. Weights match what was previously requested from Google Fonts.
+const orbitron = Orbitron({
+  subsets: ['latin'],
+  weight: ['600'],
+  display: 'swap',
+  variable: '--font-orbitron',
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '700'],
+  display: 'swap',
+  variable: '--font-space-grotesk',
+});
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${orbitron.variable} ${spaceGrotesk.variable}`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700;900&family=Orbitron:wght@600&display=swap"
-        />
         {/*
           Canonical SpaceTec brand wordmark tokens.
           Every "SPACETEC" wordmark across the app (header, intros, page
@@ -25,7 +41,7 @@ export default function RootLayout({ children }) {
         */}
         <style>{`
           :root {
-            --wordmark-font-family: 'Orbitron', 'Space Grotesk', -apple-system, sans-serif;
+            --wordmark-font-family: var(--font-orbitron), 'Space Grotesk', -apple-system, sans-serif;
             --wordmark-font-weight: 600;
             --wordmark-letter-spacing: 0.22em;
             --wordmark-color: #ffffff;
@@ -39,7 +55,7 @@ export default function RootLayout({ children }) {
           }
         `}</style>
       </head>
-      <body style={{ margin: 0, padding: 0, backgroundColor: '#000000', fontFamily: '"Space Grotesk", -apple-system, sans-serif' }}>
+      <body style={{ margin: 0, padding: 0, backgroundColor: '#000000', fontFamily: 'var(--font-space-grotesk), -apple-system, sans-serif' }}>
         <Providers>{children}</Providers>
       </body>
     </html>
