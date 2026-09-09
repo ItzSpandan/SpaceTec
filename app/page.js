@@ -3,48 +3,49 @@ import { supabase } from './supabase';
 
 export default async function Home() {
   const nasaApiKey = process.env.NASA_API_KEY || 'DEMO_KEY';
-  
-  let apodData = null;
-  let upcomingLaunches = [];
-  let padWeather = [];
 
-  // Fetch NASA APOD data
-  try {
-    const res = await fetch(`https://api.nasa.gov/planetary/apod?api_key=${nasaApiKey}`, { next: { revalidate: 3600 } });
-    if (res.ok) apodData = await res.json();
-  } catch (error) {
-    console.error("APOD Fetch Error:", error);
+  // These three were previously awaited one after another, so the total
+  // wait before ANYTHING (including the intro) could reach the browser
+  // was the SUM of all three requests. They don't depend on each other,
+  // so run them concurrently instead — same data, same error handling,
+  // same fallbacks, but the page shell ships as soon as the slowest of
+  // the three finishes rather than the sum of all three.
+  const [apodResult, launchesResult, weatherResult] = await Promise.allSettled([
+    fetch(`https://api.nasa.gov/planetary/apod?api_key=${nasaApiKey}`, { next: { revalidate: 3600 } })
+      .then((res) => (res.ok ? res.json() : null)),
+    supabase.from('launches').select('*').order('net', { ascending: true }),
+    supabase.from('weather').select('*'),
+  ]);
+
+  let apodData = null;
+  if (apodResult.status === 'fulfilled') {
+    apodData = apodResult.value;
+  } else {
+    console.error('APOD Fetch Error:', apodResult.reason);
   }
 
-  // Fetch real global launches from Supabase, sorted by upcoming launch time
-  try {
-    const { data, error } = await supabase
-      .from('launches')
-      .select('*')
-      .order('net', { ascending: true });
-      
+  let upcomingLaunches = [];
+  if (launchesResult.status === 'fulfilled') {
+    const { data, error } = launchesResult.value;
     if (error) {
-      console.error("Supabase Launch Fetch Error:", error);
+      console.error('Supabase Launch Fetch Error:', error);
     } else {
       upcomingLaunches = data || [];
     }
-  } catch (error) {
-    console.error("Database Fetch Error:", error);
+  } else {
+    console.error('Database Fetch Error:', launchesResult.reason);
   }
 
-  // Fetch live launchpad weather telemetry from Supabase
-  try {
-    const { data, error } = await supabase
-      .from('weather')
-      .select('*');
-
+  let padWeather = [];
+  if (weatherResult.status === 'fulfilled') {
+    const { data, error } = weatherResult.value;
     if (error) {
-      console.error("Supabase Weather Fetch Error:", error);
+      console.error('Supabase Weather Fetch Error:', error);
     } else {
       padWeather = data || [];
     }
-  } catch (error) {
-    console.error("Weather Database Fetch Error:", error);
+  } else {
+    console.error('Weather Database Fetch Error:', weatherResult.reason);
   }
 
   return <SpaceTecHub apodData={apodData} upcomingLaunches={upcomingLaunches} padWeather={padWeather} />;
