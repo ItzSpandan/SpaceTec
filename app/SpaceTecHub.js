@@ -474,13 +474,17 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
   // browser to redo layout (e.g. a click triggering a repaint), which is
   // exactly the "random click makes it appear" symptom.
   //
-  // The fix is to not hand Framer the `layoutId` at all until we're sure
-  // a real paint has already happened — two nested requestAnimationFrame
-  // calls guarantee the browser has completed at least one full
-  // layout+paint cycle first. This adds no delay a user could perceive
-  // (well under one frame in practice) and, unlike the old PaintUnstick
-  // workaround, it never forces a repaint at runtime — it just makes sure
-  // Framer's own first measurement happens at a safe, settled moment.
+  // The fix is to delay the intro's own MOUNT (not its layoutId — that
+  // has to stay the constant string "spacetec-brand" the whole time, or
+  // Framer can't match this node up with the header's node for the
+  // center → header handoff) until we're sure a real paint has already
+  // happened. Two nested requestAnimationFrame calls guarantee the
+  // browser has completed at least one full layout+paint cycle first.
+  // This adds no delay a user could perceive (well under one frame in
+  // practice) and, unlike the old PaintUnstick workaround, it never
+  // forces a repaint at runtime — it just makes sure the intro's first
+  // real mount (and therefore Framer's first measurement of it) happens
+  // at a safe, settled moment instead of mid-hydration.
   useEffect(() => {
     let raf1;
     let raf2;
@@ -1292,7 +1296,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
 
       {/* INTRO SCREEN (3.5 SECONDS) */}
       <AnimatePresence>
-        {!entered && (
+        {!entered && introLayoutReady && (
           <motion.div
             key="intro-screen"
             initial={{ opacity: 1 }}
@@ -1302,7 +1306,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
           >
             <div style={{ textAlign: 'center' }}>
               <motion.div
-                layoutId={introLayoutReady ? 'spacetec-brand' : undefined}
+                layoutId="spacetec-brand"
                 transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                 initial={{ opacity: 0, scale: 0.9, letterSpacing: '0.12em' }}
                 animate={{ opacity: 1, scale: 1, letterSpacing: '0.22em' }}
