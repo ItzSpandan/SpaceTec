@@ -4,6 +4,7 @@ export const metadata = {
 };
 
 import Providers from './components/Providers';
+import { Analytics } from '@vercel/analytics/next';
 import { Orbitron, Space_Grotesk } from 'next/font/google';
 
 // Self-hosted via next/font instead of a <link> to fonts.googleapis.com.
@@ -57,6 +58,7 @@ export default function RootLayout({ children }) {
       </head>
       <body style={{ margin: 0, padding: 0, backgroundColor: '#000000', fontFamily: 'var(--font-space-grotesk), -apple-system, sans-serif' }}>
         <Providers>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   );
