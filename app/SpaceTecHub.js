@@ -1271,7 +1271,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                   <button
                     className="sidebar-secondary-row"
                     style={{ ...sidebarSecondaryRowStyle, alignItems: 'flex-start' }}
-                    onClick={() => closeSidebarThen(() => openAuthModal('account'))}
+                    onClick={() => closeSidebarThen(() => { router.push('/my-space'); })}
                   >
                     <IconProfile style={{ marginTop: '0.15rem', flexShrink: 0 }} />
                     <span style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
