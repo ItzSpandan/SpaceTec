@@ -516,6 +516,28 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
     visible: { opacity: 1, transition: { staggerChildren: 0.12 } }
   };
 
+  // Hero-only entrance variants — deliberately separate from fadeInUp /
+  // staggerContainer above (which stay untouched and keep driving the
+  // "whileInView" grid reveals further down the page). The hero's own
+  // wrapper here no longer animates its own opacity ("hidden"/"visible"
+  // both stay at opacity: 1, it only exists to orchestrate the
+  // staggerChildren timing) — previously that wrapper faded in AT THE
+  // SAME TIME as each child's own opacity/y tween, and the two
+  // overlapping, differently-timed opacity ramps compounded into the
+  // uneven, "stuttery" look. Each child's own tween below is now the
+  // only thing animating opacity, on a single GPU-friendly
+  // transform (translateY) + opacity tween, slightly shorter/subtler
+  // than before and still using the same smooth ease-out curve.
+  const heroStaggerContainer = {
+    hidden: { opacity: 1 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.12 } }
+  };
+
+  const heroFadeInUp = {
+    hidden: { opacity: 0, y: 12 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.85, ease: [0.16, 1, 0.3, 1] } }
+  };
+
   const currentBatchAgencies = allAgencies.filter(a => a.batch === agencyBatchIndex);
 
   // Split the single `launches` table feed into two buckets: launches that
@@ -1473,12 +1495,12 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
         
         {/* HERO SECTION */}
         <section id="hero" className="content-container" style={{ paddingBottom: '4rem', scrollMarginTop: '8rem' }}>
-          <motion.div initial="hidden" animate={entered ? "visible" : "hidden"} variants={staggerContainer} style={{ maxWidth: '850px' }}>
-            <motion.p variants={fadeInUp} style={{ fontSize: '0.75rem', letterSpacing: '6px', textTransform: 'uppercase', color: '#a1a1aa', marginBottom: '1.5rem', fontWeight: '600' }}>
+          <motion.div initial="hidden" animate={entered ? "visible" : "hidden"} variants={heroStaggerContainer} style={{ maxWidth: '850px' }}>
+            <motion.p variants={heroFadeInUp} style={{ fontSize: '0.75rem', letterSpacing: '6px', textTransform: 'uppercase', color: '#a1a1aa', marginBottom: '1.5rem', fontWeight: '600' }}>
               // MULTI-AGENCY DEEP SPACE NETWORK
             </motion.p>
             
-            <motion.h2 variants={fadeInUp} style={{ fontSize: 'calc(2.2rem + 3vw)', fontWeight: '900', lineHeight: '1.1', letterSpacing: '1px', margin: '0 0 1.8rem 0', textTransform: 'uppercase', color: '#ffffff' }}>
+            <motion.h2 variants={heroFadeInUp} style={{ fontSize: 'calc(2.2rem + 3vw)', fontWeight: '900', lineHeight: '1.1', letterSpacing: '1px', margin: '0 0 1.8rem 0', textTransform: 'uppercase', color: '#ffffff' }}>
               THE UNIVERSE,
               <br />
               <span style={{ position: 'relative', display: 'inline-block', overflow: 'hidden', verticalAlign: 'top', minWidth: '100%' }}>
@@ -1499,7 +1521,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
               </span>
             </motion.h2>
 
-            <motion.p variants={fadeInUp} style={{ fontSize: '1.05rem', color: '#d4d4d8', lineHeight: '1.7', maxWidth: '680px', marginBottom: '2.5rem', fontWeight: '400' }}>
+            <motion.p variants={heroFadeInUp} style={{ fontSize: '1.05rem', color: '#d4d4d8', lineHeight: '1.7', maxWidth: '680px', marginBottom: '2.5rem', fontWeight: '400' }}>
               Real-time trajectory tracking, global rocket launch manifests, and deep space observations aggregated directly from global aerospace networks.
             </motion.p>
           </motion.div>
