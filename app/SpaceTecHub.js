@@ -48,6 +48,10 @@ function formatTimeAgo(dateStr) {
 }
 
 const HERO_ROTATING_PHRASES = ['ORGANIZED.', 'CONNECTED.', 'AT A GLANCE.', 'IN FOCUS.', 'IN MOTION.', 'IN REAL TIME.'];
+// Split out once so the permanent header wordmark's one-time letter-by-letter
+// entrance can animate each character independently. Only used by that
+// entrance — every other "SPACETEC" instance across the app is unaffected.
+const WORDMARK_LETTERS = ['S', 'P', 'A', 'C', 'E', 'T', 'E', 'C'];
 
 // Shared style objects for the sidebar nav rows — defined once at module
 // scope since none of them depend on component state (per-row overrides,
@@ -828,33 +832,46 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
           <div style={{ display: 'flex', alignItems: 'center', minWidth: '180px' }}>
             <button className="brand-link" onClick={() => scrollToSection('hero')}>
               {/*
-                Permanent top-left wordmark. This is now the homepage's
-                only mount point for the "spacetec-brand" layoutId (the
-                old centered startup intro that used to hand off into
-                this position has been removed), and it doubles as the
-                page's semantic <h1> for SEO.
+                Permanent top-left wordmark. This is the homepage's only
+                mount point for the "spacetec-brand" layoutId (the old
+                centered startup intro that used to hand off into this
+                position has been removed), and it doubles as the page's
+                semantic <h1> for SEO.
 
-                The one-time fade + letter-spacing settle below is a
-                subtle replacement entrance for the removed intro — it
-                plays once on mount and then sits static. It's kept
-                separate from the `layout` transition (still 1.2s, as
-                before) so the existing feature/database-page handoff
-                transitions that share this layoutId are completely
-                unaffected.
+                Entrance: the word is rendered whole, in its final size,
+                spacing and position, from the very first frame — nothing
+                about the wordmark's own box ever moves or resizes, so the
+                shared `layout` transition used by the dedicated
+                feature/database-page handoffs (still 1.2s, set below,
+                completely separate from this) is unaffected. What
+                animates is each LETTER individually: every character
+                starts blurred/lifted/invisible and settles into place in
+                a short overlapping sequence, so the wordmark reads as
+                forming itself letter by letter rather than sliding or
+                compressing into shape. It plays once on mount, then sits
+                fully static.
               */}
               <motion.h1
                 layoutId="spacetec-brand"
-                initial={{ opacity: 0, letterSpacing: '0.34em' }}
-                animate={{ opacity: 1, letterSpacing: '0.22em' }}
-                transition={{
-                  layout: { duration: 1.2, ease: [0.16, 1, 0.3, 1] },
-                  opacity: { duration: prefersReducedMotion ? 0.01 : 1, ease: [0.16, 1, 0.3, 1] },
-                  letterSpacing: { duration: prefersReducedMotion ? 0.01 : 1, ease: [0.16, 1, 0.3, 1] }
-                }}
+                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                 style={{ fontSize: '1.25rem', display: 'inline-block', margin: 0 }}
                 className="spacetec-wordmark"
               >
-                SPACETEC
+                {WORDMARK_LETTERS.map((letter, i) => (
+                  <motion.span
+                    key={i}
+                    initial={{ opacity: 0, y: 7, filter: 'blur(6px)' }}
+                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                    transition={{
+                      duration: prefersReducedMotion ? 0.01 : 0.6,
+                      delay: prefersReducedMotion ? 0 : i * 0.27,
+                      ease: [0.16, 1, 0.3, 1]
+                    }}
+                    style={{ display: 'inline-block' }}
+                  >
+                    {letter}
+                  </motion.span>
+                ))}
               </motion.h1>
             </button>
           </div>
