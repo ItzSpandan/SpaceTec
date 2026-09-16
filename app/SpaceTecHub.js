@@ -130,11 +130,12 @@ function IconClose(props) {
 export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) {
   const router = useRouter();
   const { user, profile, requireAuth, openAuthModal, resumeIntent, clearResumeIntent, loading: authLoading } = useAuth();
-  const [entered, setEntered] = useState(false);
-  // Gates when the intro wordmark is allowed to register Framer Motion's
-  // shared `layoutId`. This is what fixes the "SPACETEC doesn't appear
-  // until I click" bug — see the effect below for why.
-  const [introLayoutReady, setIntroLayoutReady] = useState(false);
+  // The homepage no longer has a startup intro screen, so the main
+  // content (header, hero, etc.) is simply entered from the first frame.
+  // `entered` is kept — rather than ripping out every place that reads
+  // it — purely to avoid touching the (unrelated) existing fade/stagger
+  // animations that are already keyed off of it.
+  const [entered, setEntered] = useState(true);
   const [heroPhraseIndex, setHeroPhraseIndex] = useState(0);
 
   useEffect(() => {
@@ -452,52 +453,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
     }, 12000);
     return () => clearInterval(padBatchTimer);
   }, [activePad]);
-
-  useEffect(() => {
-    const autoEnterTimer = setTimeout(() => {
-      setEntered(true);
-    }, 3500); 
-    return () => clearTimeout(autoEnterTimer);
-  }, []);
-
-  // Root-cause fix for the "SPACETEC intro doesn't visually appear on a
-  // fresh load, then suddenly appears after a random click" bug.
-  //
-  // The intro wordmark carries `layoutId="spacetec-brand"` so it can hand
-  // off into the header wordmark later. Framer Motion takes its FIRST
-  // measurement for a layoutId element in a layout effect immediately on
-  // mount. On a genuinely fresh load, that mount happens during/right
-  // after hydration — before the browser has necessarily finished a real
-  // layout + paint pass for a `position: fixed`, custom-lettered-spaced
-  // heading. If that first measurement is taken against a not-yet-settled
-  // box, Framer can end up projecting the element with a broken transform
-  // (effectively invisible), and it just sits there — because nothing
-  // asks Framer to re-measure again until something else forces the
-  // browser to redo layout (e.g. a click triggering a repaint), which is
-  // exactly the "random click makes it appear" symptom.
-  //
-  // The fix is to delay the intro's own MOUNT (not its layoutId — that
-  // has to stay the constant string "spacetec-brand" the whole time, or
-  // Framer can't match this node up with the header's node for the
-  // center → header handoff) until we're sure a real paint has already
-  // happened. Two nested requestAnimationFrame calls guarantee the
-  // browser has completed at least one full layout+paint cycle first.
-  // This adds no delay a user could perceive (well under one frame in
-  // practice) and, unlike the old PaintUnstick workaround, it never
-  // forces a repaint at runtime — it just makes sure the intro's first
-  // real mount (and therefore Framer's first measurement of it) happens
-  // at a safe, settled moment instead of mid-hydration.
-  useEffect(() => {
-    let raf1;
-    let raf2;
-    raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => setIntroLayoutReady(true));
-    });
-    return () => {
-      cancelAnimationFrame(raf1);
-      if (raf2) cancelAnimationFrame(raf2);
-    };
-  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -871,13 +826,37 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
       >
         <div className="content-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', minWidth: '180px' }}>
-            {entered && (
-              <button className="brand-link" onClick={() => scrollToSection('hero')}>
-                <motion.span
-                  layoutId="spacetec-brand"
-                  transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }} style={{ fontSize: '1.25rem', display: 'inline-block' }} className="spacetec-wordmark">SPACETEC</motion.span>
-              </button>
-            )}
+            <button className="brand-link" onClick={() => scrollToSection('hero')}>
+              {/*
+                Permanent top-left wordmark. This is now the homepage's
+                only mount point for the "spacetec-brand" layoutId (the
+                old centered startup intro that used to hand off into
+                this position has been removed), and it doubles as the
+                page's semantic <h1> for SEO.
+
+                The one-time fade + letter-spacing settle below is a
+                subtle replacement entrance for the removed intro — it
+                plays once on mount and then sits static. It's kept
+                separate from the `layout` transition (still 1.2s, as
+                before) so the existing feature/database-page handoff
+                transitions that share this layoutId are completely
+                unaffected.
+              */}
+              <motion.h1
+                layoutId="spacetec-brand"
+                initial={{ opacity: 0, letterSpacing: '0.34em' }}
+                animate={{ opacity: 1, letterSpacing: '0.22em' }}
+                transition={{
+                  layout: { duration: 1.2, ease: [0.16, 1, 0.3, 1] },
+                  opacity: { duration: prefersReducedMotion ? 0.01 : 1, ease: [0.16, 1, 0.3, 1] },
+                  letterSpacing: { duration: prefersReducedMotion ? 0.01 : 1, ease: [0.16, 1, 0.3, 1] }
+                }}
+                style={{ fontSize: '1.25rem', display: 'inline-block', margin: 0 }}
+                className="spacetec-wordmark"
+              >
+                SPACETEC
+              </motion.h1>
+            </button>
           </div>
 
           <div
@@ -1308,39 +1287,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
               </div>
             </motion.aside>
           </>
-        )}
-      </AnimatePresence>
-
-      {/* INTRO SCREEN (3.5 SECONDS) */}
-      <AnimatePresence>
-        {!entered && introLayoutReady && (
-          <motion.div
-            key="intro-screen"
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '2rem' }}
-          >
-            <div style={{ textAlign: 'center' }}>
-              <motion.div
-                layoutId="spacetec-brand"
-                transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                initial={{ opacity: 0, scale: 0.9, letterSpacing: '0.12em' }}
-                animate={{ opacity: 1, scale: 1, letterSpacing: '0.22em' }}
-              >
-                <h1 style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0, letterSpacing: 'inherit' }} className="spacetec-wordmark">SPACETEC</h1>
-              </motion.div>
-
-              <motion.p
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.4 }}
-                style={{ fontSize: 'calc(0.7rem + 0.3vw)', letterSpacing: '12px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '500' }}
-              >
-                UNIFIED COSMIC INTELLIGENCE
-              </motion.p>
-            </div>
-          </motion.div>
         )}
       </AnimatePresence>
 
