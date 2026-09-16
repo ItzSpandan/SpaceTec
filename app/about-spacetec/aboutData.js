@@ -205,11 +205,9 @@ export const CONNECTION_CHAINS = [
 // User-Agent string, rather than a new/invented link.
 
 export const SOCIAL_LINKS = [
-  { id: 'x', label: 'X', href: null },
-  { id: 'discord', label: 'Discord', href: null },
-  { id: 'youtube', label: 'YouTube', href: null },
-  { id: 'instagram', label: 'Instagram', href: null },
-  { id: 'github', label: 'GitHub', href: 'https://github.com/ItzSpandan/SpaceTec' },
+  { id: 'x', label: 'X', href: 'https://x.com/SpaceTec_Hub' },
+  { id: 'discord', label: 'Discord', href: 'https://discord.gg/3UAfkeyEb' },
+  { id: 'youtube', label: 'YouTube', href: 'https://www.youtube.com/@SpaceTecHub.Official/featured' },
 ];
 
 // --- What is SpaceTec (Section: textual explanation) -----------------------

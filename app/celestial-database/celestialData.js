@@ -115,9 +115,7 @@ export const CELESTIAL_OBJECTS = [
       atmosphere: '95% CO2, 3% N2, 1.6% Ar',
       discovery: 'Known since antiquity',
     },
-    related: [
-      { label: 'ROCKET DATABASE', href: '/rocket-database' },
-    ],
+    related: [],
   },
   {
     id: 'jupiter',

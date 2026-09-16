@@ -16,6 +16,10 @@ import {
 } from './missionUtils';
 import { ASTRONAUTS } from '../astronaut-database/astronautData';
 import CelestialBackground from '../celestial-database/CelestialBackground';
+import { resolveAgencyFilterValue } from '../lib/agencyFilter';
+import { useAuth } from '../lib/AuthContext';
+import { logRecentView } from '../lib/spaceActivity';
+import SaveButton from '../components/SaveButton';
 
 const ENTER_DELAY_MS = 2000;
 
@@ -71,15 +75,26 @@ function TimelineView({ timeline }) {
 
 function DetailView({ mission, onBack, onSelectMission }) {
   const crew = crewMembers(mission);
+  const { user } = useAuth();
+
+  // Best-effort activity logging — never blocks rendering and never runs
+  // for a signed-out visitor (this page is already behind RequireAuth).
+  useEffect(() => {
+    if (!user?.id || !mission?.id) return;
+    logRecentView(user.id, 'mission', mission.id, mission.name);
+  }, [user?.id, mission?.id, mission?.name]);
 
   return (
     <section className="msn-detail">
       <button type="button" className="msn-back" onClick={onBack}>← BACK TO DATABASE</button>
 
-      <div className="msn-detail-head">
-        <span className="msn-kicker">{mission.type} &middot; {mission.status}</span>
-        <h1>{mission.name}</h1>
-        <p>{mission.description}</p>
+      <div className="msn-detail-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+        <div>
+          <span className="msn-kicker">{mission.type} &middot; {mission.status}</span>
+          <h1>{mission.name}</h1>
+          <p>{mission.description}</p>
+        </div>
+        <SaveButton contentType="mission" contentId={mission.id} contentLabel={mission.name} />
       </div>
 
       <div className="msn-detail-grid">
@@ -226,6 +241,18 @@ export default function MissionDatabase() {
   const countryOptions = useMemo(() => uniqueValues(MISSIONS, 'country'), []);
   const destinationOptions = useMemo(() => uniqueValues(MISSIONS, 'destination'), []);
   const yearOptions = useMemo(() => uniqueYears(MISSIONS), []);
+
+  // Deep link from an Agency Profile's "VIEW MISSION DATABASE" button:
+  // /mission-database?agency=<id> pre-selects that agency in the existing
+  // agency filter, when this database's own data actually attributes any
+  // mission to it. Otherwise this is a no-op and the page behaves exactly
+  // as it does for a normal visit.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const agencyParam = new URLSearchParams(window.location.search).get('agency');
+    const resolved = resolveAgencyFilterValue(agencyParam, agencyOptions);
+    if (resolved) setActiveAgency(resolved);
+  }, [agencyOptions]);
 
   const results = useMemo(() => {
     const filtered = filterMissions(MISSIONS, {

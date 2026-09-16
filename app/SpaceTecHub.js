@@ -10,6 +10,8 @@ import { supabase } from './supabase';
 import { useAuth } from './lib/AuthContext';
 import { allAgencies, agencyDirectory } from './space-agencies/agencyData';
 import { AllAgenciesPage, findLaunchpadForAgency } from './space-agencies/AgencyDirectory';
+import { logRecentView } from './lib/spaceActivity';
+import SaveButton from './components/SaveButton';
 
 // --- LAUNCH STATUS HELPERS (shared by the homepage, the explore pages, and the launch modal) ---
 
@@ -127,8 +129,12 @@ function IconClose(props) {
 
 export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) {
   const router = useRouter();
-  const { user, profile, requireAuth, openAuthModal, resumeIntent, clearResumeIntent } = useAuth();
+  const { user, profile, requireAuth, openAuthModal, resumeIntent, clearResumeIntent, loading: authLoading } = useAuth();
   const [entered, setEntered] = useState(false);
+  // Gates when the intro wordmark is allowed to register Framer Motion's
+  // shared `layoutId`. This is what fixes the "SPACETEC doesn't appear
+  // until I click" bug — see the effect below for why.
+  const [introLayoutReady, setIntroLayoutReady] = useState(false);
   const [heroPhraseIndex, setHeroPhraseIndex] = useState(0);
 
   useEffect(() => {
@@ -454,6 +460,45 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
     return () => clearTimeout(autoEnterTimer);
   }, []);
 
+  // Root-cause fix for the "SPACETEC intro doesn't visually appear on a
+  // fresh load, then suddenly appears after a random click" bug.
+  //
+  // The intro wordmark carries `layoutId="spacetec-brand"` so it can hand
+  // off into the header wordmark later. Framer Motion takes its FIRST
+  // measurement for a layoutId element in a layout effect immediately on
+  // mount. On a genuinely fresh load, that mount happens during/right
+  // after hydration — before the browser has necessarily finished a real
+  // layout + paint pass for a `position: fixed`, custom-lettered-spaced
+  // heading. If that first measurement is taken against a not-yet-settled
+  // box, Framer can end up projecting the element with a broken transform
+  // (effectively invisible), and it just sits there — because nothing
+  // asks Framer to re-measure again until something else forces the
+  // browser to redo layout (e.g. a click triggering a repaint), which is
+  // exactly the "random click makes it appear" symptom.
+  //
+  // The fix is to delay the intro's own MOUNT (not its layoutId — that
+  // has to stay the constant string "spacetec-brand" the whole time, or
+  // Framer can't match this node up with the header's node for the
+  // center → header handoff) until we're sure a real paint has already
+  // happened. Two nested requestAnimationFrame calls guarantee the
+  // browser has completed at least one full layout+paint cycle first.
+  // This adds no delay a user could perceive (well under one frame in
+  // practice) and, unlike the old PaintUnstick workaround, it never
+  // forces a repaint at runtime — it just makes sure the intro's first
+  // real mount (and therefore Framer's first measurement of it) happens
+  // at a safe, settled moment instead of mid-hydration.
+  useEffect(() => {
+    let raf1;
+    let raf2;
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setIntroLayoutReady(true));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      if (raf2) cancelAnimationFrame(raf2);
+    };
+  }, []);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -595,6 +640,21 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, resumeIntent, clearResumeIntent]);
+
+  // Deep link from My Space's "Recommended For You → Satellites" card:
+  // /?openSatellites=1 opens the existing Satellite Database view, the same
+  // one the hamburger menu's Satellite Database entry opens. Waits for auth
+  // to resolve first so it never mistakes a still-loading session for a
+  // signed-out visitor and pops the sign-in modal unnecessarily.
+  useEffect(() => {
+    if (authLoading) return;
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('openSatellites') !== '1') return;
+    router.replace('/');
+    handleOpenSatelliteWiki();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user]);
 
   // Used by the Agency Profile's "VIEW LAUNCH PADS" button. Reuses the
   // existing launchpad directory/transition rather than building a new one.
@@ -1228,7 +1288,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                   <button
                     className="sidebar-secondary-row"
                     style={{ ...sidebarSecondaryRowStyle, alignItems: 'flex-start' }}
-                    onClick={() => closeSidebarThen(() => openAuthModal('account'))}
+                    onClick={() => closeSidebarThen(() => { router.push('/my-space'); })}
                   >
                     <IconProfile style={{ marginTop: '0.15rem', flexShrink: 0 }} />
                     <span style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
@@ -1253,7 +1313,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
 
       {/* INTRO SCREEN (3.5 SECONDS) */}
       <AnimatePresence>
-        {!entered && (
+        {!entered && introLayoutReady && (
           <motion.div
             key="intro-screen"
             initial={{ opacity: 1 }}
@@ -2129,6 +2189,7 @@ function SatDetailSection({ heading, children }) {
 }
 
 function SatelliteWikiPage({ spaceBackgrounds, onClose, initialSearch = '' }) {
+  const { user } = useAuth();
   const [bgIdx, setBgIdx] = useState(0);
   const [isReturningMain, setIsReturningMain] = useState(false);
   const [satellites, setSatellites] = useState([]);
@@ -2167,6 +2228,14 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose, initialSearch = '' }) {
       epoch: formatEpoch(sat.epoch || sat.orbital_epoch),
     };
   }, [selectedSatellite]);
+
+  // Best-effort activity logging — never blocks rendering and never runs
+  // for a signed-out visitor (the Satellite Database itself is already
+  // gated behind requireAuth before this page ever mounts).
+  useEffect(() => {
+    if (!user?.id || !selectedSatellite?.id) return;
+    logRecentView(user.id, 'satellite', selectedSatellite.id, selectedSatellite.name);
+  }, [user?.id, selectedSatellite?.id, selectedSatellite?.name]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -2370,6 +2439,10 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose, initialSearch = '' }) {
                   <p style={{ margin: '0.4rem 0 0', color: '#22c55e', fontSize: '0.68rem', letterSpacing: '2px', fontWeight: '700' }}>● ACTIVE</p>
                 </div>
                 <button onClick={() => setSelectedSatellite(null)} style={{ background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', padding: '0.5rem 0.7rem', cursor: 'pointer', flexShrink: 0 }}>CLOSE</button>
+              </div>
+
+              <div style={{ marginTop: '1rem' }}>
+                <SaveButton contentType="satellite" contentId={selectedSatellite.id} contentLabel={selectedSatellite.name} />
               </div>
 
               <div style={{ display: 'grid', gap: '1.6rem', marginTop: '2rem' }}>

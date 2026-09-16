@@ -9,6 +9,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../lib/AuthContext';
+import { logRecentView } from '../lib/spaceActivity';
+import SaveButton from '../components/SaveButton';
 
 // --- AGENCY PROFILE HELPERS (used only by the Agency Directory / Agency Profile) ---
 // These only ever read fields that already exist on an agency record. Nothing
@@ -21,8 +24,24 @@ function extractFoundedYear(text) {
   return match ? match[0] : null;
 }
 
+// A handful of the featured agencies' briefs only ever name their HQ city
+// (e.g. "Headquartered in Paris, ..."), with no country mentioned in the
+// text at all — there is nothing for extractCountryFromHeadquarters to pull
+// a country out of. This is a small, factual lookup for that specific case;
+// it doesn't touch or replace any agency data, and is only ever used as a
+// fallback when the headquarters string has no separate country segment.
+const KNOWN_HQ_COUNTRIES = {
+  'Washington, D.C.': 'United States',
+  'Starbase & Rocket Road': 'United States',
+  'Paris': 'France',
+  'Tokyo': 'Japan',
+  'Bengaluru': 'India',
+  'Beijing': 'China',
+};
+
 function extractCountryFromHeadquarters(headquarters) {
   if (!headquarters) return null;
+  if (KNOWN_HQ_COUNTRIES[headquarters]) return KNOWN_HQ_COUNTRIES[headquarters];
   const parts = headquarters.split(',').map((p) => p.trim()).filter(Boolean);
   return parts.length ? parts[parts.length - 1] : null;
 }
@@ -30,10 +49,26 @@ function extractCountryFromHeadquarters(headquarters) {
 // A few of the original agency records only ever stated their headquarters
 // inside the `brief` prose (e.g. "Headquartered in Washington, D.C., ...").
 // This pulls that out rather than leaving Identity empty for those agencies.
+//
+// The brief always continues past the location with a free-text description
+// of the agency (e.g. "...Paris, coordinating the space flight programs of
+// 22 European member states."). That description clause always starts with
+// a lowercase word right after its own comma, while the location itself is
+// always a capitalized place name (optionally spanning a second capitalized
+// segment, like "Washington, D.C."). Splitting on that distinction is what
+// keeps the description text out of the extracted headquarters value.
 function extractHeadquartersFromBrief(brief) {
   if (!brief) return null;
-  const match = brief.match(/Headquartered (?:in|at) ([^.,]+(?:,\s*[^.,]+)?)/i);
-  return match ? match[1].trim() : null;
+  const match = brief.match(/Headquartered (?:in|at) (.+)/);
+  if (!match) return null;
+
+  const segments = match[1].split(',');
+  const locationSegments = [segments[0]];
+  for (let i = 1; i < segments.length; i++) {
+    if (/^\s*[a-z]/.test(segments[i])) break; // description clause starts here
+    locationSegments.push(segments[i]);
+  }
+  return locationSegments.join(',').trim();
 }
 
 function getAgencyIdentity(agency) {
@@ -257,8 +292,18 @@ function DatabaseLinkButton({ label, onClick }) {
 
 function AgencyProfile({ agency, onOpenSatelliteWiki, onOpenLaunchpads }) {
   const router = useRouter();
+  const { user } = useAuth();
   const identity = getAgencyIdentity(agency);
   const capabilities = getAgencyCapabilities(agency);
+
+  // Best-effort activity logging — never blocks rendering the profile and
+  // never runs for a signed-out visitor (this page is already behind
+  // requireAuth, but the guard is kept here too since this component reads
+  // `user` directly).
+  useEffect(() => {
+    if (!user?.id || !agency?.id) return;
+    logRecentView(user.id, 'agency', agency.id, agency.name);
+  }, [user?.id, agency?.id, agency?.name]);
 
   // These separate databases live on their own routes in this project, so a
   // profile link does a client-side navigation to the existing page rather
@@ -272,18 +317,21 @@ function AgencyProfile({ agency, onOpenSatelliteWiki, onOpenLaunchpads }) {
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
       {/* PROFILE HEADER */}
-      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: '2rem', marginBottom: '2.5rem' }}>
-        <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.6rem' }}>
-          // SPACE AGENCY PROFILE
-        </span>
-        <h2 style={{ color: '#fff', fontSize: '2.2rem', margin: '0 0 0.5rem 0', textTransform: 'uppercase', fontWeight: '900', letterSpacing: '1px' }}>
-          {agency.name}
-        </h2>
-        {agency.tagline && (
-          <p style={{ color: '#a1a1aa', fontSize: '0.8rem', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '700', margin: 0 }}>
-            {agency.tagline}
-          </p>
-        )}
+      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: '2rem', marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+        <div>
+          <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.6rem' }}>
+            // SPACE AGENCY PROFILE
+          </span>
+          <h2 style={{ color: '#fff', fontSize: '2.2rem', margin: '0 0 0.5rem 0', textTransform: 'uppercase', fontWeight: '900', letterSpacing: '1px' }}>
+            {agency.name}
+          </h2>
+          {agency.tagline && (
+            <p style={{ color: '#a1a1aa', fontSize: '0.8rem', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '700', margin: 0 }}>
+              {agency.tagline}
+            </p>
+          )}
+        </div>
+        <SaveButton contentType="agency" contentId={agency.id} contentLabel={agency.name} />
       </div>
 
       {/* LARGE HQ / AGENCY IMAGE — reuses the existing image field, nothing new is fetched or generated */}

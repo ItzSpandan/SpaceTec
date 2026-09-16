@@ -4,6 +4,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import RequireAuth from '../components/RequireAuth';
+import { agencyDisplayName } from '../lib/agencyFilter';
+import { useAuth } from '../lib/AuthContext';
+import { logRecentView } from '../lib/spaceActivity';
+import SaveButton from '../components/SaveButton';
 
 const ENTER_DELAY_MS = 2000;
 const PAGE_SIZE = 20;
@@ -23,6 +27,7 @@ function fmt(value, unit = '') {
 
 function RocketDatabaseContent() {
   const router = useRouter();
+  const { user } = useAuth();
   const [entered, setEntered] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [showSkip, setShowSkip] = useState(false);
@@ -40,12 +45,27 @@ function RocketDatabaseContent() {
   // has actually loaded, so it can be auto-expanded once it's available.
   const pendingRocketIdRef = useRef(null);
 
+  // Best-effort activity logging — never blocks rendering and never runs
+  // for a signed-out visitor (this page is already behind RequireAuth).
+  useEffect(() => {
+    if (!user?.id || !expandedRocket?.id) return;
+    logRecentView(user.id, 'rocket', expandedRocket.id, expandedRocket.fullName);
+  }, [user?.id, expandedRocket?.id, expandedRocket?.fullName]);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const q = params.get('q');
     const id = params.get('id');
+    const agency = params.get('agency');
+    // Deep link from an Agency Profile's "VIEW ROCKET DATABASE" button:
+    // this database has no local agency list of its own (results come from
+    // an external API), so the existing search box is the closest existing
+    // filtering mechanism — the agency's name is used as the search term,
+    // same as if the visitor had typed it in themselves. A more specific
+    // `q` deep link, if present, always wins.
     if (q) setSearch(q);
+    else if (agency) setSearch(agencyDisplayName(agency));
     if (id) pendingRocketIdRef.current = id;
   }, []);
 
@@ -293,6 +313,10 @@ function RocketDatabaseContent() {
                 <button onClick={() => setExpandedRocket(null)} style={{ background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', padding: '0.5rem 0.7rem', cursor: 'pointer' }}>
                   CLOSE
                 </button>
+              </div>
+
+              <div style={{ marginTop: '1rem' }}>
+                <SaveButton contentType="rocket" contentId={expandedRocket.id} contentLabel={expandedRocket.fullName} />
               </div>
 
               <div style={{ display: 'grid', gap: '1rem', marginTop: '2rem' }}>

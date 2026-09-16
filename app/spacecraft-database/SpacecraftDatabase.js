@@ -15,6 +15,10 @@ import {
   profileRows,
 } from './spacecraftUtils';
 import CelestialBackground from '../celestial-database/CelestialBackground';
+import { resolveAgencyFilterValue } from '../lib/agencyFilter';
+import { useAuth } from '../lib/AuthContext';
+import { logRecentView } from '../lib/spaceActivity';
+import SaveButton from '../components/SaveButton';
 
 const ENTER_DELAY_MS = 2000;
 
@@ -46,15 +50,26 @@ function DetailView({ craft, onBack }) {
   const profile = profileRows(craft);
   const hasMissions = (craft.missions || []).length > 0;
   const hasLaunchVehicles = (craft.launchVehicles || []).length > 0;
+  const { user } = useAuth();
+
+  // Best-effort activity logging — never blocks rendering and never runs
+  // for a signed-out visitor (this page is already behind RequireAuth).
+  useEffect(() => {
+    if (!user?.id || !craft?.id) return;
+    logRecentView(user.id, 'spacecraft', craft.id, craft.name);
+  }, [user?.id, craft?.id, craft?.name]);
 
   return (
     <section className="sc-detail">
       <button type="button" className="sc-back" onClick={onBack}>← BACK TO DATABASE</button>
 
-      <div className="sc-detail-head">
-        <span className="sc-kicker">{craft.type}</span>
-        <h1>{craft.name}</h1>
-        <p>{craft.summary}</p>
+      <div className="sc-detail-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+        <div>
+          <span className="sc-kicker">{craft.type}</span>
+          <h1>{craft.name}</h1>
+          <p>{craft.summary}</p>
+        </div>
+        <SaveButton contentType="spacecraft" contentId={craft.id} contentLabel={craft.name} />
       </div>
 
       <div className="sc-detail-grid">
@@ -173,6 +188,17 @@ export default function SpacecraftDatabase() {
 
   const stats = useMemo(() => computeStats(SPACECRAFT), []);
   const agencyOptions = useMemo(() => uniqueValues(SPACECRAFT, 'agency'), []);
+
+  // Deep link from an Agency Profile's "VIEW SPACECRAFT DATABASE" button:
+  // /spacecraft-database?agency=<id> pre-selects that agency in the
+  // existing agency filter, when this database's own data actually
+  // attributes any spacecraft to it. Otherwise this is a no-op.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const agencyParam = new URLSearchParams(window.location.search).get('agency');
+    const resolved = resolveAgencyFilterValue(agencyParam, agencyOptions);
+    if (resolved) setActiveAgency(resolved);
+  }, [agencyOptions]);
 
   const results = useMemo(() => {
     const filtered = filterSpacecraft(SPACECRAFT, {

@@ -15,6 +15,10 @@ import {
   display,
 } from './astronautUtils';
 import CelestialBackground from '../celestial-database/CelestialBackground';
+import { resolveAgencyFilterValue } from '../lib/agencyFilter';
+import { useAuth } from '../lib/AuthContext';
+import { logRecentView } from '../lib/spaceActivity';
+import SaveButton from '../components/SaveButton';
 
 const ENTER_DELAY_MS = 2000;
 
@@ -38,15 +42,26 @@ function AstronautCard({ astronaut, onSelect }) {
 function DetailView({ astronaut, onBack }) {
   const spacewalks = astronaut.spacewalks;
   const hasSpacewalks = spacewalks && spacewalks.count > 0;
+  const { user } = useAuth();
+
+  // Best-effort activity logging — never blocks rendering and never runs
+  // for a signed-out visitor (this page is already behind RequireAuth).
+  useEffect(() => {
+    if (!user?.id || !astronaut?.id) return;
+    logRecentView(user.id, 'astronaut', astronaut.id, astronaut.name);
+  }, [user?.id, astronaut?.id, astronaut?.name]);
 
   return (
     <section className="crew-detail">
       <button type="button" className="crew-back" onClick={onBack}>← BACK TO DATABASE</button>
 
-      <div className="crew-detail-head">
-        <span className="crew-kicker">{astronaut.status}</span>
-        <h1>{astronaut.name}</h1>
-        <p>{astronaut.nationality}</p>
+      <div className="crew-detail-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+        <div>
+          <span className="crew-kicker">{astronaut.status}</span>
+          <h1>{astronaut.name}</h1>
+          <p>{astronaut.nationality}</p>
+        </div>
+        <SaveButton contentType="astronaut" contentId={astronaut.id} contentLabel={astronaut.name} />
       </div>
 
       <div className="crew-detail-grid">
@@ -172,6 +187,17 @@ export default function AstronautDatabase() {
   const agencyOptions = useMemo(() => uniqueValues(ASTRONAUTS, 'agency'), []);
   const nationalityOptions = useMemo(() => uniqueValues(ASTRONAUTS, 'nationality'), []);
   const spacecraftOptions = useMemo(() => uniqueSpacecraft(ASTRONAUTS), []);
+
+  // Deep link from an Agency Profile's "VIEW ASTRONAUT DATABASE" button:
+  // /astronaut-database?agency=<id> pre-selects that agency in the existing
+  // agency filter, when this database's own data actually attributes any
+  // astronaut to it. Otherwise this is a no-op.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const agencyParam = new URLSearchParams(window.location.search).get('agency');
+    const resolved = resolveAgencyFilterValue(agencyParam, agencyOptions);
+    if (resolved) setActiveAgency(resolved);
+  }, [agencyOptions]);
 
   const results = useMemo(() => {
     const filtered = filterAstronauts(ASTRONAUTS, {
