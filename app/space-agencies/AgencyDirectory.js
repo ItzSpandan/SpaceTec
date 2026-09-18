@@ -71,6 +71,28 @@ function extractHeadquartersFromBrief(brief) {
   return locationSegments.join(',').trim();
 }
 
+// Long agency names (e.g. "CANADIAN SPACE AGENCY", "BRAZILIAN SPACE AGENCY")
+// wrap into an oversized, badge-like block at a fixed large size + wide
+// letter-spacing. This scales both down as the name gets longer, so a short
+// name like "NASA" stays large while a long one is properly typeset instead
+// of ballooning into a rectangle. Purely typographic — doesn't touch layout,
+// images, links, or card structure.
+function getAgencyNameTypography(name, { baseSize, minSize, baseLetterSpacing }) {
+  const length = (name || '').length;
+  let size = baseSize;
+  let letterSpacing = baseLetterSpacing;
+
+  if (length > 26) {
+    size = minSize;
+    letterSpacing = Math.max(0.5, baseLetterSpacing - 1.5);
+  } else if (length > 18) {
+    size = (baseSize + minSize) / 2;
+    letterSpacing = Math.max(0.5, baseLetterSpacing - 1);
+  }
+
+  return { fontSize: `${size}rem`, letterSpacing: `${letterSpacing}px` };
+}
+
 function getAgencyIdentity(agency) {
   const headquarters = agency.headquarters || extractHeadquartersFromBrief(agency.brief) || null;
   return {
@@ -220,7 +242,7 @@ export function AllAgenciesPage({ agencies, spaceBackgrounds, onClose, onOpenSat
                       <span style={{ color: isHovered ? '#ffffff' : '#a1a1aa', fontSize: '0.65rem', letterSpacing: '2px', fontWeight: '800', transition: 'color 0.25s ease' }}>
                         // {String(index + 1).padStart(2, '0')}
                       </span>
-                      <h3 style={{ color: '#fff', margin: '0.7rem 0', fontSize: '1.6rem', letterSpacing: '2px' }}>{agency.name}</h3>
+                      <h3 style={{ color: '#fff', margin: '0.7rem 0', lineHeight: '1.25', ...getAgencyNameTypography(agency.name, { baseSize: 1.6, minSize: 1.05, baseLetterSpacing: 2 }) }}>{agency.name}</h3>
                       <p style={{ color: '#a1a1aa', margin: '0 0 0.8rem', fontSize: '0.72rem', letterSpacing: '1.4px', fontWeight: '700' }}>{agency.tagline}</p>
                       <p style={{ color: '#d4d4d8', margin: 0, lineHeight: '1.6', fontSize: '0.83rem' }}>{agency.brief}</p>
                     </div>
@@ -322,7 +344,7 @@ function AgencyProfile({ agency, onOpenSatelliteWiki, onOpenLaunchpads }) {
           <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.6rem' }}>
             // SPACE AGENCY PROFILE
           </span>
-          <h2 style={{ color: '#fff', fontSize: '2.2rem', margin: '0 0 0.5rem 0', textTransform: 'uppercase', fontWeight: '900', letterSpacing: '1px' }}>
+          <h2 style={{ color: '#fff', margin: '0 0 0.5rem 0', textTransform: 'uppercase', fontWeight: '900', lineHeight: '1.25', ...getAgencyNameTypography(agency.name, { baseSize: 2.2, minSize: 1.4, baseLetterSpacing: 1 }) }}>
             {agency.name}
           </h2>
           {agency.tagline && (
