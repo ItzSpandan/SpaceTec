@@ -10,11 +10,12 @@ export default async function Home() {
   // so run them concurrently instead — same data, same error handling,
   // same fallbacks, but the page shell ships as soon as the slowest of
   // the three finishes rather than the sum of all three.
-  const [apodResult, launchesResult, weatherResult] = await Promise.allSettled([
+  const [apodResult, launchesResult, weatherResult, launchpadImagesResult] = await Promise.allSettled([
     fetch(`https://api.nasa.gov/planetary/apod?api_key=${nasaApiKey}`, { next: { revalidate: 3600 } })
       .then((res) => (res.ok ? res.json() : null)),
     supabase.from('launches').select('*').order('net', { ascending: true }),
     supabase.from('weather').select('*'),
+    supabase.from('launchpad_images').select('*'),
   ]);
 
   let apodData = null;
@@ -48,5 +49,17 @@ export default async function Home() {
     console.error('Weather Database Fetch Error:', weatherResult.reason);
   }
 
-  return <SpaceTecHub apodData={apodData} upcomingLaunches={upcomingLaunches} padWeather={padWeather} />;
+  let padImages = [];
+  if (launchpadImagesResult.status === 'fulfilled') {
+    const { data, error } = launchpadImagesResult.value;
+    if (error) {
+      console.error('Supabase Launchpad Images Fetch Error:', error);
+    } else {
+      padImages = data || [];
+    }
+  } else {
+    console.error('Launchpad Images Database Fetch Error:', launchpadImagesResult.reason);
+  }
+
+  return <SpaceTecHub apodData={apodData} upcomingLaunches={upcomingLaunches} padWeather={padWeather} padImages={padImages} />;
 }
