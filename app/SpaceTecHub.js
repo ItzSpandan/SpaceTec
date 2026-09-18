@@ -47,6 +47,74 @@ function formatTimeAgo(dateStr) {
   return `T+ ${days} DAYS AGO`;
 }
 
+// Purely a display formatter — same `net` value, same underlying data, just
+// laid out as "22 SEP 2026 · 18:30 UTC" instead of a raw toUTCString(). Used
+// by the homepage launch tiles and the countdown modal's date line.
+function formatLaunchDateTime(dateStr) {
+  if (!dateStr) return 'DATE TBD';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return 'DATE TBD';
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  const month = d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase();
+  const year = d.getUTCFullYear();
+  const hours = String(d.getUTCHours()).padStart(2, '0');
+  const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+  return `${day} ${month} ${year} · ${hours}:${minutes} UTC`;
+}
+
+// Editorial-style content for the small homepage launch tiles (upcoming +
+// past). Structure only — no boxed field labels, hierarchy comes from
+// spacing/size/weight/dividers instead. Every field the old card showed
+// (provider, status, NET/LAUNCHED date, pad) is still here, just laid out
+// differently; nothing is calculated here that wasn't already on `launch`.
+function LaunchTileBody({ launch, isPast }) {
+  const dateLabel = isPast ? 'LAUNCHED' : 'NET';
+
+  return (
+    <>
+      <div>
+        <span style={{ fontSize: '0.62rem', letterSpacing: '2.5px', textTransform: 'uppercase', color: '#71717a', fontWeight: '700' }}>
+          {`// ${isPast ? 'COMPLETED' : 'SCHEDULED'}`}{launch.provider ? ` · ${launch.provider}` : ''}
+        </span>
+        <h3 style={{ fontSize: '1.05rem', margin: '0.9rem 0 1.4rem 0', fontWeight: '700', lineHeight: '1.4', letterSpacing: '0.5px', textTransform: 'uppercase', color: '#ffffff' }}>
+          {launch.name}
+        </h3>
+      </div>
+
+      <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div>
+          <span style={{ display: 'block', fontSize: '0.6rem', letterSpacing: '2px', color: '#52525b', fontWeight: '700', marginBottom: '0.25rem' }}>
+            {dateLabel}
+          </span>
+          <span style={{ fontSize: '0.8rem', color: '#d4d4d8', letterSpacing: '0.3px' }}>
+            {formatLaunchDateTime(launch.net)}
+          </span>
+          {isPast && (
+            <span style={{ marginLeft: '0.6rem', fontSize: '0.68rem', color: '#71717a' }}>
+              ({formatTimeAgo(launch.net)})
+            </span>
+          )}
+        </div>
+
+        <div>
+          <span style={{ display: 'block', fontSize: '0.6rem', letterSpacing: '2px', color: '#52525b', fontWeight: '700', marginBottom: '0.25rem' }}>
+            {isPast ? 'STATUS' : 'PAD'}
+          </span>
+          {isPast ? (
+            <span style={{ fontSize: '0.8rem', fontWeight: '700', letterSpacing: '1px', color: getLaunchStatusColor(launch.status) }}>
+              {(launch.status || 'STATUS UNKNOWN').toUpperCase()}
+            </span>
+          ) : (
+            <span style={{ fontSize: '0.8rem', color: '#d4d4d8', letterSpacing: '0.3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
+              {launch.pad_location || 'Vandenberg Space Force Base'}
+            </span>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 const HERO_ROTATING_PHRASES = ['ORGANIZED.', 'CONNECTED.', 'AT A GLANCE.', 'IN FOCUS.', 'IN MOTION.', 'IN REAL TIME.'];
 // Split out once so the permanent header wordmark's one-time letter-by-letter
 // entrance can animate each character independently. Only used by that
@@ -678,6 +746,14 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
           backdrop-filter: blur(20px);
           -webkit-backdrop-filter: blur(20px);
           border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        /* Small homepage launch tiles only — a touch darker/closer to
+           near-black than the standard .glass-card, still with the same
+           thin border and blur, no glow/glass-heavy effect added. */
+        .launch-tile {
+          background: rgba(6, 6, 6, 0.88);
+          border: 1px solid rgba(255, 255, 255, 0.10);
         }
 
         .content-container {
@@ -1888,29 +1964,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                 variants={fadeInUp}
                 whileHover={{ y: -6, borderColor: '#ffffff' }}
                 onClick={() => setExpandedLaunch(launch)}
-                className="glass-card" 
+                className="glass-card launch-tile" 
                 style={{ padding: '2rem', borderRadius: '2px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '220px', transition: 'border-color 0.3s ease', cursor: 'pointer' }}
               >
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
-                    <span style={{ fontSize: '0.65rem', letterSpacing: '2px', textTransform: 'uppercase', padding: '0.3rem 0.6rem', background: 'rgba(255, 255, 255, 0.08)', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.2)', fontWeight: '700' }}>
-                      {launch.provider || 'AGENCY'}
-                    </span>
-                    <span style={{ fontSize: '0.65rem', color: '#ffffff', letterSpacing: '2px', fontWeight: '700' }}>● SCHEDULED</span>
-                  </div>
-                  <h3 style={{ fontSize: '1.05rem', margin: '0 0 1.2rem 0', fontWeight: '700', lineHeight: '1.4', letterSpacing: '1px', textTransform: 'uppercase', color: '#ffffff' }}>
-                    {launch.name}
-                  </h3>
-                </div>
-
-                <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '1rem' }}>
-                  <p style={{ margin: '0 0 0.4rem 0', fontSize: '0.80rem', color: '#a1a1aa', letterSpacing: '1px' }}>
-                    NET: {new Date(launch.net).toUTCString().slice(0, 16)}
-                  </p>
-                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#71717a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    PAD: {launch.pad_location || 'Vandenberg Space Force Base'}
-                  </p>
-                </div>
+                <LaunchTileBody launch={launch} isPast={false} />
               </motion.div>
             ))}
           </motion.div>
@@ -1950,29 +2007,10 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                 variants={fadeInUp}
                 whileHover={{ y: -6, borderColor: '#ffffff' }}
                 onClick={() => setExpandedLaunch(launch)}
-                className="glass-card" 
+                className="glass-card launch-tile" 
                 style={{ padding: '2rem', borderRadius: '2px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '220px', transition: 'border-color 0.3s ease', cursor: 'pointer' }}
               >
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
-                    <span style={{ fontSize: '0.65rem', letterSpacing: '2px', textTransform: 'uppercase', padding: '0.3rem 0.6rem', background: 'rgba(255, 255, 255, 0.08)', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.2)', fontWeight: '700' }}>
-                      {launch.provider || 'AGENCY'}
-                    </span>
-                    <span style={{ fontSize: '0.65rem', color: getLaunchStatusColor(launch.status), letterSpacing: '1px', fontWeight: '700', textAlign: 'right' }}>● {(launch.status || 'STATUS UNKNOWN').toUpperCase()}</span>
-                  </div>
-                  <h3 style={{ fontSize: '1.05rem', margin: '0 0 1.2rem 0', fontWeight: '700', lineHeight: '1.4', letterSpacing: '1px', textTransform: 'uppercase', color: '#ffffff' }}>
-                    {launch.name}
-                  </h3>
-                </div>
-
-                <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '1rem' }}>
-                  <p style={{ margin: '0 0 0.4rem 0', fontSize: '0.80rem', color: '#a1a1aa', letterSpacing: '1px' }}>
-                    LAUNCHED: {new Date(launch.net).toUTCString().slice(0, 16)}
-                  </p>
-                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#2dd4bf', fontWeight: '700', letterSpacing: '1px' }}>
-                    {formatTimeAgo(launch.net)}
-                  </p>
-                </div>
+                <LaunchTileBody launch={launch} isPast={true} />
               </motion.div>
             ))}
             {latestPastLaunches.length === 0 && (
@@ -2002,7 +2040,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
       <AnimatePresence>
         {showAllLaunchesPage && (
           <AllLaunchesPage 
-            launches={remainingLaunches} 
+            launches={upcomingLaunchList} 
             mode="upcoming"
             spaceBackgrounds={spaceBackgrounds}
             onClose={() => setShowAllLaunchesPage(false)}
@@ -2015,7 +2053,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
       <AnimatePresence>
         {showAllPastLaunchesPage && (
           <AllLaunchesPage 
-            launches={remainingPastLaunches} 
+            launches={pastLaunchList} 
             mode="past"
             spaceBackgrounds={spaceBackgrounds}
             onClose={() => setShowAllPastLaunchesPage(false)}
@@ -2824,9 +2862,19 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch, 
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', paddingBottom: '4rem' }}>
           {filteredLaunches.map((launch) => (
+            // layoutId is deliberately namespaced ("explore-") separately from
+            // the homepage preview cards' `launch-card-${id}`. The homepage
+            // preview stays mounted behind this full-page view, and since
+            // Explore More now shows the COMPLETE dataset (including launches
+            // already visible on the homepage), the same launch can render in
+            // both places at once — sharing one layoutId between them would
+            // collide. The expanded detail modal keeps the homepage's
+            // layoutId, so the shared morph transition still plays when
+            // opened from the homepage; opening the same launch from here
+            // just fades in instead, avoiding the collision entirely.
             <motion.div 
               key={launch.id}
-              layoutId={`launch-card-${launch.id}`}
+              layoutId={`launch-card-explore-${launch.id}`}
               onClick={() => onSelectLaunch(launch)}
               className="glass-card" 
               style={{ padding: '2rem', borderRadius: '2px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '220px', transition: 'border-color 0.3s ease', cursor: 'pointer' }}
@@ -2939,8 +2987,15 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch, 
 function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: false });
   const [modalBgIdx, setModalBgIdx] = useState(0);
+  const [missionVisualFailed, setMissionVisualFailed] = useState(false);
   const modalCanvasRef = useRef(null);
   const launchHasFlown = isLaunchPast(launch);
+
+  // Reset the "image failed" flag whenever a different launch is opened, so
+  // a broken image on one launch doesn't hide the visual for the next one.
+  useEffect(() => {
+    setMissionVisualFailed(false);
+  }, [launch?.id]);
 
   useEffect(() => {
     const modalBgTimer = setInterval(() => {
@@ -3111,25 +3166,72 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
           </button>
         </div>
 
-        <div className="glass-card" style={{ padding: '2.5rem', marginBottom: '2rem', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
-          <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.75rem', color: '#38bdf8', letterSpacing: '3px', textTransform: 'uppercase', fontWeight: '700' }}>
-            {launchHasFlown ? 'T+ MISSION ELAPSED TIME (LIVE)' : (timeLeft.isPast ? 'LAUNCH WINDOW OPEN / LIFTED' : 'LIVE T-MINUS COUNTDOWN TIMER')}
+        {/* LIVE COUNTDOWN — the primary visual focus of this view. Same
+            `timeLeft` state / live timing logic as before; only the visual
+            treatment changed to a clean, monochrome mission-control style. */}
+        <div className="glass-card" style={{ padding: '2.5rem 2rem', marginBottom: '2rem', border: '1px solid rgba(255,255,255,0.14)', textAlign: 'center' }}>
+          <p style={{ margin: '0 0 0.6rem 0', fontSize: '0.72rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
+            {launchHasFlown ? '// MISSION ELAPSED' : (timeLeft.isPast ? '// LAUNCH WINDOW OPEN / LIFTED' : '// LIVE T-MINUS COUNTDOWN')}
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+          <div style={{ fontSize: '1.1rem', letterSpacing: '8px', color: '#71717a', fontWeight: '700', margin: '0.5rem 0 1.2rem 0' }}>
+            {launchHasFlown || timeLeft.isPast ? 'T+' : 'T\u2212'}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'stretch', flexWrap: 'wrap', maxWidth: '640px', margin: '0 auto' }}>
             {[
               { label: 'DAYS', val: timeLeft.days },
               { label: 'HOURS', val: timeLeft.hours },
-              { label: 'MINS', val: timeLeft.minutes },
-              { label: 'SECS', val: timeLeft.seconds }
-            ].map((t, idx) => (
-              <div key={idx} style={{ background: 'rgba(0,0,0,0.8)', padding: '1.5rem 1rem', textAlign: 'center', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
-                <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#fff', fontFamily: 'monospace' }}>{launchHasFlown ? '+' : ''}{String(t.val).padStart(2, '0')}</div>
-                <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '0.5rem', letterSpacing: '2px' }}>{t.label}</div>
+              { label: 'MIN', val: timeLeft.minutes },
+              { label: 'SEC', val: timeLeft.seconds }
+            ].map((t, idx, arr) => (
+              <div
+                key={idx}
+                style={{
+                  flex: '1 1 90px',
+                  padding: '0 1rem',
+                  borderRight: idx < arr.length - 1 ? '1px solid rgba(255,255,255,0.12)' : 'none'
+                }}
+              >
+                <div style={{ fontSize: 'clamp(2rem, 6vw, 3.25rem)', fontWeight: '700', color: '#ffffff', fontFamily: 'var(--font-orbitron), monospace', lineHeight: 1, letterSpacing: '1px' }}>
+                  {String(t.val).padStart(2, '0')}
+                </div>
+                <div style={{ fontSize: '0.62rem', color: '#71717a', marginTop: '0.7rem', letterSpacing: '3px', fontWeight: '700' }}>
+                  {t.label}
+                </div>
               </div>
             ))}
           </div>
+
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.12)', margin: '2rem auto 0', paddingTop: '1.2rem', maxWidth: '440px' }}>
+            <span style={{ fontSize: '0.78rem', color: '#a1a1aa', letterSpacing: '1px' }}>
+              {formatLaunchDateTime(launch.net)}
+            </span>
+          </div>
         </div>
+
+        {/* MISSION VISUAL — uses the existing Supabase image_url synced from
+            Launch Library 2. Entirely omitted if there's no usable URL, or
+            if the image fails to load, so we never show a broken image or an
+            empty box. */}
+        {launch.image_url && !missionVisualFailed && (
+          <div className="glass-card" style={{ padding: '1rem', marginBottom: '2rem' }}>
+            <p style={{ margin: '0 0 1rem 0', padding: '0 0.5rem', fontSize: '0.7rem', color: '#71717a', letterSpacing: '3px', textTransform: 'uppercase', fontWeight: '700' }}>
+              // MISSION VISUAL
+            </p>
+            <div style={{ position: 'relative', width: '100%', aspectRatio: '21 / 9', overflow: 'hidden', borderRadius: '2px' }}>
+              <Image
+                src={launch.image_url}
+                alt={launch.name || 'Launch mission visual'}
+                fill
+                sizes="(max-width: 900px) 100vw, 900px"
+                style={{ objectFit: 'cover' }}
+                unoptimized
+                onError={() => setMissionVisualFailed(true)}
+              />
+            </div>
+          </div>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '2rem', paddingBottom: '3rem' }}>
           
