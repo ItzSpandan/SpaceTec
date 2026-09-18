@@ -199,7 +199,7 @@ function IconClose(props) {
   );
 }
 
-export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) {
+export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather, padImages }) {
   const router = useRouter();
   const { user, profile, requireAuth, openAuthModal, resumeIntent, clearResumeIntent, loading: authLoading } = useAuth();
   // The homepage no longer has a startup intro screen, so the main
@@ -272,7 +272,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
   ];
 
   // GLOBAL LAUNCHPAD DIRECTORY (46 sites, live-synced weather keyed by id)
-  const allLaunchpads = [
+  const baseLaunchpads = [
     { id: 'ksc', name: 'KENNEDY SPACE CENTER', lat: 28.5729, lon: -80.6490, status: '🟢 Active', batch: 0, isMajor: true, accentColor: '#38bdf8', country: 'United States', tagline: 'ARTEMIS & CREW LAUNCH COMPLEX', established: '1962', operator: 'NASA', history: 'Established by NASA in 1962 on Merritt Island, Florida, Kennedy Space Center launched the Apollo Moon missions, the entire Space Shuttle program, and today hosts Artemis and commercial crew launches from historic Pad 39A and 39B.' },
     { id: 'cape', name: 'CAPE CANAVERAL SFS', lat: 28.4888, lon: -80.5778, status: '🟢 Active', batch: 0, isMajor: true, accentColor: '#60a5fa', country: 'United States', tagline: 'BUSIEST US LAUNCH RANGE', established: '1949', operator: 'US Space Force', history: 'Operated by the US Space Force since the 1950s, Cape Canaveral Space Force Station sits beside Kennedy Space Center and hosts the highest launch cadence in the country, including regular SpaceX Falcon 9 and ULA missions.' },
     { id: 'starbase', name: 'STARBASE BOCA CHICA', lat: 25.9975, lon: -97.1561, status: '🟢 Active', batch: 0, isMajor: true, accentColor: '#ff6600', country: 'United States', tagline: 'STARSHIP DEVELOPMENT & FLIGHT SITE', established: '2019', operator: 'SpaceX', history: 'Built by SpaceX from 2019 on the Texas Gulf coast near Boca Chica, Starbase is the design, build and launch site for the fully reusable Starship and Super Heavy launch system, incorporated as its own city in 2023.' },
@@ -321,6 +321,20 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
     { id: 'kiruna', name: 'KIRUNA ROCKET RANGE', lat: 67.8558, lon: 20.2253, status: '🟢 Active', accentColor: '#7dd3fc', country: 'Sweden', tagline: 'ARCTIC SWEDISH LAUNCH RANGE', established: '1966', operator: 'Swedish Space Corporation', history: 'Part of the Esrange complex near Kiruna in Swedish Lapland, this Arctic range has supported European sounding rocket and balloon research since the 1960s.' },
     { id: 'nyalesund', name: 'NY-ALESUND ROCKET RANGE', lat: 78.9230, lon: 11.9230, status: '🟢 Active', accentColor: '#bae6fd', country: 'Norway', tagline: 'WORLD\'S NORTHERNMOST LAUNCH RANGE', established: '1997', operator: 'Norwegian / international research consortium', history: 'Located in the Svalbard archipelago far above the Arctic Circle, Ny-Ålesund is one of the northernmost rocket ranges on Earth, used for scientific sounding rocket launches studying the polar atmosphere and aurora.' }
   ];
+
+  // public.launchpad_images is purely an image_url lookup keyed by
+  // launchpad_id — the hardcoded directory above stays the source of truth
+  // for every other field. This merges the image in without replacing or
+  // modifying any existing launchpad metadata.
+  const padImagesById = (padImages || []).reduce((acc, row) => {
+    if (row?.launchpad_id) acc[row.launchpad_id] = row.image_url || null;
+    return acc;
+  }, {});
+
+  const allLaunchpads = baseLaunchpads.map((pad) => ({
+    ...pad,
+    image_url: padImagesById[pad.id] || null,
+  }));
 
   const majorLaunchpads = allLaunchpads.filter(p => p.isMajor);
   const currentBatchLaunchpads = majorLaunchpads.filter(p => p.batch === padBatchIndex);
@@ -1855,6 +1869,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                     className="agency-column"
                     style={{ 
                       flex: flexValue, 
+                      height: isHovered ? '680px' : '480px',
+                      overflowY: isHovered ? 'auto' : 'hidden',
+                      overflowX: 'hidden',
                       padding: isHovered ? '3rem 3.5rem' : '2.5rem 2rem',
                       background: `linear-gradient(160deg, ${pad.accentColor}22 0%, #0b0b0b 70%)`
                     }}
@@ -1895,20 +1912,16 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.4, delay: 0.1 }}
-                          style={{ marginTop: '1rem', maxWidth: '540px', borderLeft: `2px solid ${pad.accentColor}`, paddingLeft: '1rem' }}
+                          style={{ marginTop: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '2rem' }}
                         >
-                          <p style={{ fontSize: '0.8rem', color: '#a1a1aa', lineHeight: '1.6', margin: '0 0 0.8rem 0' }}>
-                            {pad.history}
-                          </p>
-                          {liveWeather ? (
-                            <p style={{ fontSize: '0.7rem', color: '#e2e8f0', letterSpacing: '1px', margin: 0, fontWeight: '700' }}>
-                              🌡 {liveWeather.temperature} &nbsp; 💧 {liveWeather.humidity} &nbsp; 💨 {liveWeather.wind_speed}
-                            </p>
-                          ) : (
-                            <p style={{ fontSize: '0.7rem', color: '#71717a', letterSpacing: '1px', margin: 0, fontWeight: '700', textTransform: 'uppercase' }}>
-                              Awaiting live telemetry sync...
-                            </p>
+                          {pad.image_url && (
+                            <div style={{ flex: '1 1 260px', maxWidth: '38%' }}>
+                              <LaunchpadImagePanel pad={pad} minHeight="220px" style={{ aspectRatio: '4 / 5' }} />
+                            </div>
                           )}
+                          <div style={{ flex: '2 1 300px', minWidth: 0, borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '1.5rem' }}>
+                            <LaunchpadInfoSections pad={pad} weather={liveWeather} getStatusColor={getStatusColor} />
+                          </div>
                         </motion.div>
                       )}
                     </div>
@@ -2510,6 +2523,146 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose, initialSearch = '' }) {
     </motion.div>
   );
 }
+// --- Shared launchpad detail building blocks -----------------------------
+// Used by BOTH the homepage's hover-expanded launchpad tile and the Explore
+// More Launchpads expanded panel, so the two surfaces always render the same
+// `launchpad_images` mapping the same way (per spec: one image system, not
+// two). Purely presentational — no new metadata is invented here, every
+// field comes straight off the existing `pad` object.
+
+function LaunchpadImagePanel({ pad, style, minHeight = '260px' }) {
+  const [failed, setFailed] = useState(false);
+
+  // A different pad's image URL can be swapped into the same mounted panel
+  // (e.g. Explore More's detail modal switching between pads without
+  // unmounting), so reset the failure flag whenever the pad itself changes.
+  useEffect(() => {
+    setFailed(false);
+  }, [pad?.id]);
+
+  if (!pad?.image_url || failed) return null;
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight, overflow: 'hidden', borderRadius: '3px', border: '1px solid rgba(255,255,255,0.12)', ...style }}>
+      <Image
+        src={pad.image_url}
+        alt={pad.name || 'Launchpad'}
+        fill
+        sizes="(max-width: 900px) 100vw, 480px"
+        style={{ objectFit: 'cover' }}
+        unoptimized
+        onError={() => setFailed(true)}
+      />
+    </div>
+  );
+}
+
+function PadWeatherStat({ label, value }) {
+  if (value === undefined || value === null || value === '') return null;
+  return (
+    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', padding: '0.7rem 0.8rem' }}>
+      <span style={{ color: '#71717a', fontSize: '0.58rem', letterSpacing: '1.5px', fontWeight: '700' }}>{label}</span>
+      <p style={{ color: '#fff', fontSize: '0.95rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{value}</p>
+    </div>
+  );
+}
+
+const padSectionLabelStyle = { color: '#71717a', fontSize: '0.62rem', letterSpacing: '3px', fontWeight: '800', textTransform: 'uppercase', margin: '0 0 0.7rem 0' };
+const padFieldRowStyle = { display: 'flex', justifyContent: 'space-between', gap: '1rem', padding: '0.5rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' };
+const padFieldLabelStyle = { color: '#71717a', fontSize: '0.7rem', letterSpacing: '1px', fontWeight: '700' };
+const padFieldValueStyle = { color: '#e4e4e7', fontSize: '0.82rem', letterSpacing: '0.3px', textAlign: 'right' };
+
+// Reorganizes the existing launchpad fields into IDENTITY / OPERATION /
+// LOCATION / WEATHER groupings. A section (or a single field inside one)
+// only renders when the underlying data actually exists — nothing here is
+// invented to fill an empty slot.
+function LaunchpadInfoSections({ pad, weather, getStatusColor, showTitle = false, titleSize = '1.6rem' }) {
+  if (!pad) return null;
+
+  return (
+    <div>
+      {showTitle && (
+        <div style={{ marginBottom: '1.4rem' }}>
+          <span style={{ color: '#71717a', fontSize: '0.68rem', letterSpacing: '2px', fontWeight: '800' }}>// {pad.id.toUpperCase()}</span>
+          <h2 style={{ margin: '0.5rem 0 0', color: '#fff', fontSize: titleSize, letterSpacing: '1px', textTransform: 'uppercase', lineHeight: '1.25' }}>{pad.name}</h2>
+          {pad.tagline && (
+            <p style={{ margin: '0.6rem 0 0', color: '#a1a1aa', fontSize: '0.72rem', letterSpacing: '1.5px', textTransform: 'uppercase', fontWeight: '700' }}>{pad.tagline}</p>
+          )}
+        </div>
+      )}
+
+      {pad.history && (
+        <p style={{ color: '#d4d4d8', lineHeight: '1.7', fontSize: '0.85rem', margin: '0 0 1.6rem 0' }}>{pad.history}</p>
+      )}
+
+      <div style={{ display: 'grid', gap: '1.5rem' }}>
+        {pad.country && (
+          <section>
+            <p style={padSectionLabelStyle}>IDENTITY</p>
+            <div style={padFieldRowStyle}>
+              <span style={padFieldLabelStyle}>COUNTRY</span>
+              <span style={padFieldValueStyle}>{pad.country}</span>
+            </div>
+          </section>
+        )}
+
+        {(pad.operator || pad.status || pad.established) && (
+          <section>
+            <p style={padSectionLabelStyle}>OPERATION</p>
+            {pad.operator && (
+              <div style={padFieldRowStyle}>
+                <span style={padFieldLabelStyle}>OPERATOR</span>
+                <span style={padFieldValueStyle}>{pad.operator}</span>
+              </div>
+            )}
+            {pad.status && (
+              <div style={padFieldRowStyle}>
+                <span style={padFieldLabelStyle}>STATUS</span>
+                <span style={{ ...padFieldValueStyle, color: getStatusColor ? getStatusColor(pad.status) : '#e4e4e7', fontWeight: '700' }}>{pad.status}</span>
+              </div>
+            )}
+            {pad.established && (
+              <div style={padFieldRowStyle}>
+                <span style={padFieldLabelStyle}>ESTABLISHED</span>
+                <span style={padFieldValueStyle}>{pad.established}</span>
+              </div>
+            )}
+          </section>
+        )}
+
+        {(typeof pad.lat === 'number' && typeof pad.lon === 'number') && (
+          <section>
+            <p style={padSectionLabelStyle}>LOCATION</p>
+            <div style={padFieldRowStyle}>
+              <span style={padFieldLabelStyle}>LATITUDE</span>
+              <span style={padFieldValueStyle}>{pad.lat.toFixed(4)}</span>
+            </div>
+            <div style={padFieldRowStyle}>
+              <span style={padFieldLabelStyle}>LONGITUDE</span>
+              <span style={padFieldValueStyle}>{pad.lon.toFixed(4)}</span>
+            </div>
+          </section>
+        )}
+
+        {weather && (
+          <section>
+            <p style={padSectionLabelStyle}>WEATHER</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '0.8rem' }}>
+              <PadWeatherStat label="TEMPERATURE" value={weather.temperature} />
+              <PadWeatherStat label="HUMIDITY" value={weather.humidity} />
+              <PadWeatherStat label="WIND SPEED" value={weather.wind_speed} />
+              <PadWeatherStat label="CONDITION" value={weather.condition} />
+            </div>
+            {weather.updated_at && (
+              <p style={{ color: '#52525b', fontSize: '0.62rem', letterSpacing: '1px', margin: '0.8rem 0 0 0' }}>LAST SYNCED {new Date(weather.updated_at).toUTCString()}</p>
+            )}
+          </section>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AllLaunchpadsPage({ launchpads, weatherById, getStatusColor, spaceBackgrounds, onClose, initialPadId = null }) {
   const [bgIdx, setBgIdx] = useState(0);
   const [isReturningMain, setIsReturningMain] = useState(false);
@@ -2592,61 +2745,30 @@ function AllLaunchpadsPage({ launchpads, weatherById, getStatusColor, spaceBackg
         <AnimatePresence>
           {expandedPad && (() => {
             const liveWeather = weatherById?.[expandedPad.id];
+            const hasImage = !!expandedPad.image_url;
             return (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setExpandedPad(null)} style={{ position: 'fixed', inset: 0, zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', background: 'rgba(0,0,0,0.86)' }}>
-                <motion.article initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24 }} onClick={(event) => event.stopPropagation()} style={{ width: 'min(760px, 100%)', maxHeight: '85vh', overflowY: 'auto', background: '#050505', border: '1px solid rgba(255,255,255,0.25)', padding: '2rem', boxSizing: 'border-box' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'start' }}>
-                    <div>
-                      <span style={{ color: '#94a3b8', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: '800' }}>// {expandedPad.id.toUpperCase()} / {expandedPad.country}</span>
-                      <h2 style={{ margin: '0.5rem 0 0', color: '#fff', fontSize: '2rem', letterSpacing: '1px' }}>{expandedPad.name}</h2>
-                    </div>
+                <motion.article initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24 }} onClick={(event) => event.stopPropagation()} style={{ width: 'min(1180px, 88vw)', maxHeight: '88vh', overflowY: 'auto', background: '#050505', border: '1px solid rgba(255,255,255,0.25)', padding: '2.5rem', boxSizing: 'border-box' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <button onClick={() => setExpandedPad(null)} style={{ background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', padding: '0.5rem 0.7rem', cursor: 'pointer' }}>CLOSE</button>
                   </div>
-                  <div style={{ display: 'grid', gap: '1rem', marginTop: '2rem' }}>
-                    <section>
-                      <p style={{ color: '#71717a', margin: 0, fontSize: '0.68rem', letterSpacing: '2px' }}>01 / COORDINATES</p>
-                      <p style={{ color: '#fff', margin: '0.4rem 0 0' }}>LAT {expandedPad.lat.toFixed(4)}, LON {expandedPad.lon.toFixed(4)}</p>
-                    </section>
-                    <section>
-                      <p style={{ color: '#71717a', margin: 0, fontSize: '0.68rem', letterSpacing: '2px' }}>02 / OPERATIONAL STATUS</p>
-                      <p style={{ color: getStatusColor(expandedPad.status), margin: '0.4rem 0 0', fontWeight: '700' }}>{expandedPad.status}</p>
-                    </section>
-                    <section>
-                      <p style={{ color: '#71717a', margin: 0, fontSize: '0.68rem', letterSpacing: '2px' }}>03 / OPERATOR & ESTABLISHED</p>
-                      <p style={{ color: '#fff', margin: '0.4rem 0 0' }}>{expandedPad.operator || 'Not listed'} {expandedPad.established ? `// Est. ${expandedPad.established}` : ''}</p>
-                    </section>
-                    <section>
-                      <p style={{ color: '#71717a', margin: 0, fontSize: '0.68rem', letterSpacing: '2px' }}>04 / HISTORY</p>
-                      <p style={{ color: '#d4d4d8', lineHeight: '1.7', margin: '0.4rem 0 0' }}>{expandedPad.history}</p>
-                    </section>
-                    <section>
-                      <p style={{ color: '#71717a', margin: 0, fontSize: '0.68rem', letterSpacing: '2px' }}>05 / LIVE PAD WEATHER</p>
-                      {liveWeather ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.8rem', marginTop: '0.6rem' }}>
-                          <div style={{ background: 'rgba(0,0,0,0.5)', padding: '0.8rem', border: '1px solid rgba(255,255,255,0.08)' }}>
-                            <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>TEMPERATURE</span>
-                            <p style={{ color: '#fff', fontSize: '1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{liveWeather.temperature}</p>
-                          </div>
-                          <div style={{ background: 'rgba(0,0,0,0.5)', padding: '0.8rem', border: '1px solid rgba(255,255,255,0.08)' }}>
-                            <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>HUMIDITY</span>
-                            <p style={{ color: '#fff', fontSize: '1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{liveWeather.humidity}</p>
-                          </div>
-                          <div style={{ background: 'rgba(0,0,0,0.5)', padding: '0.8rem', border: '1px solid rgba(255,255,255,0.08)' }}>
-                            <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>WIND SPEED</span>
-                            <p style={{ color: '#fff', fontSize: '1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{liveWeather.wind_speed}</p>
-                          </div>
-                          <div style={{ background: 'rgba(0,0,0,0.5)', padding: '0.8rem', border: '1px solid rgba(255,255,255,0.08)' }}>
-                            <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>CONDITION</span>
-                            <p style={{ color: '#fff', fontSize: '1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{liveWeather.condition}</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <p style={{ color: '#71717a', margin: '0.4rem 0 0', fontStyle: 'italic' }}>No live telemetry synced for this pad yet.</p>
-                      )}
-                      {liveWeather?.updated_at && (
-                        <p style={{ color: '#52525b', fontSize: '0.65rem', letterSpacing: '1px', margin: '0.8rem 0 0 0' }}>LAST SYNCED: {new Date(liveWeather.updated_at).toUTCString()}</p>
-                      )}
-                    </section>
+
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2.5rem', marginTop: '1rem' }}>
+                    {hasImage && (
+                      <div style={{ flex: '1 1 340px', maxWidth: '38%' }}>
+                        <LaunchpadImagePanel pad={expandedPad} minHeight="380px" style={{ aspectRatio: '4 / 5' }} />
+                      </div>
+                    )}
+
+                    <div style={{ flex: '2 1 420px', minWidth: 0 }}>
+                      <LaunchpadInfoSections
+                        pad={expandedPad}
+                        weather={liveWeather}
+                        getStatusColor={getStatusColor}
+                        showTitle
+                        titleSize="2.1rem"
+                      />
+                    </div>
                   </div>
                 </motion.article>
               </motion.div>
