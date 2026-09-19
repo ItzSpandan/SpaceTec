@@ -1,0 +1,82 @@
+name: Test Launchpad Image Sync (From Branch)
+
+# This workflow itself lives on main so it shows up in the Actions tab, but
+# it never runs scripts/sync-launchpad-images.js FROM main. It checks out
+# whatever branch you point it at (where the script actually lives right
+# now — e.g. a testing/preview branch) and runs the script from there, so
+# you can validate the sync against public.launchpad_images before that
+# branch is merged.
+#
+#   GitHub Actions workflow on main
+#           |
+#           v
+#   user selects testing branch (branch input, below)
+#           |
+#           v
+#   checkout selected branch
+#           |
+#           v
+#   scripts/sync-launchpad-images.js
+#           |
+#           v
+#   public.launchpad_images
+#
+# This workflow does NOT merge the selected branch into main, and does NOT
+# modify any application code — it only checks out and runs a script.
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch that contains scripts/sync-launchpad-images.js (e.g. testing/preview)'
+        required: true
+        default: 'testing/preview'
+        type: string
+
+concurrency:
+  group: test-launchpad-images-sync
+  cancel-in-progress: false
+
+jobs:
+  test-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # Checks out the BRANCH THE USER SELECTED, not main — this is what
+      # lets a workflow file living on main run code that only exists on
+      # another branch.
+      - name: Checkout selected branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Same minimal, targeted install the other sync workflows in this repo
+      # use (sync-weather-action.yml, sync.yml) rather than a full `npm ci`
+      # — the sync script's only dependency is @supabase/supabase-js (it
+      # uses Node's built-in fetch for the Launch Library 2 API calls), and
+      # this workflow shouldn't assume the checked-out branch's full
+      # package.json / lockfile look like main's.
+      - name: Install dependencies
+        run: npm install @supabase/supabase-js
+
+      # This workflow must NOT assume the sync script exists on the branch
+      # it's given — fail clearly instead of a confusing "Cannot find
+      # module" stack trace if someone points it at the wrong branch.
+      - name: Verify sync script exists on selected branch
+        run: |
+          if [ ! -f scripts/sync-launchpad-images.js ]; then
+            echo "::error::scripts/sync-launchpad-images.js was not found on branch '${{ github.event.inputs.branch }}'. Point the 'branch' input at the branch where the script currently lives."
+            exit 1
+          fi
+
+      - name: Run launchpad image sync (test)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/sync-launchpad-images.js
