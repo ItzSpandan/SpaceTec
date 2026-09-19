@@ -1,0 +1,36 @@
+name: Sync Launchpad Images
+
+on:
+  workflow_dispatch: # Run manually from the Actions tab
+  schedule:
+    # Once a day is plenty — launchpad photography doesn't change often,
+    # and this keeps well clear of Launch Library 2's rate limits. Offset
+    # a few minutes past midnight UTC rather than exactly on the hour.
+    - cron: '7 0 * * *'
+
+concurrency:
+  group: sync-launchpad-images
+  cancel-in-progress: false
+
+jobs:
+  sync-launchpad-images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install @supabase/supabase-js
+
+      - name: Run launchpad image sync
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/sync-launchpad-images.js
