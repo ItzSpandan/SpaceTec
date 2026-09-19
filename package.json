@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "fetch:agency-images": "node scripts/fetch_agency_hq_images.js"
+    "fetch:agency-images": "node scripts/fetch_agency_hq_images.js",
+    "sync:launchpad-images": "node scripts/sync-launchpad-images.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.95.0",
