@@ -49,6 +49,10 @@ export default async function Home() {
     console.error('Weather Database Fetch Error:', weatherResult.reason);
   }
 
+  // Same-shaped fetch as padWeather above — one row per launchpad, keyed by
+  // launchpad_id, populated by scripts/sync-launchpad-images.js. Both the
+  // homepage and the Explore More Launchpads page read this single prop so
+  // they can never show two different images for the same launchpad_id.
   let padImages = [];
   if (launchpadImagesResult.status === 'fulfilled') {
     const { data, error } = launchpadImagesResult.value;
