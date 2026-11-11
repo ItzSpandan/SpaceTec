@@ -3021,7 +3021,7 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch, 
 }
 
 function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: false });
+  const [timeLeft, setTimeLeft] = useState(null);
   const [modalBgIdx, setModalBgIdx] = useState(0);
   const [missionVisualFailed, setMissionVisualFailed] = useState(false);
   const modalCanvasRef = useRef(null);
@@ -3224,7 +3224,7 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
             {!launchHasFlown && !timeLeft ? '—' : (launchHasFlown || timeLeft.isPast ? 'T+' : 'T\u2212')}
           </div>
 
-          {(launchHasFlown || timeLeft) && (
+          {timeLeft && (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'stretch', flexWrap: 'wrap', maxWidth: '640px', margin: '0 auto' }}>
             {[
               { label: 'DAYS', val: timeLeft.days },
@@ -3293,8 +3293,12 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
                 <span style={{ color: '#fff', fontWeight: '700', textTransform: 'uppercase' }}>{launch.provider || 'GLOBAL PARTNER'}</span>
               </div>
               <div>
-                <span style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>EXACT TIMESTAMP (NET):</span>
-                <span style={{ color: '#2dd4bf', fontWeight: '700' }}>{new Date(launch.net).toUTCString()}</span>
+                <span style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>
+  {['Minute', 'Second'].includes(launch.net_precision) ? 'EXACT TIMESTAMP (NET):' : 'ESTIMATED LAUNCH SCHEDULE:'}
+</span>
+<span style={{ color: '#2dd4bf', fontWeight: '700' }}>
+  {formatLaunchSchedule(launch.net, launch.net_precision, launchHasFlown)}
+</span>
               </div>
               <div>
                 <span style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>LAUNCH PAD COMPLEX:</span>
