@@ -22,7 +22,11 @@ function isLaunchPast(launch) {
   if (!launch) return false;
   const statusText = (launch.status || '').toLowerCase();
   if (COMPLETED_STATUS_KEYWORDS.some((keyword) => statusText.includes(keyword))) return true;
-  if (launch.net && new Date(launch.net).getTime() < Date.now()) return true;
+
+  const hasExactTime = ['Minute', 'Second'].includes(launch.net_precision);
+
+  if (hasExactTime && launch.net && new Date(launch.net).getTime() < Date.now()) return true;
+
   return false;
 }
 
