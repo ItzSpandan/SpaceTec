@@ -173,7 +173,7 @@ async function syncUpcomingLaunches(freshRowsOut) {
 async function syncPreviousLaunches(freshRowsOut) {
   console.log("Fetching PAST global launches (most recent first)...");
 
-  let url = 'https://lldev.thespacedevs.com/2.2.0/launch/previous/?limit=100&ordering=-net';
+  let url = 'https://ll.thespacedevs.com/2.2.0/launch/previous/?limit=100&ordering=-net';
   let totalSynced = 0;
   let pagesFetched = 0;
 
