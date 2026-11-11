@@ -149,7 +149,7 @@ async function upsertLaunches(launches, freshRowsOut) {
 async function syncUpcomingLaunches(freshRowsOut) {
   console.log("Fetching all UPCOMING global launches (with pagination)...");
 
-  let url = 'https://lldev.thespacedevs.com/2.2.0/launch/upcoming/?limit=100';
+  let url = 'https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=100';
   let totalSynced = 0;
 
   while (url) {
