@@ -123,7 +123,7 @@ function LaunchTileBody({ launch, isPast }) {
             {dateLabel}
           </span>
           <span style={{ fontSize: '0.8rem', color: '#d4d4d8', letterSpacing: '0.3px' }}>
-            {formatLaunchDateTime(launch.net)}
+            {formatLaunchSchedule(launch.net, launch.net_precision, isPast)}
           </span>
           {isPast && (
             <span style={{ marginLeft: '0.6rem', fontSize: '0.68rem', color: '#71717a' }}>
