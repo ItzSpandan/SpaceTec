@@ -3211,21 +3211,28 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
             treatment changed to a clean, monochrome mission-control style. */}
         <div className="glass-card" style={{ padding: '2.5rem 2rem', marginBottom: '2rem', border: '1px solid rgba(255,255,255,0.14)', textAlign: 'center' }}>
           <p style={{ margin: '0 0 0.6rem 0', fontSize: '0.72rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
-            {launchHasFlown ? '// MISSION ELAPSED' : (timeLeft.isPast ? '// LAUNCH WINDOW OPEN / LIFTED' : '// LIVE T-MINUS COUNTDOWN')}
+            {!launchHasFlown && !timeLeft
+  ? '// SCHEDULE NOT CONFIRMED'
+  : launchHasFlown
+    ? '// MISSION ELAPSED'
+    : timeLeft.isPast
+      ? '// LAUNCH WINDOW OPEN / LIFTED'
+      : '// LIVE T-MINUS COUNTDOWN'}
           </p>
 
           <div style={{ fontSize: '1.1rem', letterSpacing: '8px', color: '#71717a', fontWeight: '700', margin: '0.5rem 0 1.2rem 0' }}>
-            {launchHasFlown || timeLeft.isPast ? 'T+' : 'T\u2212'}
+            {!launchHasFlown && !timeLeft ? '—' : (launchHasFlown || timeLeft.isPast ? 'T+' : 'T\u2212')}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'stretch', flexWrap: 'wrap', maxWidth: '640px', margin: '0 auto' }}>
+          {(launchHasFlown || timeLeft) && (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'stretch', flexWrap: 'wrap', maxWidth: '640px', margin: '0 auto' }}>
             {[
               { label: 'DAYS', val: timeLeft.days },
               { label: 'HOURS', val: timeLeft.hours },
               { label: 'MIN', val: timeLeft.minutes },
               { label: 'SEC', val: timeLeft.seconds }
             ].map((t, idx, arr) => (
-              <div
+                <div
                 key={idx}
                 style={{
                   flex: '1 1 90px',
@@ -3241,11 +3248,12 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
                 </div>
               </div>
             ))}
-          </div>
+                    </div>
+)}
 
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.12)', margin: '2rem auto 0', paddingTop: '1.2rem', maxWidth: '440px' }}>
             <span style={{ fontSize: '0.78rem', color: '#a1a1aa', letterSpacing: '1px' }}>
-              {formatLaunchDateTime(launch.net)}
+              {formatLaunchSchedule(launch.net, launch.net_precision, launchHasFlown)}
             </span>
           </div>
         </div>
