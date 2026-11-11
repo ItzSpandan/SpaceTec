@@ -121,6 +121,7 @@ function toLaunchRow(launch) {
     name: launch.name,
     status: launch.status?.name || 'Scheduled',
     net: launch.net,
+net_precision: launch.net_precision?.name || null,
     provider: launch.launch_service_provider?.name || 'Unknown Agency',
     pad_location: launch.pad?.location?.name || 'Global Launch Facility',
     mission_description: launch.mission?.description || null,
