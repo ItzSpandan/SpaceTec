@@ -65,6 +65,38 @@ function formatLaunchDateTime(dateStr) {
   const minutes = String(d.getUTCMinutes()).padStart(2, '0');
   return `${day} ${month} ${year} · ${hours}:${minutes} UTC`;
 }
+function formatLaunchSchedule(dateStr, precision, isPast = false) {
+  if (!dateStr) return 'SCHEDULE UNCONFIRMED';
+
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return 'SCHEDULE UNCONFIRMED';
+
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  const month = d.toLocaleString('en-US', {
+    month: 'short',
+    timeZone: 'UTC'
+  }).toUpperCase();
+  const year = d.getUTCFullYear();
+
+  if (isPast || precision === 'Minute' || precision === 'Second') {
+    return formatLaunchDateTime(dateStr);
+  }
+
+  if (precision === 'Hour') {
+    const hours = String(d.getUTCHours()).padStart(2, '0');
+    return `${day} ${month} ${year} · ${hours}:00 UTC (ESTIMATED)`;
+  }
+
+  if (precision === 'Day') return `${day} ${month} ${year} · TIME TBD`;
+  if (precision === 'Month') return `${month} ${year}`;
+
+  const quarterMatch = precision?.match(/Quarter\s*(\d)/i);
+  if (quarterMatch) return `Q${quarterMatch[1]} ${year}`;
+
+  if (precision === 'Year') return `${year}`;
+
+  return 'SCHEDULE UNCONFIRMED';
+}
 
 // Editorial-style content for the small homepage launch tiles (upcoming +
 // past). Structure only — no boxed field labels, hierarchy comes from
