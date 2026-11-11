@@ -119,7 +119,7 @@ function toLaunchRow(launch) {
   return {
     id: launch.id,
     name: launch.name,
-    status: launch.status?.name || 'Scheduled',
+    status: launch.status?.name || null 'Scheduled',
     net: launch.net,
 net_precision: launch.net_precision?.name || null,
     provider: launch.launch_service_provider?.name || 'Unknown Agency',
