@@ -3089,10 +3089,14 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
   }, []);
 
   useEffect(() => {
-    if (!launch?.net) return;
+  const hasExactTime = ['Minute', 'Second'].includes(launch?.net_precision);
 
-    const targetTime = new Date(launch.net).getTime();
+  if (!launch?.net || (!launchHasFlown && !hasExactTime)) {
+    setTimeLeft(null);
+    return;
+  }
 
+  const targetTime = new Date(launch.net).getTime();
     const updateTimer = () => {
       const now = new Date().getTime();
 
