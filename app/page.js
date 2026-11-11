@@ -1,6 +1,6 @@
 import SpaceTecHub from './SpaceTecHub';
 import { supabase } from './supabase';
-
+export const dynamic = 'force-dynamic';
 export default async function Home() {
   const nasaApiKey = process.env.NASA_API_KEY || 'DEMO_KEY';
 
