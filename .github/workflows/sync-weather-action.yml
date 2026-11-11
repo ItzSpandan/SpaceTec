@@ -2,7 +2,7 @@ name: Sync Launchpad Weather
 
 on:
   schedule:
-    - cron: '0 */6 * * *' # Runs every 6 hours automatically
+    - cron: '0 */6 * * *' # Scheduled weather refresh: every 6 hours
   workflow_dispatch: # Allows you to manually trigger it from the GitHub Actions tab
 
 jobs:
