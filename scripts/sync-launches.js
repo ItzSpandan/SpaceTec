@@ -179,8 +179,19 @@ async function syncPreviousLaunches(freshRowsOut) {
   let pagesFetched = 0;
 
   while (url && pagesFetched < MAX_PREVIOUS_PAGES) {
-    const response = await fetch(url);
-    const data = await response.json();
+    const response = await fetch(url, {
+  headers: {
+    Accept: 'application/json',
+    'User-Agent': 'SpaceTec-Launch-Sync/1.0'
+  }
+});
+
+if (!response.ok) {
+  const errorText = await response.text();
+  throw new Error(`Launch Library API error (${response.status}): ${errorText.slice(0, 300)}`);
+}
+
+const data = await response.json();
 
     if (!data.results || data.results.length === 0) break;
 
