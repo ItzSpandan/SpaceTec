@@ -68,6 +68,45 @@
     font-size: 1.35rem !important;
   }
 
+
+  /* ---------- Header wordmark: shown whole from the first frame on phones ---------- */
+  .st-hub .st-wm-letter {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+
+  /* ---------- Hamburger: two bars that morph into an X ---------- */
+  .st-burger-bars {
+    position: relative;
+    display: block;
+    width: 22px;
+    height: 14px;
+  }
+  .st-burger-bars i {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    border-radius: 2px;
+    background: #ffffff;
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .st-burger-bars i:nth-child(1) { top: 0; }
+  .st-burger-bars i:nth-child(2) { top: 12px; }
+  .st-burger-bars.is-open i:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+  .st-burger-bars.is-open i:nth-child(2) { transform: translateY(-6px) rotate(-45deg); }
+  /* menu open: only the X stays visible in the header, above the panel */
+  .st-hub header[data-menu-open='true'] .st-hdr-brand,
+  .st-hub header[data-menu-open='true'] .st-hdr-search {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .st-hub .st-hdr-brand,
+  .st-hub .st-hdr-search {
+    transition: opacity 0.25s ease;
+  }
+
   /* ---------- Hero ---------- */
   .st-hub #hero {
     padding-bottom: 2rem !important;
@@ -125,16 +164,16 @@
     .st-bottom-nav { background: rgba(8, 8, 8, 0.94); }
   }
   .st-nav-indicator {
+    box-sizing: border-box;
     position: absolute;
     top: 5px;
     bottom: 5px;
-    left: 5px;
-    width: calc((100% - 10px) / 5);
+    left: 0; /* x / width are measured from the real active button in MobileBottomNav.js */
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.13);
     border: 1px solid rgba(255, 255, 255, 0.14);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
-    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), width 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
     pointer-events: none;
     will-change: transform;
   }
@@ -275,7 +314,8 @@
 
 @media (max-width: 767px) and (prefers-reduced-motion: reduce) {
   .st-bottom-nav > button,
-  .st-nav-indicator {
+  .st-nav-indicator,
+  .st-burger-bars i {
     transition: none;
   }
   .st-track-pop {
