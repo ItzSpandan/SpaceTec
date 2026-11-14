@@ -1,1 +1,33 @@
+/* ==========================================================================
+   SpaceTec — mobile-only layer
+   --------------------------------------------------------------------------
+   RULES OF THIS FILE
+   1. Every rule that changes the existing UI lives inside
+      @media (max-width: 767px), so desktop can never match it.
+   2. Rules are scoped under .st-hub (the homepage root) or another page
+      root, so nothing leaks into other pages.
+   3. Most existing styles are inline, so overrides need !important.
+   4. Never use the `padding` shorthand to override a section: it would wipe
+      each section's own inline padding-bottom. Use padding-left/right.
+   ========================================================================== */
 
+/* Mobile-only elements are hidden everywhere by default (desktop included). */
+.st-bottom-nav,
+.st-hdr-search {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  /* ---------- Page frame ---------- */
+  .st-hub {
+    /* room for the fixed bottom nav (+ iOS home-indicator inset if present) */
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .st-hub .content-container {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+  .st-hub .st-main {
+    padding-top: 4.75rem !important;
+  }
+  .st-hub section.content-container {
