@@ -12,6 +12,8 @@ import { allAgencies, agencyDirectory } from './space-agencies/agencyData';
 import { AllAgenciesPage, findLaunchpadForAgency } from './space-agencies/AgencyDirectory';
 import { logRecentView } from './lib/spaceActivity';
 import SaveButton from './components/SaveButton';
+import MobileBottomNav from './components/MobileBottomNav';
+import useIsMobile from './lib/useIsMobile';
 
 // --- LAUNCH STATUS HELPERS (shared by the homepage, the explore pages, and the launch modal) ---
 
@@ -237,6 +239,7 @@ function IconClose(props) {
 
 export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const { user, profile, requireAuth, openAuthModal, resumeIntent, clearResumeIntent, loading: authLoading } = useAuth();
   // The homepage no longer has a startup intro screen, so the main
   // content (header, hero, etc.) is simply entered from the first frame.
@@ -425,6 +428,16 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
     setShowTelemetryDropdown(false);
     setShowDatabaseDropdown(false);
     setShowHamburgerMenu(false);
+  };
+
+  // Phone-only: header search icon jumps to the Global Search section and
+  // focuses its input. Desktop never calls this.
+  const openMobileSearch = () => {
+    const section = document.getElementById('global-search');
+    if (!section) return;
+    section.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
+    const input = section.querySelector('input');
+    if (input) setTimeout(() => input.focus({ preventScroll: true }), prefersReducedMotion ? 0 : 350);
   };
 
   // Closes the sidebar and runs a navigation/action callback right after —
@@ -749,7 +762,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
   };
 
   return (
-    <div style={{ backgroundColor: '#000000', color: '#ffffff', minHeight: '100vh', fontFamily: '"Space Grotesk", -apple-system, sans-serif', position: 'relative', overflowX: 'hidden' }}>
+    <div className="st-hub" style={{ backgroundColor: '#000000', color: '#ffffff', minHeight: '100vh', fontFamily: '"Space Grotesk", -apple-system, sans-serif', position: 'relative', overflowX: 'hidden' }}>
       
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700;900&display=swap');
@@ -962,8 +975,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
           pointerEvents: entered ? 'auto' : 'none'
         }}
       >
-        <div className="content-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', minWidth: '180px' }}>
+        <div className="content-container st-hdr-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '5rem' }}>
+          <div className="st-hdr-brand" style={{ display: 'flex', alignItems: 'center', minWidth: '180px' }}>
             <button className="brand-link" onClick={() => scrollToSection('hero')}>
               {/*
                 Permanent top-left wordmark. This is the homepage's only
@@ -1011,6 +1024,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
           </div>
 
           <div
+            className="st-hdr-links"
             style={{
               display: 'flex', alignItems: 'center', gap: '1.8rem', position: 'relative',
               opacity: showHamburgerMenu ? 0 : 1,
@@ -1195,10 +1209,16 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
           {/* Hamburger toggle — always visible. Opens the right-side sidebar
               overlay rendered just below the header (see AnimatePresence
               block right after </motion.header>). */}
+          {/* Phone-only search shortcut (rendered only at <= 767px). */}
+          {isMobile && (
+            <button type="button" className="st-hdr-search" aria-label="Search SpaceTec" onClick={openMobileSearch}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+            </button>
+          )}
           <button
             aria-label={showHamburgerMenu ? 'Close navigation menu' : 'Open navigation menu'}
             aria-expanded={showHamburgerMenu}
-            className="nav-link"
+            className="nav-link st-hdr-burger"
             onClick={() => {
               setShowTelemetryDropdown(false);
               setShowDatabaseDropdown(false);
@@ -1211,6 +1231,18 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
 
         </div>
       </motion.header>
+
+      {/* PHONE-ONLY BOTTOM NAV (renders nothing above 767px) */}
+      <MobileBottomNav
+        moreOpen={showHamburgerMenu}
+        onAgencies={() => scrollToSection('agencies')}
+        onTracker={() => router.push('/iss-tracker')}
+        onMore={() => {
+          setShowTelemetryDropdown(false);
+          setShowDatabaseDropdown(false);
+          setShowHamburgerMenu(true);
+        }}
+      />
 
       {/* RIGHT-SIDE NAVIGATION SIDEBAR (redesigned hamburger menu) */}
       <AnimatePresence>
@@ -1602,17 +1634,18 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
       <motion.div 
         animate={{ opacity: entered ? 1 : 0 }}
         transition={{ duration: 0.8, delay: 0.2 }}
+        className="st-main"
         style={{ position: 'relative', zIndex: 3, paddingTop: '8rem', pointerEvents: entered ? 'auto' : 'none' }}
       >
         
         {/* HERO SECTION */}
         <section id="hero" className="content-container" style={{ paddingBottom: '4rem', scrollMarginTop: '8rem' }}>
           <motion.div initial="hidden" animate={entered ? "visible" : "hidden"} variants={heroStaggerContainer} style={{ maxWidth: '850px' }}>
-            <motion.p variants={heroFadeInUp} style={{ fontSize: '0.75rem', letterSpacing: '6px', textTransform: 'uppercase', color: '#a1a1aa', marginBottom: '1.5rem', fontWeight: '600' }}>
+            <motion.p variants={heroFadeInUp} className="st-hero-eyebrow" style={{ fontSize: '0.75rem', letterSpacing: '6px', textTransform: 'uppercase', color: '#a1a1aa', marginBottom: '1.5rem', fontWeight: '600' }}>
               // MULTI-AGENCY DEEP SPACE NETWORK
             </motion.p>
             
-            <motion.h2 variants={heroFadeInUp} style={{ fontSize: 'calc(2.2rem + 3vw)', fontWeight: '900', lineHeight: '1.1', letterSpacing: '1px', margin: '0 0 1.8rem 0', textTransform: 'uppercase', color: '#ffffff' }}>
+            <motion.h2 variants={heroFadeInUp} className="st-hero-title" style={{ fontSize: 'calc(2.2rem + 3vw)', fontWeight: '900', lineHeight: '1.1', letterSpacing: '1px', margin: '0 0 1.8rem 0', textTransform: 'uppercase', color: '#ffffff' }}>
               THE UNIVERSE,
               <br />
               <span style={{ position: 'relative', display: 'inline-block', overflow: 'hidden', verticalAlign: 'top', minWidth: '100%' }}>
@@ -1633,7 +1666,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
               </span>
             </motion.h2>
 
-            <motion.p variants={heroFadeInUp} style={{ fontSize: '1.05rem', color: '#d4d4d8', lineHeight: '1.7', maxWidth: '680px', marginBottom: '2.5rem', fontWeight: '400' }}>
+            <motion.p variants={heroFadeInUp} className="st-hero-copy" style={{ fontSize: '1.05rem', color: '#d4d4d8', lineHeight: '1.7', maxWidth: '680px', marginBottom: '2.5rem', fontWeight: '400' }}>
               Real-time trajectory tracking, global rocket launch manifests, and deep space observations aggregated directly from global aerospace networks.
             </motion.p>
           </motion.div>
@@ -3378,4 +3411,4 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
       </motion.div>
     </motion.div>
   );
-}
+            }
