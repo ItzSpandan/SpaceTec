@@ -175,6 +175,12 @@ export default function GlobalSearch({
   onOpenAgencies,
   onOpenLaunchpads,
   onOpenSatelliteWiki,
+  // Phone search screen (see app/mobile/MobileSearchScreen.js). `variant`
+  // defaults to the unchanged homepage dropdown; 'screen' renders the field
+  // plus inline discovery/results for the dedicated mobile screen.
+  variant = 'inline',
+  discovery = null,
+  onAfterSelect,
 }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
@@ -363,8 +369,9 @@ export default function GlobalSearch({
       action();
       setOpen(false);
       inputRef.current?.blur();
+      if (onAfterSelect) onAfterSelect();
     },
-    []
+    [onAfterSelect]
   );
 
   const handleInputChange = (e) => {
@@ -381,6 +388,222 @@ export default function GlobalSearch({
 
   const showAnimatedPlaceholder = !focused && query.length === 0;
   const showDropdown = open && trimmed.length > 0;
+
+  const resultsBody = (
+    <>
+          <div
+            style={{
+              padding: '0 1.5rem 0.9rem 1.5rem',
+              color: '#71717a',
+              fontSize: '0.68rem',
+              letterSpacing: '2px',
+              textTransform: 'uppercase',
+              fontWeight: '600',
+            }}
+          >
+            SEARCH RESULTS FOR: <span style={{ color: '#ffffff' }}>{trimmed}</span>
+            {isLoadingRemote && <span style={{ marginLeft: '0.6rem', color: '#52525b' }}>· SEARCHING…</span>}
+          </div>
+
+          {totalResults === 0 && !isLoadingRemote ? (
+            <div style={{ padding: '0.5rem 1.5rem 0.75rem 1.5rem', color: '#a1a1aa', fontSize: '0.85rem' }}>
+              NO RESULTS FOUND
+            </div>
+          ) : (
+            <>
+              <ResultGroup label="SATELLITES">
+                {satellites.map((s) => (
+                  <ResultRow
+                    key={`satellite-${s.id}`}
+                    title={s.name}
+                    subtitle={`NORAD ${s.id}`}
+                    onSelect={() => handleSelect(() => onOpenSatelliteWiki && onOpenSatelliteWiki(s.name))}
+                  />
+                ))}
+              </ResultGroup>
+
+              <ResultGroup label="MISSIONS">
+                {localResults.missions.map((m) => (
+                  <ResultRow
+                    key={`mission-${m.id}`}
+                    title={m.name}
+                    subtitle={m.agency}
+                    onSelect={() => handleSelect(() => goTo(`/mission-database?id=${encodeURIComponent(m.id)}`))}
+                  />
+                ))}
+              </ResultGroup>
+
+              <ResultGroup label="ROCKETS">
+                {rockets.map((r) => (
+                  <ResultRow
+                    key={`rocket-${r.id}`}
+                    title={r.name}
+                    subtitle={r.manufacturer}
+                    onSelect={() =>
+                      handleSelect(() =>
+                        goTo(`/rocket-database?id=${encodeURIComponent(r.id)}&q=${encodeURIComponent(r.name)}`)
+                      )
+                    }
+                  />
+                ))}
+              </ResultGroup>
+
+              <ResultGroup label="SPACECRAFT">
+                {localResults.spacecraft.map((s) => (
+                  <ResultRow
+                    key={`spacecraft-${s.id}`}
+                    title={s.name}
+                    subtitle={s.agency}
+                    onSelect={() => handleSelect(() => goTo(`/spacecraft-database?id=${encodeURIComponent(s.id)}`))}
+                  />
+                ))}
+              </ResultGroup>
+
+              <ResultGroup label="ASTRONAUTS">
+                {localResults.astronauts.map((a) => (
+                  <ResultRow
+                    key={`astronaut-${a.id}`}
+                    title={a.name}
+                    subtitle={a.agency}
+                    onSelect={() => handleSelect(() => goTo(`/astronaut-database?id=${encodeURIComponent(a.id)}`))}
+                  />
+                ))}
+              </ResultGroup>
+
+              <ResultGroup label="AGENCIES">
+                {localResults.agencies.map((a) => (
+                  <ResultRow
+                    key={`agency-${a.id}`}
+                    title={a.name}
+                    subtitle={a.tagline}
+                    onSelect={() => handleSelect(() => (onOpenAgencies ? onOpenAgencies(a) : null))}
+                  />
+                ))}
+              </ResultGroup>
+
+              <ResultGroup label="LAUNCHPADS">
+                {localResults.launchpads.map((p) => (
+                  <ResultRow
+                    key={`launchpad-${p.id}`}
+                    title={p.name}
+                    subtitle={p.country}
+                    onSelect={() => handleSelect(() => (onOpenLaunchpads ? onOpenLaunchpads(p) : null))}
+                  />
+                ))}
+              </ResultGroup>
+
+              <ResultGroup label="CELESTIAL OBJECTS">
+                {localResults.celestial.map((o) => (
+                  <ResultRow
+                    key={`celestial-${o.id}`}
+                    title={o.name}
+                    subtitle={o.domain}
+                    onSelect={() => handleSelect(() => goTo(`/celestial-database?id=${encodeURIComponent(o.id)}`))}
+                  />
+                ))}
+              </ResultGroup>
+
+              <ResultGroup label="SPACE WEATHER">
+                {spaceWeatherMatch && (
+                  <ResultRow
+                    key="space-weather"
+                    title="LIVE SPACE WEATHER"
+                    subtitle="Solar wind, geomagnetic activity & aurora forecast"
+                    onSelect={() => handleSelect(() => goTo('/space-weather'))}
+                  />
+                )}
+              </ResultGroup>
+
+              <ResultGroup label="SPACE NEWS">
+                {newsResults.map((n) => (
+                  <ResultRow
+                    key={`news-${n.id}`}
+                    title={n.headline}
+                    subtitle={n.source}
+                    onSelect={() => handleSelect(() => n.url && window.open(n.url, '_blank', 'noopener,noreferrer'))}
+                  />
+                ))}
+              </ResultGroup>
+            </>
+          )}
+    </>
+  );
+
+  if (variant === 'screen') {
+    return (
+      <div ref={wrapperRef} className="gs-screen">
+        <style>{`
+          @keyframes gsearch-blink { 0%, 45% { opacity: 1; } 50%, 95% { opacity: 0; } 100% { opacity: 1; } }
+          .gsearch-cursor { display: inline-block; width: 1px; margin-left: 2px; animation: gsearch-blink 1.1s step-start infinite; }
+          .gsearch-input::placeholder { color: transparent; }
+          .gsearch-row { transition: background-color 0.15s ease; cursor: pointer; }
+          .gsearch-row:active { background-color: rgba(255, 255, 255, 0.06); }
+          @media (prefers-reduced-motion: reduce) { .gsearch-cursor { animation: none; } }
+        `}</style>
+
+        {/* Field: fixed-width icon cell + shrinkable input cell, so the
+            placeholder can never run into the icon. */}
+        <div className={`gs-field${focused ? ' is-focused' : ''}`} onClick={() => inputRef.current?.focus()}>
+          <span className="gs-field-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <circle cx="10.5" cy="10.5" r="6.5" />
+              <line x1="15.4" y1="15.4" x2="20.5" y2="20.5" />
+            </svg>
+          </span>
+          <div className="gs-field-input">
+            {showAnimatedPlaceholder && (
+              <span className="gs-field-placeholder" aria-hidden="true">
+                Search {typedPlaceholder}
+                <span className="gsearch-cursor" style={{ backgroundColor: '#a1a1aa', height: '1em' }} />
+              </span>
+            )}
+            <input
+              ref={inputRef}
+              className="gsearch-input"
+              type="search"
+              enterKeyHint="search"
+              aria-label="Search SpaceTec"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              placeholder=""
+            />
+          </div>
+          {query.length > 0 && (
+            <button
+              type="button"
+              className="gs-field-clear"
+              aria-label="Clear search"
+              onClick={(e) => {
+                e.stopPropagation();
+                setQuery('');
+                inputRef.current?.focus();
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {/* Discovery <-> results swap (cross-fades via the keyed layer). */}
+        {trimmed.length === 0 ? (
+          <div className="gs-layer" key="discovery">
+            {typeof discovery === 'function' ? discovery({ setQuery, focusInput: () => inputRef.current?.focus() }) : discovery}
+          </div>
+        ) : (
+          <div className="gs-layer gs-results" key="results" role="region" aria-label="Search results">
+            {resultsBody}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div ref={wrapperRef} style={{ position: 'relative', width: '100%' }}>
@@ -584,141 +807,7 @@ export default function GlobalSearch({
             overflowY: 'auto',
           }}
         >
-          <div
-            style={{
-              padding: '0 1.5rem 0.9rem 1.5rem',
-              color: '#71717a',
-              fontSize: '0.68rem',
-              letterSpacing: '2px',
-              textTransform: 'uppercase',
-              fontWeight: '600',
-            }}
-          >
-            SEARCH RESULTS FOR: <span style={{ color: '#ffffff' }}>{trimmed}</span>
-            {isLoadingRemote && <span style={{ marginLeft: '0.6rem', color: '#52525b' }}>· SEARCHING…</span>}
-          </div>
-
-          {totalResults === 0 && !isLoadingRemote ? (
-            <div style={{ padding: '0.5rem 1.5rem 0.75rem 1.5rem', color: '#a1a1aa', fontSize: '0.85rem' }}>
-              NO RESULTS FOUND
-            </div>
-          ) : (
-            <>
-              <ResultGroup label="SATELLITES">
-                {satellites.map((s) => (
-                  <ResultRow
-                    key={`satellite-${s.id}`}
-                    title={s.name}
-                    subtitle={`NORAD ${s.id}`}
-                    onSelect={() => handleSelect(() => onOpenSatelliteWiki && onOpenSatelliteWiki(s.name))}
-                  />
-                ))}
-              </ResultGroup>
-
-              <ResultGroup label="MISSIONS">
-                {localResults.missions.map((m) => (
-                  <ResultRow
-                    key={`mission-${m.id}`}
-                    title={m.name}
-                    subtitle={m.agency}
-                    onSelect={() => handleSelect(() => goTo(`/mission-database?id=${encodeURIComponent(m.id)}`))}
-                  />
-                ))}
-              </ResultGroup>
-
-              <ResultGroup label="ROCKETS">
-                {rockets.map((r) => (
-                  <ResultRow
-                    key={`rocket-${r.id}`}
-                    title={r.name}
-                    subtitle={r.manufacturer}
-                    onSelect={() =>
-                      handleSelect(() =>
-                        goTo(`/rocket-database?id=${encodeURIComponent(r.id)}&q=${encodeURIComponent(r.name)}`)
-                      )
-                    }
-                  />
-                ))}
-              </ResultGroup>
-
-              <ResultGroup label="SPACECRAFT">
-                {localResults.spacecraft.map((s) => (
-                  <ResultRow
-                    key={`spacecraft-${s.id}`}
-                    title={s.name}
-                    subtitle={s.agency}
-                    onSelect={() => handleSelect(() => goTo(`/spacecraft-database?id=${encodeURIComponent(s.id)}`))}
-                  />
-                ))}
-              </ResultGroup>
-
-              <ResultGroup label="ASTRONAUTS">
-                {localResults.astronauts.map((a) => (
-                  <ResultRow
-                    key={`astronaut-${a.id}`}
-                    title={a.name}
-                    subtitle={a.agency}
-                    onSelect={() => handleSelect(() => goTo(`/astronaut-database?id=${encodeURIComponent(a.id)}`))}
-                  />
-                ))}
-              </ResultGroup>
-
-              <ResultGroup label="AGENCIES">
-                {localResults.agencies.map((a) => (
-                  <ResultRow
-                    key={`agency-${a.id}`}
-                    title={a.name}
-                    subtitle={a.tagline}
-                    onSelect={() => handleSelect(() => (onOpenAgencies ? onOpenAgencies(a) : null))}
-                  />
-                ))}
-              </ResultGroup>
-
-              <ResultGroup label="LAUNCHPADS">
-                {localResults.launchpads.map((p) => (
-                  <ResultRow
-                    key={`launchpad-${p.id}`}
-                    title={p.name}
-                    subtitle={p.country}
-                    onSelect={() => handleSelect(() => (onOpenLaunchpads ? onOpenLaunchpads(p) : null))}
-                  />
-                ))}
-              </ResultGroup>
-
-              <ResultGroup label="CELESTIAL OBJECTS">
-                {localResults.celestial.map((o) => (
-                  <ResultRow
-                    key={`celestial-${o.id}`}
-                    title={o.name}
-                    subtitle={o.domain}
-                    onSelect={() => handleSelect(() => goTo(`/celestial-database?id=${encodeURIComponent(o.id)}`))}
-                  />
-                ))}
-              </ResultGroup>
-
-              <ResultGroup label="SPACE WEATHER">
-                {spaceWeatherMatch && (
-                  <ResultRow
-                    key="space-weather"
-                    title="LIVE SPACE WEATHER"
-                    subtitle="Solar wind, geomagnetic activity & aurora forecast"
-                    onSelect={() => handleSelect(() => goTo('/space-weather'))}
-                  />
-                )}
-              </ResultGroup>
-
-              <ResultGroup label="SPACE NEWS">
-                {newsResults.map((n) => (
-                  <ResultRow
-                    key={`news-${n.id}`}
-                    title={n.headline}
-                    subtitle={n.source}
-                    onSelect={() => handleSelect(() => n.url && window.open(n.url, '_blank', 'noopener,noreferrer'))}
-                  />
-                ))}
-              </ResultGroup>
-            </>
-          )}
+          {resultsBody}
         </div>
       </div>
     </div>
