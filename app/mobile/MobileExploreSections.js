@@ -25,18 +25,18 @@ export function MobileAgenciesSection({ agencies, onOpenAgency, onExploreMore })
     onOpen: () => onOpenAgency(a),
   }));
 
-  // Intro showcase order requested in the brief.
-  const order = ['isro', 'nasa', 'esa', 'cnsa', 'spacex', 'jaxa'];
-  const showcase = order
+  // Name-card order requested in the brief: NASA, ISRO, ESA, SpaceX, JAXA, CNSA.
+  const order = ['nasa', 'isro', 'esa', 'spacex', 'jaxa', 'cnsa'];
+  const names = order
     .map((id) => agencies.find((a) => a.id === id))
     .filter(Boolean)
-    .map((a) => ({ key: a.id, logoId: a.id, label: a.name }));
+    .map((a) => ({ key: a.id, label: a.name }));
 
   return (
     <MobileCinematicSection
       introKey="agencies"
       introWords={['EXPLORE', 'SPACE', 'AGENCIES']}
-      showcase={showcase}
+      names={names}
       eyebrow="// GLOBAL AEROSPACE ARCHITECTURE"
       heading="EXPLORE SPACE AGENCIES"
       items={items}
@@ -57,7 +57,7 @@ export function MobileLaunchpadsSection({ pads, weatherById, onOpenPad, onExplor
     if (w) meta.push(`${w.temperature} · ${w.humidity} · ${w.wind_speed}`);
     return {
       key: p.id,
-      logoId: 'pad',
+      logoId: null, // launchpads show their name as plain text, never a logo
       title: p.name,
       kicker: p.tagline,
       lead: `${p.country} // ${p.lat.toFixed(2)}, ${p.lon.toFixed(2)}`,
@@ -67,13 +67,13 @@ export function MobileLaunchpadsSection({ pads, weatherById, onOpenPad, onExplor
     };
   });
 
-  const showcase = pads.map((p) => ({ key: p.id, logoId: 'pad', label: p.name }));
+  const names = pads.map((p) => ({ key: p.id, label: p.name }));
 
   return (
     <MobileCinematicSection
       introKey="launchpads"
       introWords={['EXPLORE', 'LAUNCHPADS']}
-      showcase={showcase}
+      names={names}
       eyebrow="// GLOBAL GROUND INFRASTRUCTURE"
       heading="EXPLORE LAUNCHPADS"
       items={items}
