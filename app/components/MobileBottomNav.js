@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import useIsMobile from '../lib/useIsMobile';
 
 // Which homepage section lights up which tab. Sections mapped to `null`
@@ -72,6 +72,11 @@ export default function MobileBottomNav({
   const [activeTab, setActiveTab] = useState('home');
   const [trackingOpen, setTrackingOpen] = useState(false);
   const trackingBtnRef = useRef(null);
+  const navRef = useRef(null);
+  const btnRefs = useRef({});
+  // Measured geometry of the highlighted tab (px, relative to the bar), so the
+  // oval is centred on the real button at every screen width / font metric.
+  const [indicator, setIndicator] = useState({ x: 0, w: 0, ready: false });
 
   useEffect(() => {
     if (!isMobile || typeof IntersectionObserver === 'undefined') return undefined;
@@ -105,6 +110,33 @@ export default function MobileBottomNav({
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [trackingOpen]);
+
+  const measure = useCallback((tabId) => {
+    const el = btnRefs.current[tabId];
+    if (!el || !navRef.current) return;
+    const INSET = 2; // equal breathing room on both sides of the selected item
+    setIndicator((prev) => {
+      // sub-pixel accurate: compare real rects (offsetLeft/offsetWidth are rounded)
+      // and subtract the bar's border, since the indicator is positioned inside it
+      const nav = navRef.current;
+      const nr = nav.getBoundingClientRect();
+      const br = el.getBoundingClientRect();
+      const x = br.left - (nr.left + nav.clientLeft) + INSET;
+      const w = Math.max(br.width - INSET * 2, 0);
+      return Math.abs(prev.x - x) < 0.05 && Math.abs(prev.w - w) < 0.05 && prev.ready ? prev : { x, w, ready: true };
+    });
+  }, []);
+
+  const highlightedTab = trackingOpen ? 'tracking' : activeTab;
+  useLayoutEffect(() => {
+    if (!isMobile || !highlightedTab) return undefined;
+    measure(highlightedTab);
+    const nav = navRef.current;
+    if (!nav || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => measure(highlightedTab));
+    ro.observe(nav);
+    return () => ro.disconnect();
+  }, [isMobile, highlightedTab, measure]);
 
   if (!isMobile) return null;
 
@@ -142,7 +174,7 @@ export default function MobileBottomNav({
           onClick={() => setTrackingOpen(false)}
         />
       )}
-      <nav className="st-bottom-nav" aria-label="Primary">
+      <nav className="st-bottom-nav" aria-label="Primary" ref={navRef}>
         {trackingOpen && (
           <div className="st-track-pop" role="menu" aria-label="Tracking">
             <button type="button" role="menuitem" onClick={choose(onSatelliteTracker)}>
@@ -160,8 +192,11 @@ export default function MobileBottomNav({
           className="st-nav-indicator"
           aria-hidden="true"
           style={{
-            transform: `translateX(${Math.max(highlightIndex, 0) * 100}%)`,
-            opacity: highlightIndex === -1 ? 0 : 1,
+            width: indicator.w,
+            transform: `translateX(${indicator.x}px)`,
+            opacity: highlightIndex === -1 || !indicator.ready ? 0 : 1,
+            // first measurement: place it without sliding in from the corner
+            transitionProperty: indicator.ready ? undefined : 'none',
           }}
         />
         {TAB_ORDER.map((id) => {
@@ -171,7 +206,10 @@ export default function MobileBottomNav({
             <button
               key={id}
               type="button"
-              ref={id === 'tracking' ? trackingBtnRef : undefined}
+              ref={(el) => {
+                btnRefs.current[id] = el;
+                if (id === 'tracking') trackingBtnRef.current = el;
+              }}
               onClick={onClick}
               aria-current={isActive && id !== 'tracking' ? 'page' : undefined}
               aria-expanded={id === 'tracking' ? trackingOpen : undefined}
@@ -186,4 +224,4 @@ export default function MobileBottomNav({
       </nav>
     </>
   );
-  }
+            }
