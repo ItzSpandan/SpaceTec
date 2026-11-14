@@ -155,6 +155,133 @@ function LaunchTileBody({ launch, isPast }) {
   );
 }
 
+// Phone-only layout for the homepage Upcoming / Past launch sections. It reads
+// the SAME launch records as the desktop grid (no new data, dates or statuses
+// are created): a prominent first card, then compact rows. Cards keep the
+// `launch-card-${id}` layoutId so the existing expanded modal transition and
+// onClick behaviour are unchanged. Desktop never renders this.
+function MobileLaunchThumb({ src, name }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={name || 'Launch mission visual'}
+      loading="lazy"
+      draggable={false}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+function MobileLaunchSection({ launches, isPast, eyebrow, heading, exploreLabel, onSelect, onExplore, emptyText }) {
+  const [first, ...rest] = launches;
+  const dateLabel = isPast ? 'LAUNCHED' : 'NET';
+  const statusOf = (l) => (l.status ? l.status.toUpperCase() : null);
+  const onKey = (launch) => (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelect(launch);
+    }
+  };
+
+  return (
+    <div className="stl-root">
+      <span className="stl-eyebrow">{eyebrow}</span>
+      <h2 className="stl-heading">{heading}</h2>
+
+      {launches.length === 0 && emptyText && <div className="stl-empty">{emptyText}</div>}
+
+      {first && (
+        <motion.div
+          layoutId={`launch-card-${first.id}`}
+          whileTap={{ scale: 0.99 }}
+          onClick={() => onSelect(first)}
+          onKeyDown={onKey(first)}
+          className="glass-card launch-tile stl-feature"
+          role="button"
+          tabIndex={0}
+        >
+          {first.image_url && (
+            <div className="stl-feature-media" aria-hidden="true">
+              <MobileLaunchThumb src={first.image_url} name={first.name} />
+            </div>
+          )}
+          <div className="stl-feature-body">
+            <span className="stl-kicker">
+              {`// ${isPast ? 'COMPLETED' : 'SCHEDULED'}`}
+              {first.provider ? ` · ${first.provider}` : ''}
+            </span>
+            <h3 className="stl-feature-name">{first.name}</h3>
+            <dl className="stl-facts">
+              <div>
+                <dt>{dateLabel}</dt>
+                <dd>
+                  {formatLaunchSchedule(first.net, first.net_precision, isPast)}
+                  {isPast && <span className="stl-ago"> ({formatTimeAgo(first.net)})</span>}
+                </dd>
+              </div>
+              {(isPast || statusOf(first)) && (
+                <div>
+                  <dt>STATUS</dt>
+                  <dd>{statusOf(first) || 'STATUS UNKNOWN'}</dd>
+                </div>
+              )}
+              {!isPast && (
+                <div>
+                  <dt>PAD</dt>
+                  <dd className="stl-ellipsis">{first.pad_location || 'Vandenberg Space Force Base'}</dd>
+                </div>
+              )}
+            </dl>
+          </div>
+        </motion.div>
+      )}
+
+      {rest.length > 0 && (
+        <ul className="stl-list">
+          {rest.map((launch) => (
+            <li key={launch.id}>
+              <motion.div
+                layoutId={`launch-card-${launch.id}`}
+                whileTap={{ scale: 0.99 }}
+                onClick={() => onSelect(launch)}
+                onKeyDown={onKey(launch)}
+                className="glass-card launch-tile stl-row"
+                role="button"
+                tabIndex={0}
+              >
+                {launch.image_url && (
+                  <div className="stl-row-media" aria-hidden="true">
+                    <MobileLaunchThumb src={launch.image_url} name={launch.name} />
+                  </div>
+                )}
+                <div className="stl-row-main">
+                  <span className="stl-kicker">{launch.provider || (isPast ? 'COMPLETED' : 'SCHEDULED')}</span>
+                  <h3 className="stl-row-name">{launch.name}</h3>
+                  <span className="stl-row-meta">
+                    {formatLaunchSchedule(launch.net, launch.net_precision, isPast)}
+                    {isPast && statusOf(launch) ? ` · ${statusOf(launch)}` : ''}
+                  </span>
+                </div>
+                <span className="stl-row-chevron" aria-hidden="true">→</span>
+              </motion.div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {onExplore && (
+        <button className="explore-btn stl-explore" onClick={onExplore}>
+          <span>{exploreLabel}</span>
+          <span>→</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 const HERO_ROTATING_PHRASES = ['ORGANIZED.', 'CONNECTED.', 'AT A GLANCE.', 'IN FOCUS.', 'IN MOTION.', 'IN REAL TIME.'];
 // Split out once so the permanent header wordmark's one-time letter-by-letter
 // entrance can animate each character independently. Only used by that
@@ -2067,6 +2194,18 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
 
         {/* UPCOMING LAUNCHES */}
         <section id="launches" className="content-container" style={{ paddingBottom: '8rem', scrollMarginTop: '8rem' }}>
+          {isMobile ? (
+            <MobileLaunchSection
+              launches={latestLaunches}
+              isPast={false}
+              eyebrow="// ORBITAL MANIFEST"
+              heading="UPCOMING GLOBAL LAUNCHES"
+              exploreLabel={`Explore More Launches${remainingLaunches.length > 0 ? ` (${remainingLaunches.length} More)` : ''}`}
+              onSelect={(launch) => setExpandedLaunch(launch)}
+              onExplore={upcomingLaunchList.length > 0 ? handleOpenExploreMore : null}
+            />
+          ) : (
+          <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
             <div>
               <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
@@ -2106,10 +2245,25 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
               </button>
             </div>
           )}
+          </>
+          )}
         </section>
 
         {/* PAST LAUNCHES */}
         <section id="past-launches" className="content-container" style={{ paddingBottom: '8rem', scrollMarginTop: '8rem' }}>
+          {isMobile ? (
+            <MobileLaunchSection
+              launches={latestPastLaunches}
+              isPast
+              eyebrow="// MISSION ARCHIVE"
+              heading="PAST GLOBAL LAUNCHES"
+              exploreLabel={`Explore More Past Launches${remainingPastLaunches.length > 0 ? ` (${remainingPastLaunches.length} More)` : ''}`}
+              onSelect={(launch) => setExpandedLaunch(launch)}
+              onExplore={pastLaunchList.length > 0 ? handleOpenPastLaunchesExplore : null}
+              emptyText="No completed launches synced yet. Check back after the next manifest sync."
+            />
+          ) : (
+          <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
             <div>
               <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
@@ -2153,6 +2307,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                 <span>→</span>
               </button>
             </div>
+          )}
+          </>
           )}
         </section>
 
