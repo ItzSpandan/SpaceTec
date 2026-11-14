@@ -78,3 +78,28 @@ export function usePageVisible() {
   }, []);
   return visible;
 }
+
+// True while a "meaningful" part of the element is on screen: at least
+// `minRatio` of the element itself, or (for elements taller than the
+// viewport) at least 60% of the viewport height. Used to decide when a
+// section's introduction may start / must pause.
+export function useMeaningfulVisibility(ref, minRatio = 0.55) {
+  const [meaningful, setMeaningful] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const vh = window.innerHeight || 1;
+        setMeaningful(
+          entry.isIntersecting &&
+            (entry.intersectionRatio >= minRatio || entry.intersectionRect.height >= vh * 0.6)
+        );
+      },
+      { threshold: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9, 1] }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref, minRatio]);
+  return meaningful;
+}
