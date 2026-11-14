@@ -13,6 +13,7 @@
 
 /* Mobile-only elements are hidden everywhere by default (desktop included). */
 .st-bottom-nav,
+.st-nav-scrim,
 .st-hdr-search {
   display: none;
 }
@@ -20,8 +21,8 @@
 @media (max-width: 767px) {
   /* ---------- Page frame ---------- */
   .st-hub {
-    /* room for the fixed bottom nav (+ iOS home-indicator inset if present) */
-    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+    /* room for the floating bottom nav (64px bar + 14px lift) + safe-area inset */
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
   }
   .st-hub .content-container {
     padding-left: 1rem !important;
@@ -89,64 +90,195 @@
     margin-bottom: 1.25rem !important;
   }
 
-  /* ---------- Bottom navigation ---------- */
+  /* ---------- Floating liquid-glass bottom navigation ---------- */
   .st-bottom-nav {
     display: flex;
     position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 150; /* above page content + header (100), below sidebar (250+) and full-screen overlays */
-    height: calc(60px + env(safe-area-inset-bottom, 0px));
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-    background: rgba(5, 5, 5, 0.96);
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    left: 50%;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px)); /* never flush with the screen edge */
+    z-index: 150; /* above page content + header (100) and search screen (140), below sidebar (250+) and full-screen overlays */
+    width: min(calc(100% - 24px), 420px);
+    height: 64px;
+    padding: 5px;
+    box-sizing: border-box;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    background: rgba(8, 8, 8, 0.62);
+    -webkit-backdrop-filter: blur(22px) saturate(140%);
+    backdrop-filter: blur(22px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow:
+      0 12px 32px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16), /* soft top reflection */
+      inset 0 -1px 0 rgba(255, 255, 255, 0.04);
   }
-  .st-bottom-nav button {
+  .st-bottom-nav::before {
+    /* subtle glass sheen across the upper half */
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0) 52%);
+    pointer-events: none;
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .st-bottom-nav { background: rgba(8, 8, 8, 0.94); }
+  }
+  .st-nav-indicator {
+    position: absolute;
+    top: 5px;
+    bottom: 5px;
+    left: 5px;
+    width: calc((100% - 10px) / 5);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.13);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+    pointer-events: none;
+    will-change: transform;
+  }
+  .st-bottom-nav > button {
+    position: relative;
     flex: 1 1 0;
     min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 3px;
     padding: 0;
     background: transparent;
     border: none;
-    color: #8b8b95;
+    border-radius: 999px;
+    color: rgba(255, 255, 255, 0.62);
     font-family: inherit;
-    font-size: 0.58rem;
+    font-size: 0.54rem;
     font-weight: 600;
-    letter-spacing: 1px;
+    letter-spacing: 0.6px;
     text-transform: uppercase;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-    transition: color 0.2s ease;
+    transition: color 0.25s ease;
   }
-  .st-bottom-nav button[aria-current='page'],
-  .st-bottom-nav button[aria-expanded='true'] {
+  .st-bottom-nav > button[data-active='true'],
+  .st-bottom-nav > button:active {
     color: #ffffff;
   }
-  .st-bottom-nav button:active {
-    color: #ffffff;
+  .st-bottom-nav > button span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .st-bottom-nav svg {
-    width: 22px;
-    height: 22px;
+    width: 21px;
+    height: 21px;
     display: block;
+  }
+  .st-nav-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 149;
+    background: transparent;
+    border: 0;
+    padding: 0;
+  }
+
+  /* Tracking popup — same black glass as the bar */
+  .st-track-pop {
+    position: absolute;
+    right: 6px;
+    bottom: calc(100% + 10px);
+    min-width: 196px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-radius: 22px;
+    background: rgba(8, 8, 8, 0.7);
+    -webkit-backdrop-filter: blur(22px) saturate(140%);
+    backdrop-filter: blur(22px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    animation: st-pop-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+    transform-origin: 85% 100%;
+  }
+  .st-track-pop button {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.8rem 0.9rem;
+    border: none;
+    border-radius: 16px;
+    background: transparent;
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .st-track-pop button:active,
+  .st-track-pop button:focus-visible {
+    background: rgba(255, 255, 255, 0.12);
+    outline: none;
+  }
+  .st-track-pop svg {
+    width: 20px;
+    height: 20px;
+    flex: none;
+  }
+  @keyframes st-pop-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.96); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* ---------- Search: homepage inline box removed on phones ---------- */
+  .st-hub #global-search {
+    display: none !important;
+  }
+  /* while the search screen is open the homepage content steps aside and
+     the starfield stays visible */
+  html.st-search-open .st-hub .st-main,
+  html.st-search-open .st-hub header {
+    visibility: hidden;
+  }
+
+  /* ---------- Strictly monochrome: no neon anywhere on the phone homepage ----------
+     The untouched sections (hero, live intelligence, orbital map, launch
+     lists) carry coloured inline accents; desaturate them here instead of
+     rewriting every inline style. */
+  .st-hub #hero,
+  .st-hub #telemetry,
+  .st-hub #orbital-map,
+  .st-hub #launches,
+  .st-hub #past-launches {
+    filter: grayscale(1);
   }
 }
 
 /* very narrow phones (e.g. iPhone SE / 320px): keep five labels from touching */
 @media (max-width: 359px) {
-  .st-bottom-nav button {
-    font-size: 0.52rem;
-    letter-spacing: 0.4px;
+  .st-bottom-nav > button {
+    font-size: 0.5rem;
+    letter-spacing: 0.2px;
+  }
+  .st-bottom-nav svg {
+    width: 19px;
+    height: 19px;
   }
 }
 
 @media (max-width: 767px) and (prefers-reduced-motion: reduce) {
-  .st-bottom-nav button {
+  .st-bottom-nav > button,
+  .st-nav-indicator {
     transition: none;
+  }
+  .st-track-pop {
+    animation: none;
   }
 }
