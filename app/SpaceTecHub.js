@@ -427,6 +427,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
   const scrollToSection = (id) => {
     const section = document.getElementById(id);
     if (section) {
+      // lets the phone sections know a nav-initiated scroll is heading to `id`
+      // (so intros of sections merely scrolled past are not started)
+      window.dispatchEvent(new CustomEvent('st:navigate', { detail: id }));
       section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     setShowTelemetryDropdown(false);
@@ -969,10 +972,16 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
         initial={{ opacity: 0 }}
         animate={{ opacity: entered ? 1 : 0 }}
         transition={{ duration: 0.8 }}
+        data-menu-open={isMobile && showHamburgerMenu ? 'true' : undefined}
         style={{
-          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-          backgroundColor: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          position: 'fixed', top: 0, left: 0, right: 0,
+          // phones: while the menu is open the header (hence the hamburger/X
+          // button) is lifted above the sidebar panel and its bar goes clear
+          zIndex: isMobile && showHamburgerMenu ? 270 : 100,
+          backgroundColor: isMobile && showHamburgerMenu ? 'rgba(0, 0, 0, 0)' : 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: isMobile && showHamburgerMenu ? 'none' : 'blur(16px)',
+          WebkitBackdropFilter: isMobile && showHamburgerMenu ? 'none' : 'blur(16px)',
+          borderBottom: isMobile && showHamburgerMenu ? '1px solid transparent' : '1px solid rgba(255, 255, 255, 0.08)',
           pointerEvents: entered ? 'auto' : 'none'
         }}
       >
@@ -1005,9 +1014,13 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                 style={{ fontSize: '1.25rem', display: 'inline-block', margin: 0 }}
                 className="spacetec-wordmark"
               >
-                {WORDMARK_LETTERS.map((letter, i) => (
+                {WORDMARK_LETTERS.map((letter, i) => (isMobile ? (
+                  /* phones: the wordmark is simply shown, whole, from the first frame */
+                  <span key={i} className="st-wm-letter" style={{ display: 'inline-block' }}>{letter}</span>
+                ) : (
                   <motion.span
                     key={i}
+                    className="st-wm-letter"
                     initial={{ opacity: 0, y: 7, filter: 'blur(6px)' }}
                     animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
                     transition={{
@@ -1019,7 +1032,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                   >
                     {letter}
                   </motion.span>
-                ))}
+                )))}
               </motion.h1>
             </button>
           </div>
@@ -1227,7 +1240,9 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
             }}
             style={{ fontSize: '1.1rem', letterSpacing: '1px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '1.8rem', height: '1.8rem' }}
           >
-            {showHamburgerMenu ? <IconClose /> : '☰'}
+            {isMobile ? (
+              <span className={`st-burger-bars${showHamburgerMenu ? ' is-open' : ''}`} aria-hidden="true"><i /><i /></span>
+            ) : (showHamburgerMenu ? <IconClose /> : '☰')}
           </button>
 
         </div>
@@ -1285,7 +1300,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
               transition={prefersReducedMotion ? { duration: 0.01 } : { duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
               style={{
                 position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 260,
-                width: 'min(420px, 92vw)',
+                width: isMobile ? 'min(78vw, 340px)' : 'min(420px, 92vw)',
                 backgroundColor: '#050505',
                 borderLeft: '1px solid rgba(255,255,255,0.12)',
                 display: 'flex', flexDirection: 'column',
@@ -1738,7 +1753,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
         </section>
 
         {/* FEATURED OBSERVATION */}
-        {apodData && (
+        {apodData && !isMobile && (
           <section className="content-container" style={{ paddingBottom: '5rem' }}>
             <motion.div 
               initial={{ opacity: 0, y: 40 }}
