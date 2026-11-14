@@ -14,6 +14,8 @@ import { logRecentView } from './lib/spaceActivity';
 import SaveButton from './components/SaveButton';
 import MobileBottomNav from './components/MobileBottomNav';
 import useIsMobile from './lib/useIsMobile';
+import MobileSearchScreen from './mobile/MobileSearchScreen';
+import { MobileAgenciesSection, MobileLaunchpadsSection } from './mobile/MobileExploreSections';
 
 // --- LAUNCH STATUS HELPERS (shared by the homepage, the explore pages, and the launch modal) ---
 
@@ -279,6 +281,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
   // Set when Global Search opens a specific launchpad, so AllLaunchpadsPage
   // can jump straight to that pad instead of just the directory.
   const [pendingPadTarget, setPendingPadTarget] = useState(null);
+  // Phone-only: the dedicated search screen opened from the header search icon.
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
   
   // New States for Satellite Wiki Page View
   const [showSatelliteWikiPage, setShowSatelliteWikiPage] = useState(false);
@@ -430,14 +434,11 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
     setShowHamburgerMenu(false);
   };
 
-  // Phone-only: header search icon jumps to the Global Search section and
-  // focuses its input. Desktop never calls this.
+  // Phone-only: the header search icon opens the dedicated search screen
+  // (app/mobile/MobileSearchScreen.js). Desktop never calls this.
   const openMobileSearch = () => {
-    const section = document.getElementById('global-search');
-    if (!section) return;
-    section.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
-    const input = section.querySelector('input');
-    if (input) setTimeout(() => input.focus({ preventScroll: true }), prefersReducedMotion ? 0 : 350);
+    setShowHamburgerMenu(false);
+    setShowMobileSearch(true);
   };
 
   // Closes the sidebar and runs a navigation/action callback right after —
@@ -1232,17 +1233,31 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
         </div>
       </motion.header>
 
-      {/* PHONE-ONLY BOTTOM NAV (renders nothing above 767px) */}
+      {/* PHONE-ONLY FLOATING BOTTOM NAV (renders nothing above 767px) */}
       <MobileBottomNav
-        moreOpen={showHamburgerMenu}
-        onAgencies={() => scrollToSection('agencies')}
-        onTracker={() => router.push('/iss-tracker')}
-        onMore={() => {
-          setShowTelemetryDropdown(false);
-          setShowDatabaseDropdown(false);
-          setShowHamburgerMenu(true);
+        onAgencies={() => { setShowMobileSearch(false); scrollToSection('agencies'); }}
+        onLaunchpad={() => { setShowMobileSearch(false); scrollToSection('launchpads'); }}
+        onHome={() => { setShowMobileSearch(false); window.scrollTo({ top: 0, behavior: prefersReducedMotion ? 'auto' : 'smooth' }); }}
+        onSatelliteTracker={() => {
+          setShowMobileSearch(false);
+          setGlobeViewMode((current) => ({ mode: 'satellites', requestId: current.requestId + 1 }));
+          scrollToSection('orbital-map');
         }}
+        onIssTracker={() => { setShowMobileSearch(false); router.push('/iss-tracker'); }}
+        onLaunches={() => { setShowMobileSearch(false); scrollToSection('launches'); }}
       />
+
+      {/* PHONE-ONLY SEARCH SCREEN (replaces the removed inline search box) */}
+      {isMobile && showMobileSearch && (
+        <MobileSearchScreen
+          agencies={agencyDirectory}
+          launchpads={allLaunchpads}
+          onOpenAgencies={handleOpenAllAgencies}
+          onOpenLaunchpads={handleOpenAllLaunchpads}
+          onOpenSatelliteWiki={handleOpenSatelliteWiki}
+          onClose={() => setShowMobileSearch(false)}
+        />
+      )}
 
       {/* RIGHT-SIDE NAVIGATION SIDEBAR (redesigned hamburger menu) */}
       <AnimatePresence>
@@ -1673,6 +1688,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
         </section>
 
         {/* GLOBAL SEARCH */}
+        {!isMobile && (
         <section id="global-search" className="content-container" style={{ paddingBottom: '5rem' }}>
           <GlobalSearch
             agencies={agencyDirectory}
@@ -1682,6 +1698,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
             onOpenSatelliteWiki={handleOpenSatelliteWiki}
           />
         </section>
+        )}
 
         {/* LIVE SPACE INTELLIGENCE */}
         <section id="telemetry" className="content-container" style={{ paddingBottom: '5rem', scrollMarginTop: '8rem' }}>
@@ -1746,6 +1763,14 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
 
         {/* AGENCIES SECTION */}
         <section id="agencies" className="content-container" style={{ paddingBottom: '6rem', scrollMarginTop: '8rem' }}>
+          {isMobile ? (
+            <MobileAgenciesSection
+              agencies={allAgencies}
+              onOpenAgency={(agency) => handleOpenAllAgencies(agency)}
+              onExploreMore={() => handleOpenAllAgencies()}
+            />
+          ) : (
+          <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.0rem' }}>
             <div>
               <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
@@ -1880,10 +1905,21 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
             <span>Explore More Space Agencies</span>
             <span>→</span>
           </button>
+          </>
+          )}
         </section>
 
         {/* LAUNCHPADS SECTION */}
         <section id="launchpads" className="content-container" style={{ paddingBottom: '6rem', scrollMarginTop: '8rem' }}>
+          {isMobile ? (
+            <MobileLaunchpadsSection
+              pads={majorLaunchpads}
+              weatherById={padWeatherById}
+              onOpenPad={(pad) => handleOpenAllLaunchpads(pad)}
+              onExploreMore={() => handleOpenAllLaunchpads()}
+            />
+          ) : (
+          <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.0rem' }}>
             <div>
               <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
@@ -1994,6 +2030,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
             <span>Explore More Launchpads</span>
             <span>→</span>
           </button>
+          </>
+          )}
         </section>
 
         {/* ORBITAL MAP / LAUNCH PAD TELEMETRY SECTION */}
@@ -3411,4 +3449,4 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
       </motion.div>
     </motion.div>
   );
-            }
+        }
