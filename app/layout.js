@@ -4,6 +4,7 @@ export const metadata = {
 };
 
 import Providers from './components/Providers';
+import './mobile/mobile.css';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Orbitron, Space_Grotesk } from 'next/font/google';
