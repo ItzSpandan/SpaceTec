@@ -5,8 +5,9 @@
 //
 //   1. In-section cinematic introduction (plays ONCE per page visit):
 //        EXPLORE (letter by letter) -> fades out -> title word(s) fade in ->
-//        fade out -> identity panels slide right-to-left -> heading reveal
-//        -> carousel.
+//        fade out -> black-glass name cards, one at a time in the centre ->
+//        supporting text -> heading reveal -> stacked deck-of-cards reveal
+//        of the carousel.
 //      It lives INSIDE the section (absolutely positioned over the section's
 //      own box). It never covers the header or other sections, never hides
 //      the page and never locks scrolling.
@@ -25,7 +26,7 @@
 //     callback can restart a previous intro.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import AgencyLogo from './agencyLogos';
+import AgencyIdentity from './agencyLogos';
 import { useInView, useLowPowerMode, usePageVisible, usePrefersReducedMotion, useMeaningfulVisibility } from './hooks';
 
 const ADVANCE_MS = 5000;
@@ -34,7 +35,9 @@ const LEAD_MS = 1700; // EXPLORE letters + hold
 const FADE_MS = 650;
 const TITLE_STEP_MS = 700;
 const TITLE_HOLD_MS = 1500;
-const SHOWCASE_MS = 6500;
+const NAME_STEP_MS = 500; // one name card per 0.5s
+const NAME_OVERLAP_MS = 140; // each card fades out while the next fades in
+const SUPPORT_MS = 1000;
 const AWAY_FINISH_MS = 1200; // user left the section mid-intro -> finish it quietly
 const LETTER_STEP_MS = 45;
 const INTERACTION_RESUME_MS = 1500;
@@ -92,7 +95,7 @@ function HeadingLetters({ text, active }) {
   );
 }
 
-function Stage({ lead, titleWords, showcase, phase, paused, onSkip, onShowcaseEnd }) {
+function Stage({ lead, titleWords, names, phase, paused, onSkip, onNamesEnd }) {
   const showLead = phase === 'lead' || phase === 'leadOut';
   const showTitle = phase === 'title' || phase === 'titleOut';
   return (
@@ -118,16 +121,20 @@ function Stage({ lead, titleWords, showcase, phase, paused, onSkip, onShowcaseEn
           ))}
         </div>
       )}
-      {phase === 'showcase' && (
-        <div
-          className="stc-track"
-          style={{ '--n': showcase.length, '--dur': `${SHOWCASE_MS}ms` }}
-          onAnimationEnd={(e) => e.target === e.currentTarget && onShowcaseEnd()}
-        >
-          {showcase.map((s) => (
-            <div className="stc-panel" key={s.key}>
-              <AgencyLogo id={s.logoId} name={s.label} className="stc-panel-logo" />
-              <span className="stc-panel-name">{s.label}</span>
+      {phase === 'names' && (
+        <div className="stc-names" aria-hidden="true">
+          {names.map((n, i) => (
+            <div
+              className="stc-name-card"
+              style={{
+                '--i': i,
+                '--step': `${NAME_STEP_MS}ms`,
+                '--dur': `${NAME_STEP_MS + NAME_OVERLAP_MS}ms`,
+              }}
+              key={n.key}
+              onAnimationEnd={i === names.length - 1 ? onNamesEnd : undefined}
+            >
+              {n.label}
             </div>
           ))}
         </div>
@@ -216,8 +223,12 @@ function Card({ item, isActive, runVideo, stillOnly, reduced }) {
       <div className="stc-shade" aria-hidden="true" />
 
       <div className="stc-ident">
-        <AgencyLogo id={item.logoId} name={item.title} className="stc-ident-logo" />
-        <h3 className="stc-ident-name">{item.title}</h3>
+        <AgencyIdentity
+          id={item.logoId}
+          name={item.title}
+          nameClassName="stc-ident-name"
+          logoClassName="stc-ident-logo"
+        />
       </div>
 
       <div className="stc-info">
@@ -273,7 +284,7 @@ export default function MobileCinematicSection({
   sectionId,
   introLead = 'EXPLORE',
   introWords,
-  showcase,
+  names,
   eyebrow,
   heading,
   items,
@@ -299,9 +310,10 @@ export default function MobileCinematicSection({
   const total = items.length + 1; // + final "explore more" card
   const letterCount = heading.replace(/ /g, '').length;
   const headingMs = letterCount * LETTER_STEP_MS + 700;
+  const namesMs = names.length * NAME_STEP_MS + NAME_OVERLAP_MS;
   const titleMs = 900 + (introWords.length - 1) * TITLE_STEP_MS + TITLE_HOLD_MS;
 
-  const stageOpen = ['lead', 'leadOut', 'title', 'titleOut', 'showcase'].includes(phase);
+  const stageOpen = ['lead', 'leadOut', 'title', 'titleOut', 'names'].includes(phase);
 
   // ---- 1. start: only after meaningful, sustained visibility -------------
   useEffect(() => {
@@ -330,17 +342,18 @@ export default function MobileCinematicSection({
 
   // ---- 2. phase timers (each phase owns its timer; cleanup cancels it) ----
   useEffect(() => {
-    if (!stageOpen && phase !== 'heading') return undefined;
+    if (!stageOpen && phase !== 'support' && phase !== 'heading') return undefined;
     if (stageOpen && !meaningful) return undefined; // paused while off screen
     let t;
     if (phase === 'lead') t = setTimeout(() => setPhase('leadOut'), LEAD_MS);
     else if (phase === 'leadOut') t = setTimeout(() => setPhase('title'), FADE_MS);
     else if (phase === 'title') t = setTimeout(() => setPhase('titleOut'), titleMs);
-    else if (phase === 'titleOut') t = setTimeout(() => setPhase('showcase'), FADE_MS);
-    else if (phase === 'showcase') t = setTimeout(() => setPhase('heading'), SHOWCASE_MS + 1500); // safety net
+    else if (phase === 'titleOut') t = setTimeout(() => setPhase('names'), FADE_MS);
+    else if (phase === 'names') t = setTimeout(() => setPhase('support'), namesMs + 1500); // safety net
+    else if (phase === 'support') t = setTimeout(() => setPhase('heading'), SUPPORT_MS);
     else if (phase === 'heading') t = setTimeout(() => setPhase('ready'), headingMs);
     return () => clearTimeout(t);
-  }, [phase, stageOpen, meaningful, titleMs, headingMs]);
+  }, [phase, stageOpen, meaningful, titleMs, headingMs, namesMs]);
 
   // ---- 3. user left the section mid-intro: finish quietly, never resume ----
   useEffect(() => {
@@ -356,13 +369,24 @@ export default function MobileCinematicSection({
   useEffect(() => () => releaseIntro(introKey), [introKey]);
 
   const skip = useCallback(
-    () => setPhase((p) => (['lead', 'leadOut', 'title', 'titleOut', 'showcase'].includes(p) ? 'heading' : p)),
+    () => setPhase((p) => (['lead', 'leadOut', 'title', 'titleOut', 'names'].includes(p) ? 'heading' : p)),
     []
   );
-  const endShowcase = useCallback(() => setPhase((p) => (p === 'showcase' ? 'heading' : p)), []);
+  const endNames = useCallback(() => setPhase((p) => (p === 'names' ? 'support' : p)), []);
 
+  const supportOn = phase === 'support' || phase === 'heading' || phase === 'ready';
   const headingOn = phase === 'heading' || phase === 'ready';
   const carouselOn = phase === 'ready';
+
+  // Stacked deck-of-cards reveal: plays only when the carousel is revealed by
+  // the live intro (heading -> ready), never when the section simply mounts
+  // already introduced, and never with reduced motion.
+  const [deckReveal, setDeckReveal] = useState(false);
+  const prevPhaseRef = useRef(phase);
+  useEffect(() => {
+    if (prevPhaseRef.current === 'heading' && phase === 'ready' && !reduced) setDeckReveal(true);
+    prevPhaseRef.current = phase;
+  }, [phase, reduced]);
 
   // ---- carousel ----------------------------------------------------------
   const goTo = useCallback(
@@ -430,10 +454,16 @@ export default function MobileCinematicSection({
 
   return (
     <div className="stc-root" ref={rootRef} data-intro-phase={phase}>
-      <span className={cx('stc-eyebrow', headingOn && 'is-on')}>{eyebrow}</span>
+      <span className={cx('stc-eyebrow', supportOn && 'is-on')}>{eyebrow}</span>
       <HeadingLetters text={heading} active={headingOn} />
 
-      <div className={cx('stc-carousel-wrap', carouselOn && 'is-on')}>
+      <div className={cx('stc-carousel-wrap', carouselOn && 'is-on', deckReveal && 'is-deck')}>
+        {deckReveal && (
+          <>
+            <span className="stc-deck-ghost stc-deck-ghost--2" aria-hidden="true" />
+            <span className="stc-deck-ghost stc-deck-ghost--1" aria-hidden="true" />
+          </>
+        )}
         <div
           className="stc-carousel"
           ref={scrollerRef}
@@ -476,11 +506,11 @@ export default function MobileCinematicSection({
         <Stage
           lead={introLead}
           titleWords={introWords}
-          showcase={showcase}
+          names={names}
           phase={phase}
           paused={!meaningful}
           onSkip={skip}
-          onShowcaseEnd={endShowcase}
+          onNamesEnd={endNames}
         />
       )}
     </div>
