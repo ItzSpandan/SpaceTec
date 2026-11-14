@@ -287,6 +287,200 @@
     visibility: hidden;
   }
 
+  /* ---------- Upcoming / Past launches (phone layout) ---------- */
+  .st-hub #launches,
+  .st-hub #past-launches {
+    padding-bottom: 3rem !important;
+  }
+  .stl-eyebrow {
+    display: block;
+    margin-bottom: 0.6rem;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #8b8b95;
+  }
+  .stl-heading {
+    margin: 0 0 1.25rem;
+    font-size: clamp(1.3rem, 6.4vw, 1.8rem);
+    font-weight: 900;
+    line-height: 1.2;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #ffffff;
+  }
+  .stl-empty {
+    padding: 2rem 1rem;
+    text-align: center;
+    font-size: 0.85rem;
+    color: #71717a;
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 16px;
+  }
+  .stl-kicker {
+    display: block;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 2.2px;
+    text-transform: uppercase;
+    color: #8b8b95;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* prominent first launch */
+  .stl-feature {
+    position: relative;
+    overflow: hidden;
+    border-radius: 20px !important;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .stl-feature-media {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    max-height: 200px;
+    overflow: hidden;
+    background: #000;
+  }
+  .stl-feature-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .stl-feature-media::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 40%, rgba(0, 0, 0, 0.75) 100%);
+  }
+  .stl-feature-body {
+    padding: 1.1rem 1.1rem 1.2rem;
+  }
+  .stl-feature-name {
+    margin: 0.55rem 0 1rem;
+    font-size: 1.1rem;
+    font-weight: 800;
+    line-height: 1.3;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #ffffff;
+    overflow-wrap: anywhere;
+  }
+  .stl-facts {
+    margin: 0;
+    padding-top: 0.9rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+  .stl-facts dt {
+    margin: 0 0 0.2rem;
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #71717a;
+  }
+  .stl-facts dd {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: #d4d4d8;
+  }
+  .stl-ago {
+    font-size: 0.68rem;
+    color: #71717a;
+  }
+  .stl-ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* compact rows */
+  .stl-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .stl-row {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.7rem 0.9rem 0.7rem 0.7rem !important;
+    border-radius: 16px !important;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .stl-row-media {
+    flex: 0 0 56px;
+    width: 56px;
+    height: 56px;
+    overflow: hidden;
+    border-radius: 12px;
+    background: #000;
+  }
+  .stl-row-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .stl-row:not(:has(.stl-row-media)) {
+    padding-left: 1rem !important;
+  }
+  .stl-row-main {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .stl-row-name {
+    margin: 0.2rem 0 0.25rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #ffffff;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+  .stl-row-meta {
+    display: block;
+    font-size: 0.68rem;
+    line-height: 1.35;
+    color: #a1a1aa;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .stl-row-chevron {
+    flex: none;
+    font-size: 0.9rem;
+    color: #8b8b95;
+  }
+
+  /* Explore More button: same element/handler as desktop, phone sizing */
+  .stl-explore {
+    margin-top: 1.25rem !important;
+    padding: 1rem !important;
+    border-radius: 16px !important;
+    font-size: 0.72rem !important;
+    letter-spacing: 2px;
+  }
+  .stl-explore:hover {
+    box-shadow: none !important;
+  }
+
   /* ---------- Strictly monochrome: no neon anywhere on the phone homepage ----------
      The untouched sections (hero, live intelligence, orbital map, launch
      lists) carry coloured inline accents; desaturate them here instead of
