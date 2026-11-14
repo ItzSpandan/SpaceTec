@@ -1,0 +1,152 @@
+/* ==========================================================================
+   SpaceTec — mobile-only layer
+   --------------------------------------------------------------------------
+   RULES OF THIS FILE
+   1. Every rule that changes the existing UI lives inside
+      @media (max-width: 767px), so desktop can never match it.
+   2. Rules are scoped under .st-hub (the homepage root) or another page
+      root, so nothing leaks into other pages.
+   3. Most existing styles are inline, so overrides need !important.
+   4. Never use the `padding` shorthand to override a section: it would wipe
+      each section's own inline padding-bottom. Use padding-left/right.
+   ========================================================================== */
+
+/* Mobile-only elements are hidden everywhere by default (desktop included). */
+.st-bottom-nav,
+.st-hdr-search {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  /* ---------- Page frame ---------- */
+  .st-hub {
+    /* room for the fixed bottom nav (+ iOS home-indicator inset if present) */
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .st-hub .content-container {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+  .st-hub .st-main {
+    padding-top: 4.75rem !important;
+  }
+  .st-hub section.content-container {
+    scroll-margin-top: 4.25rem !important;
+  }
+
+  /* ---------- Header ---------- */
+  .st-hub .st-hdr-bar {
+    height: 3.5rem !important;
+  }
+  .st-hub .st-hdr-brand {
+    min-width: 0 !important;
+  }
+  /* Header text links are replaced by the bottom nav + sidebar on phones.
+     Every destination remains reachable via the sidebar. */
+  .st-hub .st-hdr-links {
+    display: none !important;
+  }
+  .st-hub .st-hdr-search {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    margin-left: auto;
+    margin-right: 0.125rem;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .st-hub .st-hdr-burger {
+    width: 2.75rem !important;
+    height: 2.75rem !important;
+    font-size: 1.35rem !important;
+  }
+
+  /* ---------- Hero ---------- */
+  .st-hub #hero {
+    padding-bottom: 2rem !important;
+  }
+  .st-hub .st-hero-eyebrow {
+    font-size: 0.66rem !important;
+    letter-spacing: 3px !important;
+    margin-bottom: 1rem !important;
+  }
+  .st-hub .st-hero-title {
+    /* sized so the longest rotating phrase ("IN REAL TIME.") fits one line
+       from 320px up */
+    font-size: clamp(1.7rem, 8.4vw, 2.4rem) !important;
+    letter-spacing: 0.5px !important;
+    margin-bottom: 1.25rem !important;
+  }
+  .st-hub .st-hero-copy {
+    font-size: 0.98rem !important;
+    line-height: 1.6 !important;
+    margin-bottom: 1.25rem !important;
+  }
+
+  /* ---------- Bottom navigation ---------- */
+  .st-bottom-nav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 150; /* above page content + header (100), below sidebar (250+) and full-screen overlays */
+    height: calc(60px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: rgba(5, 5, 5, 0.96);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  .st-bottom-nav button {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: #8b8b95;
+    font-family: inherit;
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.2s ease;
+  }
+  .st-bottom-nav button[aria-current='page'],
+  .st-bottom-nav button[aria-expanded='true'] {
+    color: #ffffff;
+  }
+  .st-bottom-nav button:active {
+    color: #ffffff;
+  }
+  .st-bottom-nav svg {
+    width: 22px;
+    height: 22px;
+    display: block;
+  }
+}
+
+/* very narrow phones (e.g. iPhone SE / 320px): keep five labels from touching */
+@media (max-width: 359px) {
+  .st-bottom-nav button {
+    font-size: 0.52rem;
+    letter-spacing: 0.4px;
+  }
+}
+
+@media (max-width: 767px) and (prefers-reduced-motion: reduce) {
+  .st-bottom-nav button {
+    transition: none;
+  }
+}
