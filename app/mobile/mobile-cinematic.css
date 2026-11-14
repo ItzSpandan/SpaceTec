@@ -57,15 +57,67 @@
   }
 
   .stc-carousel-wrap {
+    position: relative;
     opacity: 0;
-    transform: translate3d(0, 16px, 0);
     pointer-events: none;
-    transition: opacity 0.9s ease, transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: opacity 0.35s ease;
   }
   .stc-carousel-wrap.is-on {
     opacity: 1;
-    transform: none;
     pointer-events: auto;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Stacked deck-of-cards reveal (replaces the old horizontal entrance)
+   * Two black-glass sheets sit layered behind the first card; the top card
+   * settles into place, then the sheets fade away. Transform + opacity only,
+   * no rotation, no bounce, ~0.9s total.
+   * ------------------------------------------------------------------ */
+  .stc-deck-ghost {
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    top: 0;
+    height: clamp(440px, 66vh, 560px);
+    height: clamp(440px, 66svh, 560px);
+    z-index: 0;
+    pointer-events: none;
+    box-sizing: border-box;
+    border-radius: 24px;
+    background: rgba(8, 8, 8, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    opacity: 0;
+    transform-origin: center bottom;
+    animation: stc-ghost-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .stc-deck-ghost--1 {
+    --dy: 14px;
+    --ds: 0.95;
+    animation-delay: 0.04s;
+  }
+  .stc-deck-ghost--2 {
+    --dy: 28px;
+    --ds: 0.9;
+    animation-delay: 0s;
+  }
+  @keyframes stc-ghost-in {
+    0% { opacity: 0; transform: translate3d(0, 0, 0) scale(1); }
+    35% { opacity: 1; transform: translate3d(0, var(--dy), 0) scale(var(--ds)); }
+    70% { opacity: 1; transform: translate3d(0, var(--dy), 0) scale(var(--ds)); }
+    100% { opacity: 0; transform: translate3d(0, 0, 0) scale(1); }
+  }
+  .stc-carousel-wrap > .stc-carousel,
+  .stc-carousel-wrap > .stc-progress {
+    position: relative;
+    z-index: 1;
+  }
+  .stc-carousel-wrap.is-deck .stc-slide:first-child .stc-card {
+    animation: stc-deck-top 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+  }
+  @keyframes stc-deck-top {
+    from { opacity: 0; transform: translate3d(0, 22px, 0) scale(0.95); }
+    to { opacity: 1; transform: none; }
   }
 
   /* ------------------------------------------------------------------ *
@@ -225,15 +277,11 @@
       transform: translate(calc(18px - 19%), calc(18px - 19%)) scale(0.62);
     }
   }
-  .stc-ident-logo {
+  .stc-ident .stc-logo-img {
     display: block;
     width: 72%;
-    height: auto;
-    color: #ffffff;
-  }
-  .stc-ident .stc-logo-img {
-    width: 72%;
     height: 84px;
+    margin: 0 auto;
     object-fit: contain;
   }
   .stc-logo-img {
@@ -241,16 +289,9 @@
     user-select: none;
     -webkit-user-drag: none;
   }
-  .stc-logo-text {
-    display: block;
-    font-size: 1.6rem;
-    font-weight: 900;
-    letter-spacing: 0.2em;
-    text-align: center;
-    color: #ffffff;
-  }
   .stc-ident-name {
     margin: 0;
+    width: 100%;
     max-width: 100%;
     font-size: 1.35rem;
     font-weight: 900;
@@ -448,58 +489,48 @@
     to { opacity: 1; transform: scale(1); }
   }
 
-  .stc-track {
-    --pw: min(62vw, 300px);
-    --ph: min(46vh, 360px);
-    --ph: min(46svh, 360px);
-    --gap: 5vw;
+  /* Stage 1: black-glass name cards, one at a time in the centre.
+     Each card fades/scales in, holds, then fades out while the next one is
+     already coming in: no horizontal movement. */
+  .stc-names {
     position: absolute;
-    left: 0;
-    top: 50%;
-    margin-top: calc(var(--ph) / -2);
+    inset: 0;
     display: flex;
-    gap: var(--gap);
-    will-change: transform;
-    animation: stc-slide var(--dur, 9000ms) linear forwards;
-  }
-  @keyframes stc-slide {
-    from { transform: translate3d(100vw, 0, 0); }
-    to { transform: translate3d(calc(-1 * var(--n) * (var(--pw) + var(--gap))), 0, 0); }
-  }
-  .stc-panel {
-    flex: 0 0 var(--pw);
-    height: var(--ph);
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 1.2rem;
-    padding: 0 1rem;
-    border-radius: 26px;
+    pointer-events: none;
+  }
+  .stc-name-card {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(74vw, 320px);
+    box-sizing: border-box;
+    padding: 1.6rem 1.2rem;
+    text-align: center;
+    border-radius: 22px;
     background: rgba(8, 8, 8, 0.62);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
     border: 1px solid rgba(255, 255, 255, 0.16);
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  }
-  .stc-panel-logo {
-    width: 78%;
-    height: auto;
-    color: #ffffff;
-  }
-  .stc-panel .stc-logo-img {
-    width: 78%;
-    height: 110px;
-    object-fit: contain;
-  }
-  .stc-panel-name {
-    max-width: 100%;
-    text-align: center;
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.28em;
+    font-size: clamp(1.15rem, 6.2vw, 1.7rem);
+    font-weight: 900;
+    line-height: 1.2;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: #d4d4d8;
+    color: #ffffff;
     overflow-wrap: anywhere;
+    opacity: 0;
+    transform: translate3d(-50%, -50%, 0) scale(0.96);
+    animation: stc-name-cycle var(--dur, 640ms) cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--i) * var(--step, 500ms));
+  }
+  @keyframes stc-name-cycle {
+    0% { opacity: 0; transform: translate3d(-50%, -50%, 0) scale(0.96); }
+    22% { opacity: 1; transform: translate3d(-50%, -50%, 0) scale(1); }
+    78% { opacity: 1; transform: translate3d(-50%, -50%, 0) scale(1); }
+    100% { opacity: 0; transform: translate3d(-50%, -50%, 0) scale(1.02); }
   }
   .stc-skip {
     position: absolute;
@@ -755,6 +786,7 @@
 
 @media (max-width: 767px) and (prefers-reduced-motion: reduce) {
   .stc-carousel-wrap,
+  .stc-deck-ghost,
   .stc-media,
   .stc-video,
   .stc-info,
@@ -773,6 +805,9 @@
   .stc-ident,
   .stc-card.is-revealed .stc-ident {
     transition: none;
+  }
+  .stc-carousel-wrap.is-deck .stc-slide:first-child .stc-card {
+    animation: none;
   }
   .stc-carousel {
     scroll-behavior: auto;
