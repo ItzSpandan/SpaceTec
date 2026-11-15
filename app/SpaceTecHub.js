@@ -2936,8 +2936,77 @@ function AllLaunchpadsPage({ launchpads, weatherById, getStatusColor, spaceBackg
     </motion.div>
   );
 }
+// Phone-only card list for BOTH "Explore More" pages (upcoming + past). It
+// renders the SAME launch records the desktop grid does (provider, name, date,
+// status / pad) using the homepage mobile card language (.stl-* classes in
+// app/mobile/mobile.css). The `launch-card-explore-${id}` layoutId and the
+// onSelect handler match the desktop cards. Desktop never renders this.
+function MobileExploreList({ launches, isPast, onSelect }) {
+  const onKey = (launch) => (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelect(launch);
+    }
+  };
+
+  if (launches.length === 0) {
+    return <div className="stl-empty">No launches found matching the selected filter criteria.</div>;
+  }
+
+  return (
+    <ul className="stl-list st-xp-list">
+      {launches.map((launch) => (
+        <li key={launch.id}>
+          <motion.div
+            layoutId={`launch-card-explore-${launch.id}`}
+            whileTap={{ scale: 0.99 }}
+            onClick={() => onSelect(launch)}
+            onKeyDown={onKey(launch)}
+            className="glass-card launch-tile stl-xcard"
+            role="button"
+            tabIndex={0}
+          >
+            <div className="stl-xcard-top">
+              {launch.image_url && (
+                <div className="stl-row-media stl-xcard-media" aria-hidden="true">
+                  <MobileLaunchThumb src={launch.image_url} name={launch.name} />
+                </div>
+              )}
+              <div className="stl-row-main">
+                <span className="stl-kicker">{launch.provider || 'AGENCY'}</span>
+                <h3 className="stl-row-name">{launch.name}</h3>
+              </div>
+              <span className="stl-row-chevron" aria-hidden="true">→</span>
+            </div>
+            <dl className="stl-xfacts">
+              <div>
+                <dt>{isPast ? 'LAUNCHED' : 'NET'}</dt>
+                <dd>
+                  {formatLaunchSchedule(launch.net, launch.net_precision, isPast)}
+                  {isPast && <span className="stl-ago"> ({formatTimeAgo(launch.net)})</span>}
+                </dd>
+              </div>
+              <div>
+                <dt>{isPast ? 'STATUS' : 'PAD'}</dt>
+                {isPast ? (
+                  <dd className="stl-xstatus" style={{ color: getLaunchStatusColor(launch.status) }}>
+                    {(launch.status || 'STATUS UNKNOWN').toUpperCase()}
+                  </dd>
+                ) : (
+                  <dd className="stl-ellipsis">{launch.pad_location || 'Vandenberg Space Force Base'}</dd>
+                )}
+              </div>
+            </dl>
+          </motion.div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch, mode = 'upcoming' }) {
   const isPastMode = mode === 'past';
+  const isMobile = useIsMobile();
   const [bgIdx, setBgIdx] = useState(0);
   const [sortBy, setSortBy] = useState(isPastMode ? 'recent' : 'latest');
   const [selectedProvider, setSelectedProvider] = useState('all');
@@ -3027,6 +3096,7 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch, 
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
       transition={{ duration: 0.4 }}
+      className="st-xp"
       style={{
         position: 'fixed',
         top: 0, left: 0, width: '100vw', height: '100vh',
@@ -3067,13 +3137,13 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch, 
 
       <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 3 }}>
         
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <div className="st-xp-top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
           <div>
             <motion.span 
               layoutId="alllaunches-brand" style={{ fontSize: '1.25rem', display: 'inline-block' }} className="spacetec-wordmark">SPACETEC</motion.span>
           </div>
 
-          <button 
+          <button className="st-xp-back" 
             onClick={handleBackToMainWithTransition}
             style={{ 
               background: 'rgba(255,255,255,0.08)', 
@@ -3091,20 +3161,20 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch, 
           </button>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '2.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
+        <div className="st-xp-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '2.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
           <div>
-            <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
+            <span className="st-xp-eyebrow" style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
               {isPastMode ? '// GLOBAL MISSION ARCHIVE' : '// ARCHIVED ORBITAL MANIFEST'}
             </span>
-            <h2 style={{ color: '#fff', fontSize: '2rem', margin: 0, textTransform: 'uppercase', fontWeight: '900' }}>
+            <h2 className="st-xp-title" style={{ color: '#fff', fontSize: '2rem', margin: 0, textTransform: 'uppercase', fontWeight: '900' }}>
               {isPastMode ? 'EXPLORE MORE PAST LAUNCHES' : 'EXPLORE MORE LAUNCHES'}
             </h2>
           </div>
 
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+          <div className="st-xp-filters" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="st-xp-filter" style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
               <span style={{ fontSize: '0.6rem', color: '#94a3b8', letterSpacing: '1px', textTransform: 'uppercase' }}>Sort by Date</span>
-              <select 
+              <select className="st-xp-select" 
                 value={sortBy} 
                 onChange={(e) => setSortBy(e.target.value)}
                 style={{ background: '#121212', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', padding: '0.6rem 1rem', fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}
@@ -3123,9 +3193,9 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch, 
               </select>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+            <div className="st-xp-filter" style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
               <span style={{ fontSize: '0.6rem', color: '#94a3b8', letterSpacing: '1px', textTransform: 'uppercase' }}>Filter Agency</span>
-              <select 
+              <select className="st-xp-select" 
                 value={selectedProvider} 
                 onChange={(e) => setSelectedProvider(e.target.value)}
                 style={{ background: '#121212', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', padding: '0.6rem 1rem', fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none', cursor: 'pointer', textTransform: 'uppercase' }}
@@ -3138,6 +3208,9 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch, 
           </div>
         </div>
 
+        {isMobile ? (
+          <MobileExploreList launches={filteredLaunches} isPast={isPastMode} onSelect={onSelectLaunch} />
+        ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', paddingBottom: '4rem' }}>
           {filteredLaunches.map((launch) => (
             // layoutId is deliberately namespaced ("explore-") separately from
@@ -3195,6 +3268,7 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch, 
             </div>
           )}
         </div>
+        )}
       </div>
 
       <AnimatePresence>
@@ -3371,6 +3445,7 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      className="st-lm"
       style={{
         position: 'fixed',
         top: 0, left: 0, width: '100vw', height: '100vh',
@@ -3412,24 +3487,25 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
 
       <motion.div 
         layoutId={`launch-card-${launch.id}`}
+        className="st-lm-inner"
         style={{ maxWidth: '900px', margin: '0 auto', width: '100%', position: 'relative', zIndex: 3 }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '2.5rem', gap: '2rem' }}>
+        <div className="st-lm-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '2rem', marginBottom: '2.5rem', gap: '2rem' }}>
           <div style={{ flex: 1 }}>
-            <div style={{ marginBottom: '1rem' }}>
+            <div className="st-lm-brand" style={{ marginBottom: '1rem' }}>
               <span style={{ fontSize: '1.25rem', display: 'inline-block' }} className="spacetec-wordmark">SPACETEC</span>
             </div>
-            <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
+            <span className="st-lm-eyebrow" style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
               // FULL MISSION TELEMETRY & PAD ENVIRONMENT
             </span>
-            <h2 style={{ color: '#fff', fontSize: '1.8rem', margin: '0 0 0.8rem 0', textTransform: 'uppercase', fontWeight: '900', lineHeight: '1.3' }}>
+            <h2 className="st-lm-title" style={{ color: '#fff', fontSize: '1.8rem', margin: '0 0 0.8rem 0', textTransform: 'uppercase', fontWeight: '900', lineHeight: '1.3' }}>
               {launch.name}
             </h2>
-            <span style={{ fontSize: '0.7rem', padding: '0.35rem 0.9rem', border: `1px solid ${getLaunchStatusColor(launch.status)}`, color: getLaunchStatusColor(launch.status), fontWeight: '700', letterSpacing: '2px', textTransform: 'uppercase', display: 'inline-block' }}>
+            <span className="st-lm-status" style={{ fontSize: '0.7rem', padding: '0.35rem 0.9rem', border: `1px solid ${getLaunchStatusColor(launch.status)}`, color: getLaunchStatusColor(launch.status), fontWeight: '700', letterSpacing: '2px', textTransform: 'uppercase', display: 'inline-block' }}>
               {launch.status || 'STATUS PENDING'}
             </span>
           </div>
-          <button 
+          <button className="st-lm-close" 
             onClick={onClose}
             style={{ 
               background: 'rgba(255,255,255,0.08)', 
@@ -3451,8 +3527,8 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
         {/* LIVE COUNTDOWN — the primary visual focus of this view. Same
             `timeLeft` state / live timing logic as before; only the visual
             treatment changed to a clean, monochrome mission-control style. */}
-        <div className="glass-card" style={{ padding: '2.5rem 2rem', marginBottom: '2rem', border: '1px solid rgba(255,255,255,0.14)', textAlign: 'center' }}>
-          <p style={{ margin: '0 0 0.6rem 0', fontSize: '0.72rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
+        <div className="glass-card st-lm-card st-lm-countdown" style={{ padding: '2.5rem 2rem', marginBottom: '2rem', border: '1px solid rgba(255,255,255,0.14)', textAlign: 'center' }}>
+          <p className="st-lm-cd-label" style={{ margin: '0 0 0.6rem 0', fontSize: '0.72rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
             {!launchHasFlown && !timeLeft
   ? '// SCHEDULE NOT CONFIRMED'
   : launchHasFlown
@@ -3462,12 +3538,12 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
       : '// LIVE T-MINUS COUNTDOWN'}
           </p>
 
-          <div style={{ fontSize: '1.1rem', letterSpacing: '8px', color: '#71717a', fontWeight: '700', margin: '0.5rem 0 1.2rem 0' }}>
+          <div className="st-lm-cd-sign" style={{ fontSize: '1.1rem', letterSpacing: '8px', color: '#71717a', fontWeight: '700', margin: '0.5rem 0 1.2rem 0' }}>
             {!launchHasFlown && !timeLeft ? '—' : (launchHasFlown || timeLeft.isPast ? 'T+' : 'T\u2212')}
           </div>
 
           {timeLeft && (
-  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'stretch', flexWrap: 'wrap', maxWidth: '640px', margin: '0 auto' }}>
+  <div className="st-lm-cd-units" style={{ display: 'flex', justifyContent: 'center', alignItems: 'stretch', flexWrap: 'wrap', maxWidth: '640px', margin: '0 auto' }}>
             {[
               { label: 'DAYS', val: timeLeft.days },
               { label: 'HOURS', val: timeLeft.hours },
@@ -3476,16 +3552,17 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
             ].map((t, idx, arr) => (
                 <div
                 key={idx}
+                className="st-lm-cd-unit"
                 style={{
                   flex: '1 1 90px',
                   padding: '0 1rem',
                   borderRight: idx < arr.length - 1 ? '1px solid rgba(255,255,255,0.12)' : 'none'
                 }}
               >
-                <div style={{ fontSize: 'clamp(2rem, 6vw, 3.25rem)', fontWeight: '700', color: '#ffffff', fontFamily: 'var(--font-orbitron), monospace', lineHeight: 1, letterSpacing: '1px' }}>
+                <div className="st-lm-cd-val" style={{ fontSize: 'clamp(2rem, 6vw, 3.25rem)', fontWeight: '700', color: '#ffffff', fontFamily: 'var(--font-orbitron), monospace', lineHeight: 1, letterSpacing: '1px' }}>
                   {String(t.val).padStart(2, '0')}
                 </div>
-                <div style={{ fontSize: '0.62rem', color: '#71717a', marginTop: '0.7rem', letterSpacing: '3px', fontWeight: '700' }}>
+                <div className="st-lm-cd-lbl" style={{ fontSize: '0.62rem', color: '#71717a', marginTop: '0.7rem', letterSpacing: '3px', fontWeight: '700' }}>
                   {t.label}
                 </div>
               </div>
@@ -3493,7 +3570,7 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
                     </div>
 )}
 
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.12)', margin: '2rem auto 0', paddingTop: '1.2rem', maxWidth: '440px' }}>
+          <div className="st-lm-cd-foot" style={{ borderTop: '1px solid rgba(255,255,255,0.12)', margin: '2rem auto 0', paddingTop: '1.2rem', maxWidth: '440px' }}>
             <span style={{ fontSize: '0.78rem', color: '#a1a1aa', letterSpacing: '1px' }}>
               {formatLaunchSchedule(launch.net, launch.net_precision, launchHasFlown)}
             </span>
@@ -3505,11 +3582,11 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
             if the image fails to load, so we never show a broken image or an
             empty box. */}
         {launch.image_url && !missionVisualFailed && (
-          <div className="glass-card" style={{ padding: '1rem', marginBottom: '2rem' }}>
-            <p style={{ margin: '0 0 1rem 0', padding: '0 0.5rem', fontSize: '0.7rem', color: '#71717a', letterSpacing: '3px', textTransform: 'uppercase', fontWeight: '700' }}>
+          <div className="glass-card st-lm-card st-lm-visual" style={{ padding: '1rem', marginBottom: '2rem' }}>
+            <p className="st-lm-card-title" style={{ margin: '0 0 1rem 0', padding: '0 0.5rem', fontSize: '0.7rem', color: '#71717a', letterSpacing: '3px', textTransform: 'uppercase', fontWeight: '700' }}>
               // MISSION VISUAL
             </p>
-            <div style={{ position: 'relative', width: '100%', aspectRatio: '21 / 9', overflow: 'hidden', borderRadius: '2px' }}>
+            <div className="st-lm-visual-frame" style={{ position: 'relative', width: '100%', aspectRatio: '21 / 9', overflow: 'hidden', borderRadius: '2px' }}>
               <Image
                 src={launch.image_url}
                 alt={launch.name || 'Launch mission visual'}
@@ -3523,19 +3600,19 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '2rem', paddingBottom: '3rem' }}>
+        <div className="st-lm-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '2rem', paddingBottom: '3rem' }}>
           
-          <div className="glass-card" style={{ padding: '2rem' }}>
-            <h3 style={{ fontSize: '0.85rem', color: '#a1a1aa', letterSpacing: '3px', textTransform: 'uppercase', margin: '0 0 1.5rem 0', fontWeight: '700' }}>
+          <div className="glass-card st-lm-card" style={{ padding: '2rem' }}>
+            <h3 className="st-lm-card-title" style={{ fontSize: '0.85rem', color: '#a1a1aa', letterSpacing: '3px', textTransform: 'uppercase', margin: '0 0 1.5rem 0', fontWeight: '700' }}>
               // LAUNCH PARAMETERS
             </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', fontSize: '0.85rem' }}>
+            <div className="st-lm-fields" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', fontSize: '0.85rem' }}>
               <div>
-                <span style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>PROVIDER / AGENCY:</span>
+                <span className="st-lm-field-label" style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>PROVIDER / AGENCY:</span>
                 <span style={{ color: '#fff', fontWeight: '700', textTransform: 'uppercase' }}>{launch.provider || 'GLOBAL PARTNER'}</span>
               </div>
               <div>
-                <span style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>
+                <span className="st-lm-field-label" style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>
   {['Minute', 'Second'].includes(launch.net_precision) ? 'EXACT TIMESTAMP (NET):' : 'ESTIMATED LAUNCH SCHEDULE:'}
 </span>
 <span style={{ color: '#2dd4bf', fontWeight: '700' }}>
@@ -3543,58 +3620,58 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
 </span>
               </div>
               <div>
-                <span style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>LAUNCH PAD COMPLEX:</span>
+                <span className="st-lm-field-label" style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>LAUNCH PAD COMPLEX:</span>
                 <span style={{ color: '#fff', fontWeight: '700' }}>{launch.pad_location || 'Vandenberg Space Force Base'}</span>
               </div>
             </div>
           </div>
 
           {!launchHasFlown && (
-            <div className="glass-card" style={{ padding: '2rem' }}>
-              <h3 style={{ fontSize: '0.85rem', color: '#a1a1aa', letterSpacing: '3px', textTransform: 'uppercase', margin: '0 0 1.5rem 0', fontWeight: '700' }}>
+            <div className="glass-card st-lm-card" style={{ padding: '2rem' }}>
+              <h3 className="st-lm-card-title" style={{ fontSize: '0.85rem', color: '#a1a1aa', letterSpacing: '3px', textTransform: 'uppercase', margin: '0 0 1.5rem 0', fontWeight: '700' }}>
                 // PAD METEOROLOGICAL TELEMETRY {weather ? `(${weather.pad_name})` : ''}
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>WIND SPEED</span>
+              <div className="st-lm-wx-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="st-lm-wx-cell" style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <span className="st-lm-wx-label" style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>WIND SPEED</span>
                   <p style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{weather?.wind_speed || 'SYNCING...'}</p>
                 </div>
-                <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>SKY CONDITION</span>
+                <div className="st-lm-wx-cell" style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <span className="st-lm-wx-label" style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>SKY CONDITION</span>
                   <p style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{weather?.condition || 'SYNCING...'}</p>
                 </div>
-                <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>AMBIENT TEMP / HUMIDITY</span>
+                <div className="st-lm-wx-cell" style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <span className="st-lm-wx-label" style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>AMBIENT TEMP / HUMIDITY</span>
                   <p style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{weather?.temperature || '--'} / {weather?.humidity || '--'}</p>
                 </div>
-                <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>GO/NO-GO STATUS</span>
+                <div className="st-lm-wx-cell" style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <span className="st-lm-wx-label" style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>GO/NO-GO STATUS</span>
                   <p style={{ color: weather ? '#22c55e' : '#a1a1aa', fontSize: '1.1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{weather ? 'GO FOR LAUNCH' : 'AWAITING TELEMETRY'}</p>
                 </div>
               </div>
               {weather?.updated_at && (
-                <p style={{ color: '#52525b', fontSize: '0.65rem', letterSpacing: '1px', margin: '1rem 0 0 0' }}>
+                <p className="st-lm-wx-sync" style={{ color: '#52525b', fontSize: '0.65rem', letterSpacing: '1px', margin: '1rem 0 0 0' }}>
                   LAST SYNCED: {new Date(weather.updated_at).toUTCString()}
                 </p>
               )}
             </div>
           )}
 
-          <div className="glass-card" style={{ padding: '2rem' }}>
-            <h3 style={{ fontSize: '0.85rem', color: '#a1a1aa', letterSpacing: '3px', textTransform: 'uppercase', margin: '0 0 1.5rem 0', fontWeight: '700' }}>
+          <div className="glass-card st-lm-card" style={{ padding: '2rem' }}>
+            <h3 className="st-lm-card-title" style={{ fontSize: '0.85rem', color: '#a1a1aa', letterSpacing: '3px', textTransform: 'uppercase', margin: '0 0 1.5rem 0', fontWeight: '700' }}>
               // MISSION BRIEFING
             </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', fontSize: '0.85rem' }}>
+            <div className="st-lm-fields" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', fontSize: '0.85rem' }}>
               <div>
-                <span style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>MISSION TYPE:</span>
+                <span className="st-lm-field-label" style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>MISSION TYPE:</span>
                 <span style={{ color: '#fff', fontWeight: '700', textTransform: 'uppercase' }}>{launch.mission_type || 'Not yet catalogued'}</span>
               </div>
               <div>
-                <span style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>TARGET ORBIT:</span>
+                <span className="st-lm-field-label" style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>TARGET ORBIT:</span>
                 <span style={{ color: '#2dd4bf', fontWeight: '700' }}>{launch.mission_orbit || 'TBD'}</span>
               </div>
               <div>
-                <span style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>OBJECTIVE:</span>
+                <span className="st-lm-field-label" style={{ color: '#71717a', fontSize: '0.65rem', letterSpacing: '2px', display: 'block', marginBottom: '0.3rem' }}>OBJECTIVE:</span>
                 <p style={{ color: '#d4d4d8', lineHeight: '1.65', margin: '0.4rem 0 0 0', fontSize: '0.85rem' }}>
                   {launch.mission_description || 'Detailed mission objectives for this flight have not yet been synced from the global launch manifest.'}
                 </p>
@@ -3603,11 +3680,11 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
           </div>
 
           {launchHasFlown && (
-            <div className="glass-card" style={{ padding: '2rem' }}>
-              <h3 style={{ fontSize: '0.85rem', color: '#a1a1aa', letterSpacing: '3px', textTransform: 'uppercase', margin: '0 0 1.5rem 0', fontWeight: '700' }}>
+            <div className="glass-card st-lm-card" style={{ padding: '2rem' }}>
+              <h3 className="st-lm-card-title" style={{ fontSize: '0.85rem', color: '#a1a1aa', letterSpacing: '3px', textTransform: 'uppercase', margin: '0 0 1.5rem 0', fontWeight: '700' }}>
                 // FLIGHT OUTCOME
               </h3>
-              <p style={{ fontSize: '1.5rem', fontWeight: '900', color: getLaunchStatusColor(launch.status), margin: '0 0 1rem 0', textTransform: 'uppercase' }}>
+              <p className="st-lm-outcome-value" style={{ fontSize: '1.5rem', fontWeight: '900', color: getLaunchStatusColor(launch.status), margin: '0 0 1rem 0', textTransform: 'uppercase' }}>
                 {launch.status || 'STATUS UNKNOWN'}
               </p>
               <p style={{ color: '#71717a', fontSize: '0.75rem', lineHeight: '1.6', margin: 0 }}>
@@ -3620,4 +3697,4 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
       </motion.div>
     </motion.div>
   );
-        }
+}
