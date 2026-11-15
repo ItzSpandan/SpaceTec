@@ -63,6 +63,9 @@ export function MobileLaunchpadsSection({ pads, weatherById, onOpenPad, onExplor
       lead: `${p.country} // ${p.lat.toFixed(2)}, ${p.lon.toFixed(2)}`,
       body: p.history,
       meta: meta.filter(Boolean),
+      // Background photo: upload /public/pad-<id>.jpg (e.g. pad-ksc.jpg).
+      // Until a file exists the card simply stays plain black glass.
+      posterSrc: `/pad-${p.id}.jpg`,
       onOpen: () => onOpenPad(p),
     };
   });
