@@ -27,7 +27,7 @@ export default function AgencyIdentity({ id, name, nameClassName, logoClassName 
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           className={`${logoClassName || ''} stc-logo-img`}
-          src={`/agency-logos/${id}.${AGENCY_LOGO_FILES[id]}`}
+          src={`/${id}.${AGENCY_LOGO_FILES[id]}`}
           alt={name}
           draggable={false}
         />
