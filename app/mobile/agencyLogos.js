@@ -1,35 +1,38 @@
 'use client';
 
-// Identity lockup (logo OR name, never both) for the mobile "Explore Space
-// Agencies" / "Explore Launchpads" cards.
+import { useState } from 'react';
+
+// Identity lockup (logo OR name, never both) for the mobile agency cards.
 //
-// Logos are NOT drawn in code: they are the real brand files in
-// /public/agency-logos/. Only agencies listed in AGENCY_LOGO_FILES have an
-// authentic asset; every other agency (and every launchpad) is shown as its
-// name in plain text. A logo is turned white with a CSS filter, which keeps
-// its original shape and proportions exactly.
+// Logos are real brand files placed directly in /public. For each agency in
+// LOGO_AGENCIES the card tries /<id>.svg, then /<id>.png. If neither file
+// exists (or fails to load) the agency name is shown as plain text instead,
+// so nothing breaks while a logo is still missing.
+//
+// To add a logo later: upload esa.svg (or esa.png), jaxa.svg, cnsa.svg into
+// /public. No code change needed.
 //
 // The name is rendered exactly once: as the image's accessible name when the
 // logo is shown, or as visible text when it is not.
 
-const AGENCY_LOGO_FILES = {
-  nasa: 'svg',
-  isro: 'svg',
-  spacex: 'svg',
-};
+const LOGO_AGENCIES = ['nasa', 'isro', 'esa', 'spacex', 'jaxa', 'cnsa'];
+const EXTENSIONS = ['svg', 'png'];
 
-export const hasAgencyLogo = (id) => Boolean(id && AGENCY_LOGO_FILES[id]);
+export const hasAgencyLogo = (id) => LOGO_AGENCIES.includes(id);
 
 export default function AgencyIdentity({ id, name, nameClassName, logoClassName }) {
-  if (hasAgencyLogo(id)) {
+  const [extIndex, setExtIndex] = useState(0);
+
+  if (hasAgencyLogo(id) && extIndex < EXTENSIONS.length) {
     return (
       <h3 className={nameClassName}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           className={`${logoClassName || ''} stc-logo-img`}
-          src={`/${id}.${AGENCY_LOGO_FILES[id]}`}
+          src={`/${id}.${EXTENSIONS[extIndex]}`}
           alt={name}
           draggable={false}
+          onError={() => setExtIndex((i) => i + 1)}
         />
       </h3>
     );
