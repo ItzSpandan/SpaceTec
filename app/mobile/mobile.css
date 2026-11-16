@@ -481,6 +481,13 @@
     box-shadow: none !important;
   }
 
+  /* The desktop card grids render for one frame on phones, before useIsMobile
+     flips to the phone layout. They used to be hidden by their entrance
+     animation (opacity 0); keep their space reserved but never show them. */
+  .st-desk-only {
+    visibility: hidden;
+  }
+
   /* ---------- "Explore More" launch pages (upcoming + past) ----------
      Cards come from MobileExploreList in SpaceTecHub.js and reuse the
      homepage .stl-* language above (.stl-kicker, .stl-row-media/-main/-name/
@@ -875,4 +882,4 @@
   .st-track-pop {
     animation: none;
   }
-     }
+}
