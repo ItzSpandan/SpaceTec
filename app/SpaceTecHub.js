@@ -369,6 +369,15 @@ function IconClose(props) {
 export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) {
   const router = useRouter();
   const isMobile = useIsMobile();
+  // useIsMobile() is always false on the first render and flips after mount.
+  // On a phone that means the desktop launch cards render for one frame and
+  // are then replaced by the phone cards, which share the same
+  // `launch-card-${id}` layoutId, so Framer Motion slid every phone card in
+  // from its desktop twin's box (the "glitchy opening" on mobile). The
+  // desktop cards therefore only claim the shared id once the viewport is
+  // known; the card -> expanded-modal morph is unchanged.
+  const [viewportResolved, setViewportResolved] = useState(false);
+  useEffect(() => { setViewportResolved(true); }, []);
   const { user, profile, requireAuth, openAuthModal, resumeIntent, clearResumeIntent, loading: authLoading } = useAuth();
   // The homepage no longer has a startup intro screen, so the main
   // content (header, hero, etc.) is simply entered from the first frame.
@@ -754,19 +763,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
     };
   }, []);
 
-  const fadeInUp = {
-    hidden: { opacity: 0, y: 30 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.9, ease: [0.16, 1, 0.3, 1] } }
-  };
-
-  const staggerContainer = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.12 } }
-  };
-
-  // Hero-only entrance variants — deliberately separate from fadeInUp /
-  // staggerContainer above (which stay untouched and keep driving the
-  // "whileInView" grid reveals further down the page). The hero's own
+  // Hero-only entrance variants. The hero's own
   // wrapper here no longer animates its own opacity ("hidden"/"visible"
   // both stay at opacity: 1, it only exists to orchestrate the
   // staggerChildren timing) — previously that wrapper faded in AT THE
@@ -2217,12 +2214,11 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
             </div>
           </div>
 
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={staggerContainer} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+          <div className="st-desk-only" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
             {latestLaunches.map((launch) => (
               <motion.div 
                 key={launch.id} 
-                layoutId={`launch-card-${launch.id}`}
-                variants={fadeInUp}
+                layoutId={viewportResolved ? `launch-card-${launch.id}` : undefined}
                 whileHover={{ y: -6, borderColor: '#ffffff' }}
                 onClick={() => setExpandedLaunch(launch)}
                 className="glass-card launch-tile" 
@@ -2231,7 +2227,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                 <LaunchTileBody launch={launch} isPast={false} />
               </motion.div>
             ))}
-          </motion.div>
+          </div>
 
           {remainingLaunches.length > 0 && (
             <div style={{ marginTop: '3rem', textAlign: 'center' }}>
@@ -2275,12 +2271,11 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
             </div>
           </div>
 
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={staggerContainer} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+          <div className="st-desk-only" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
             {latestPastLaunches.map((launch) => (
               <motion.div 
                 key={launch.id} 
-                layoutId={`launch-card-${launch.id}`}
-                variants={fadeInUp}
+                layoutId={viewportResolved ? `launch-card-${launch.id}` : undefined}
                 whileHover={{ y: -6, borderColor: '#ffffff' }}
                 onClick={() => setExpandedLaunch(launch)}
                 className="glass-card launch-tile" 
@@ -2294,7 +2289,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
                 No completed launches synced yet. Check back after the next manifest sync.
               </div>
             )}
-          </motion.div>
+          </div>
 
           {remainingPastLaunches.length > 0 && (
             <div style={{ marginTop: '3rem', textAlign: 'center' }}>
@@ -2321,7 +2316,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
             launches={upcomingLaunchList} 
             mode="upcoming"
             spaceBackgrounds={spaceBackgrounds}
-            onClose={() => setShowAllLaunchesPage(false)}
+            onClose={() => { setShowAllLaunchesPage(false); setExpandedLaunch(null); }}
             onSelectLaunch={(launch) => setExpandedLaunch(launch)}
           />
         )}
@@ -2334,7 +2329,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
             launches={pastLaunchList} 
             mode="past"
             spaceBackgrounds={spaceBackgrounds}
-            onClose={() => setShowAllPastLaunchesPage(false)}
+            onClose={() => { setShowAllPastLaunchesPage(false); setExpandedLaunch(null); }}
             onSelectLaunch={(launch) => setExpandedLaunch(launch)}
           />
         )}
@@ -3068,11 +3063,40 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch, 
     };
   }, []);
 
+  // Browser-history integration. Opening Explore More pushes ONE history
+  // entry, so the browser/phone Back button returns to the homepage instead
+  // of leaving the site. Every way of leaving ends in a single close path:
+  //   - browser Back         -> popstate -> onClose
+  //   - the page's own back  -> (transition) -> history.back() -> popstate -> onClose
+  // The page is unmounted outright (see the root motion.div: no exit
+  // animation), so no full-screen layer can outlive the close.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const closeTimersRef = useRef([]);
+  useEffect(() => {
+    if (!window.history.state || !window.history.state.stExploreLaunches) {
+      window.history.pushState({ ...(window.history.state || {}), stExploreLaunches: true }, '');
+    }
+    const onPop = () => onCloseRef.current();
+    window.addEventListener('popstate', onPop);
+    const timers = closeTimersRef.current;
+    return () => {
+      window.removeEventListener('popstate', onPop);
+      timers.forEach(clearTimeout);
+    };
+  }, []);
+
   const handleBackToMainWithTransition = () => {
     setIsReturningMain(true);
-    setTimeout(() => {
-      onClose();
-    }, 3000); 
+    closeTimersRef.current.push(setTimeout(() => {
+      if (window.history.state && window.history.state.stExploreLaunches) {
+        window.history.back(); // popstate listener above closes the page
+        // safety net: if no popstate arrives, still close
+        closeTimersRef.current.push(setTimeout(() => onCloseRef.current(), 600));
+      } else {
+        onCloseRef.current();
+      }
+    }, 3000));
   };
 
   const providers = ['all', ...new Set(launches.map(l => l.provider).filter(Boolean))];
@@ -3094,7 +3118,6 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch, 
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
       transition={{ duration: 0.4 }}
       className="st-xp"
       style={{
@@ -3211,7 +3234,7 @@ function AllLaunchesPage({ launches, spaceBackgrounds, onClose, onSelectLaunch, 
         {isMobile ? (
           <MobileExploreList launches={filteredLaunches} isPast={isPastMode} onSelect={onSelectLaunch} />
         ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', paddingBottom: '4rem' }}>
+        <div className="st-desk-only" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', paddingBottom: '4rem' }}>
           {filteredLaunches.map((launch) => (
             // layoutId is deliberately namespaced ("explore-") separately from
             // the homepage preview cards' `launch-card-${id}`. The homepage
@@ -3697,4 +3720,4 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
       </motion.div>
     </motion.div>
   );
-}
+                  }
