@@ -13,6 +13,7 @@ import { useAuth } from '../lib/AuthContext';
 import { logRecentView } from '../lib/spaceActivity';
 import SaveButton from '../components/SaveButton';
 import useIsMobile from '../lib/useIsMobile';
+import { hasAgencyLogo } from '../mobile/agencyLogos';
 
 // --- AGENCY PROFILE HELPERS (used only by the Agency Directory / Agency Profile) ---
 // These only ever read fields that already exist on an agency record. Nothing
@@ -128,14 +129,25 @@ export function findLaunchpadForAgency(agencyName, allLaunchpads) {
 }
 
 // Phone-only directory list. Same .stl-xcard language as the Explore More
-// launch cards; every value comes from the existing agency record (the HQ
-// image is only shown when it exists and actually loads).
-function AgencyThumb({ src, name }) {
-  const [failed, setFailed] = useState(false);
-  if (!src || failed) return null;
+// launch cards, but deliberately minimal: the agency LOGO and the agency NAME
+// only (the tagline / mission examples stay on the expanded profile). Logos
+// are the existing brand files in /public (<id>.svg, then <id>.png); an agency
+// with no logo file, or one that fails to load, simply shows its name with no
+// empty image box. The expanded profile keeps its normal HQ image.
+const LOGO_EXTENSIONS = ['svg', 'png'];
+
+function AgencyLogo({ id, name }) {
+  const [extIndex, setExtIndex] = useState(0);
+  if (!hasAgencyLogo(id) || extIndex >= LOGO_EXTENSIONS.length) return null;
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={name ? `${name} headquarters` : 'Agency headquarters'} loading="lazy" draggable={false} onError={() => setFailed(true)} />
+    <img
+      className="stl-logo"
+      src={`/${id}.${LOGO_EXTENSIONS[extIndex]}`}
+      alt={`${name} logo`}
+      draggable={false}
+      onError={() => setExtIndex((i) => i + 1)}
+    />
   );
 }
 
@@ -148,56 +160,29 @@ function MobileAgencyList({ agencies, onSelect }) {
   };
   return (
     <ul className="stl-list st-xp-list">
-      {agencies.map((agency, index) => {
-        const identity = getAgencyIdentity(agency);
-        return (
-          <li key={agency.id}>
-            <div
-              className="glass-card launch-tile stl-xcard stl-xcard--agency"
-              role="button"
-              tabIndex={0}
-              onClick={() => onSelect(agency)}
-              onKeyDown={onKey(agency)}
-            >
-              <div className="stl-xcard-top">
-                {agency.hqImage && (
-                  <div className="stl-row-media stl-xcard-media" aria-hidden="true">
-                    <AgencyThumb src={agency.hqImage} name={agency.name} />
-                  </div>
-                )}
-                <div className="stl-row-main">
-                  <span className="stl-kicker">// {String(index + 1).padStart(2, '0')}{identity.type ? ` · ${identity.type}` : ''}</span>
-                  <h3 className="stl-row-name stl-xname">{agency.name}</h3>
-                  {agency.tagline && <span className="stl-xtag">{agency.tagline}</span>}
+      {agencies.map((agency) => (
+        <li key={agency.id}>
+          <div
+            className="glass-card launch-tile stl-xcard stl-xcard--agency"
+            role="button"
+            tabIndex={0}
+            onClick={() => onSelect(agency)}
+            onKeyDown={onKey(agency)}
+          >
+            <div className="stl-xcard-top">
+              {hasAgencyLogo(agency.id) && (
+                <div className="stl-row-media stl-xcard-media stl-logo-tile" aria-hidden="true">
+                  <AgencyLogo id={agency.id} name={agency.name} />
                 </div>
-                <span className="stl-row-chevron" aria-hidden="true">→</span>
-              </div>
-              {(identity.country || identity.headquarters || identity.founded) && (
-                <dl className="stl-xfacts">
-                  {identity.country && (
-                    <div>
-                      <dt>COUNTRY</dt>
-                      <dd>{identity.country}</dd>
-                    </div>
-                  )}
-                  {identity.headquarters && (
-                    <div>
-                      <dt>HQ</dt>
-                      <dd>{identity.headquarters}</dd>
-                    </div>
-                  )}
-                  {identity.founded && (
-                    <div>
-                      <dt>FOUNDED</dt>
-                      <dd>{identity.founded}</dd>
-                    </div>
-                  )}
-                </dl>
               )}
+              <div className="stl-row-main">
+                <h3 className="stl-row-name stl-xname" style={getAgencyNameTypography(agency.name, { baseSize: 1.25, minSize: 0.95, baseLetterSpacing: 1.5 })}>{agency.name}</h3>
+              </div>
+              <span className="stl-row-chevron" aria-hidden="true">→</span>
             </div>
-          </li>
-        );
-      })}
+          </div>
+        </li>
+      ))}
     </ul>
   );
 }
@@ -347,8 +332,8 @@ export function AllAgenciesPage({ agencies, spaceBackgrounds, onClose, onOpenSat
         {isReturningMain && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} style={{ position: 'fixed', inset: 0, zIndex: 999999, display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000' }}>
             <div style={{ textAlign: 'center' }}>
-              <motion.h1 layoutId="agency-dir-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0 }} className="spacetec-wordmark">SPACETEC</motion.h1>
-              <p style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>CONNECTING TO MAIN...</p>
+              <motion.h1 layoutId="agency-dir-brand" style={{ fontSize: 'calc(3.5rem + 4vw)', margin: 0 }} className="spacetec-wordmark st-xt-mark">SPACETEC</motion.h1>
+              <p className="st-xt-sub" style={{ fontSize: '0.8rem', letterSpacing: '8px', color: '#ffffff', textTransform: 'uppercase', marginTop: '1.5rem', fontWeight: '700' }}>CONNECTING TO MAIN...</p>
             </div>
           </motion.div>
         )}
