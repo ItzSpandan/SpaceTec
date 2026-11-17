@@ -195,7 +195,6 @@ function MobileLaunchSection({ launches, isPast, eyebrow, heading, exploreLabel,
 
       {first && (
         <motion.div
-          layoutId={`launch-card-${first.id}`}
           whileTap={{ scale: 0.99 }}
           onClick={() => onSelect(first)}
           onKeyDown={onKey(first)}
@@ -244,7 +243,6 @@ function MobileLaunchSection({ launches, isPast, eyebrow, heading, exploreLabel,
           {rest.map((launch) => (
             <li key={launch.id}>
               <motion.div
-                layoutId={`launch-card-${launch.id}`}
                 whileTap={{ scale: 0.99 }}
                 onClick={() => onSelect(launch)}
                 onKeyDown={onKey(launch)}
@@ -369,15 +367,6 @@ function IconClose(props) {
 export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) {
   const router = useRouter();
   const isMobile = useIsMobile();
-  // useIsMobile() is always false on the first render and flips after mount.
-  // On a phone that means the desktop launch cards render for one frame and
-  // are then replaced by the phone cards, which share the same
-  // `launch-card-${id}` layoutId, so Framer Motion slid every phone card in
-  // from its desktop twin's box (the "glitchy opening" on mobile). The
-  // desktop cards therefore only claim the shared id once the viewport is
-  // known; the card -> expanded-modal morph is unchanged.
-  const [viewportResolved, setViewportResolved] = useState(false);
-  useEffect(() => { setViewportResolved(true); }, []);
   const { user, profile, requireAuth, openAuthModal, resumeIntent, clearResumeIntent, loading: authLoading } = useAuth();
   // The homepage no longer has a startup intro screen, so the main
   // content (header, hero, etc.) is simply entered from the first frame.
@@ -1384,6 +1373,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
         }}
         onIssTracker={() => { setShowMobileSearch(false); router.push('/iss-tracker'); }}
         onLaunches={() => { setShowMobileSearch(false); scrollToSection('launches'); }}
+        onUpcomingLaunches={() => { setShowMobileSearch(false); scrollToSection('launches'); }}
+        onPastLaunches={() => { setShowMobileSearch(false); scrollToSection('past-launches'); }}
       />
 
       {/* PHONE-ONLY SEARCH SCREEN (replaces the removed inline search box) */}
@@ -2218,7 +2209,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
             {latestLaunches.map((launch) => (
               <motion.div 
                 key={launch.id} 
-                layoutId={viewportResolved ? `launch-card-${launch.id}` : undefined}
                 whileHover={{ y: -6, borderColor: '#ffffff' }}
                 onClick={() => setExpandedLaunch(launch)}
                 className="glass-card launch-tile" 
@@ -2275,7 +2265,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
             {latestPastLaunches.map((launch) => (
               <motion.div 
                 key={launch.id} 
-                layoutId={viewportResolved ? `launch-card-${launch.id}` : undefined}
                 whileHover={{ y: -6, borderColor: '#ffffff' }}
                 onClick={() => setExpandedLaunch(launch)}
                 className="glass-card launch-tile" 
@@ -2789,7 +2778,76 @@ function SatelliteWikiPage({ spaceBackgrounds, onClose, initialSearch = '' }) {
     </motion.div>
   );
 }
+// Phone-only card list for the "Explore More Launchpads" directory. Uses the
+// same .stl-xcard language as the Explore More launch cards and only shows
+// fields that already exist on the pad record (no images are invented).
+function MobilePadList({ pads, getStatusColor, onSelect }) {
+  const onKey = (pad) => (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelect(pad);
+    }
+  };
+  if (pads.length === 0) {
+    return <div className="stl-empty">No launchpads found matching the selected filter criteria.</div>;
+  }
+  return (
+    <ul className="stl-list st-xp-list">
+      {pads.map((pad) => (
+        <li key={pad.id}>
+          <div
+            className="glass-card launch-tile stl-xcard stl-xcard--pad"
+            role="button"
+            tabIndex={0}
+            onClick={() => onSelect(pad)}
+            onKeyDown={onKey(pad)}
+          >
+            <div className="stl-xcard-top">
+              <div className="stl-row-main">
+                <span className="stl-kicker">// {String(pad.id).toUpperCase()}</span>
+                <h3 className="stl-row-name">{pad.name}</h3>
+              </div>
+              <span className="stl-row-chevron" aria-hidden="true">→</span>
+            </div>
+            <dl className="stl-xfacts">
+              <div>
+                <dt>STATUS</dt>
+                <dd className="stl-xstatus" style={{ color: getStatusColor(pad.status) }}>{(pad.status || 'UNKNOWN').toUpperCase()}</dd>
+              </div>
+              {pad.country && (
+                <div>
+                  <dt>COUNTRY</dt>
+                  <dd>{pad.country}</dd>
+                </div>
+              )}
+              {Number.isFinite(pad.lat) && Number.isFinite(pad.lon) && (
+                <div>
+                  <dt>COORDS</dt>
+                  <dd>{pad.lat.toFixed(2)}, {pad.lon.toFixed(2)}</dd>
+                </div>
+              )}
+              {pad.operator && (
+                <div>
+                  <dt>OPERATOR</dt>
+                  <dd>{pad.operator}</dd>
+                </div>
+              )}
+              {pad.established && (
+                <div>
+                  <dt>EST.</dt>
+                  <dd>{pad.established}</dd>
+                </div>
+              )}
+            </dl>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function AllLaunchpadsPage({ launchpads, weatherById, getStatusColor, spaceBackgrounds, onClose, initialPadId = null }) {
+  const isMobile = useIsMobile();
   const [bgIdx, setBgIdx] = useState(0);
   const [isReturningMain, setIsReturningMain] = useState(false);
   const [expandedPad, setExpandedPad] = useState(
@@ -2825,29 +2883,32 @@ function AllLaunchpadsPage({ launchpads, weatherById, getStatusColor, spaceBackg
   });
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} transition={{ duration: 0.4 }} style={{ position: 'fixed', inset: 0, zIndex: 99998, overflowY: 'auto', backgroundColor: '#000000', padding: '4rem 2rem', boxSizing: 'border-box', fontFamily: '"Space Grotesk", -apple-system, sans-serif' }}>
+    <motion.div className="st-xp" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} transition={{ duration: 0.4 }} style={{ position: 'fixed', inset: 0, zIndex: 99998, overflowY: 'auto', backgroundColor: '#000000', padding: '4rem 2rem', boxSizing: 'border-box', fontFamily: '"Space Grotesk", -apple-system, sans-serif' }}>
       {spaceBackgrounds.map((bgUrl, idx) => <div key={`all-pads-bg-${idx}`} style={{ position: 'fixed', inset: 0, backgroundImage: `url('${bgUrl}')`, backgroundSize: 'cover', backgroundPosition: 'center', zIndex: 0, opacity: bgIdx === idx ? 1 : 0, transition: 'opacity 1.8s ease-in-out', filter: 'brightness(0.4) contrast(1.25)', pointerEvents: 'none' }} />)}
       <div style={{ position: 'fixed', inset: 0, zIndex: 1, pointerEvents: 'none', background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)' }} />
       <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 3 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
+        <div className="st-xp-top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
           <motion.span layoutId="allpads-brand" style={{ fontSize: '1.25rem' }} className="spacetec-wordmark">SPACETEC</motion.span>
-          <button onClick={handleBackToMain} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '0.8rem 1.5rem', cursor: 'pointer', fontSize: '0.75rem', letterSpacing: '2px', fontWeight: '700', textTransform: 'uppercase' }}>[← BACK TO MAIN]</button>
+          <button className="st-xp-back" onClick={handleBackToMain} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '0.8rem 1.5rem', cursor: 'pointer', fontSize: '0.75rem', letterSpacing: '2px', fontWeight: '700', textTransform: 'uppercase' }}>[← BACK TO MAIN]</button>
         </div>
-        <div style={{ borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: '2rem', marginBottom: '2rem' }}>
-          <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>// GLOBAL LAUNCHPAD DIRECTORY</span>
-          <h2 style={{ color: '#fff', fontSize: '2rem', margin: 0, textTransform: 'uppercase', fontWeight: '900' }}>EXPLORE LAUNCHPADS</h2>
+        <div className="st-xp-head" style={{ borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: '2rem', marginBottom: '2rem' }}>
+          <span className="st-xp-eyebrow" style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>// GLOBAL LAUNCHPAD DIRECTORY</span>
+          <h2 className="st-xp-title" style={{ color: '#fff', fontSize: '2rem', margin: 0, textTransform: 'uppercase', fontWeight: '900' }}>EXPLORE LAUNCHPADS</h2>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>TOTAL SITES: {filteredPads.length} / {launchpads.length}</span>
-          <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
-            <input type="text" placeholder="Search by name or ID..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ background: 'rgba(0,0,0,0.8)', border: '1px solid rgba(56, 189, 248, 0.4)', padding: '0.7rem 1rem', color: '#fff', fontSize: '0.75rem', fontFamily: 'monospace', width: 'min(100%, 260px)', outline: 'none' }} />
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ background: '#121212', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', padding: '0.6rem 1rem', fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none', cursor: 'pointer', textTransform: 'uppercase' }}>
+        <div className="st-pp-tools" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+          <span className="st-pp-count" style={{ fontSize: '0.7rem', color: '#38bdf8', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '800' }}>TOTAL SITES: {filteredPads.length} / {launchpads.length}</span>
+          <div className="st-xp-filters" style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
+            <input className="st-xp-select" type="text" placeholder="Search by name or ID..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ background: 'rgba(0,0,0,0.8)', border: '1px solid rgba(56, 189, 248, 0.4)', padding: '0.7rem 1rem', color: '#fff', fontSize: '0.75rem', fontFamily: 'monospace', width: 'min(100%, 260px)', outline: 'none' }} />
+            <select className="st-xp-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ background: '#121212', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', padding: '0.6rem 1rem', fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none', cursor: 'pointer', textTransform: 'uppercase' }}>
               {statusOptions.map(s => <option key={s} value={s}>{s === 'all' ? 'All Statuses' : s}</option>)}
             </select>
           </div>
         </div>
 
+        {isMobile ? (
+          <MobilePadList pads={filteredPads} getStatusColor={getStatusColor} onSelect={setExpandedPad} />
+        ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', paddingBottom: '4rem' }}>
           {filteredPads.map((pad, index) => (
             <motion.article key={pad.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * 0.04, 0.6) }} onClick={() => setExpandedPad(pad)} whileHover={{ borderColor: 'rgba(255,255,255,0.4)' }} style={{ cursor: 'pointer', minHeight: '220px', position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.14)', backgroundColor: '#050505', padding: '2rem', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', transition: 'border-color 0.3s ease' }}>
@@ -2867,54 +2928,55 @@ function AllLaunchpadsPage({ launchpads, weatherById, getStatusColor, spaceBackg
             </div>
           )}
         </div>
+        )}
 
         <AnimatePresence>
           {expandedPad && (() => {
             const liveWeather = weatherById?.[expandedPad.id];
             return (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setExpandedPad(null)} style={{ position: 'fixed', inset: 0, zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', background: 'rgba(0,0,0,0.86)' }}>
-                <motion.article initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24 }} onClick={(event) => event.stopPropagation()} style={{ width: 'min(760px, 100%)', maxHeight: '85vh', overflowY: 'auto', background: '#050505', border: '1px solid rgba(255,255,255,0.25)', padding: '2rem', boxSizing: 'border-box' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'start' }}>
-                    <div>
-                      <span style={{ color: '#94a3b8', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: '800' }}>// {expandedPad.id.toUpperCase()} / {expandedPad.country}</span>
-                      <h2 style={{ margin: '0.5rem 0 0', color: '#fff', fontSize: '2rem', letterSpacing: '1px' }}>{expandedPad.name}</h2>
+              <motion.div className="st-pd" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setExpandedPad(null)} style={{ position: 'fixed', inset: 0, zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', background: 'rgba(0,0,0,0.86)' }}>
+                <motion.article className="st-pd-card" initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24 }} onClick={(event) => event.stopPropagation()} style={{ width: 'min(760px, 100%)', maxHeight: '85vh', overflowY: 'auto', background: '#050505', border: '1px solid rgba(255,255,255,0.25)', padding: '2rem', boxSizing: 'border-box' }}>
+                  <div className="st-pd-head" style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'start' }}>
+                    <div className="st-pd-id">
+                      <span className="st-pd-eyebrow" style={{ color: '#94a3b8', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: '800' }}>// {expandedPad.id.toUpperCase()} / {expandedPad.country}</span>
+                      <h2 className="st-pd-title" style={{ margin: '0.5rem 0 0', color: '#fff', fontSize: '2rem', letterSpacing: '1px' }}>{expandedPad.name}</h2>
                     </div>
-                    <button onClick={() => setExpandedPad(null)} style={{ background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', padding: '0.5rem 0.7rem', cursor: 'pointer' }}>CLOSE</button>
+                    <button className="st-pd-close" aria-label="Close launchpad details" onClick={() => setExpandedPad(null)} style={{ background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', padding: '0.5rem 0.7rem', cursor: 'pointer' }}>CLOSE</button>
                   </div>
-                  <div style={{ display: 'grid', gap: '1rem', marginTop: '2rem' }}>
-                    <section>
+                  <div className="st-pd-body" style={{ display: 'grid', gap: '1rem', marginTop: '2rem' }}>
+                    <section className="st-pd-sec">
                       <p style={{ color: '#71717a', margin: 0, fontSize: '0.68rem', letterSpacing: '2px' }}>01 / COORDINATES</p>
                       <p style={{ color: '#fff', margin: '0.4rem 0 0' }}>LAT {expandedPad.lat.toFixed(4)}, LON {expandedPad.lon.toFixed(4)}</p>
                     </section>
-                    <section>
+                    <section className="st-pd-sec">
                       <p style={{ color: '#71717a', margin: 0, fontSize: '0.68rem', letterSpacing: '2px' }}>02 / OPERATIONAL STATUS</p>
                       <p style={{ color: getStatusColor(expandedPad.status), margin: '0.4rem 0 0', fontWeight: '700' }}>{expandedPad.status}</p>
                     </section>
-                    <section>
+                    <section className="st-pd-sec">
                       <p style={{ color: '#71717a', margin: 0, fontSize: '0.68rem', letterSpacing: '2px' }}>03 / OPERATOR & ESTABLISHED</p>
                       <p style={{ color: '#fff', margin: '0.4rem 0 0' }}>{expandedPad.operator || 'Not listed'} {expandedPad.established ? `// Est. ${expandedPad.established}` : ''}</p>
                     </section>
-                    <section>
+                    <section className="st-pd-sec">
                       <p style={{ color: '#71717a', margin: 0, fontSize: '0.68rem', letterSpacing: '2px' }}>04 / HISTORY</p>
                       <p style={{ color: '#d4d4d8', lineHeight: '1.7', margin: '0.4rem 0 0' }}>{expandedPad.history}</p>
                     </section>
-                    <section>
+                    <section className="st-pd-sec">
                       <p style={{ color: '#71717a', margin: 0, fontSize: '0.68rem', letterSpacing: '2px' }}>05 / LIVE PAD WEATHER</p>
                       {liveWeather ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.8rem', marginTop: '0.6rem' }}>
-                          <div style={{ background: 'rgba(0,0,0,0.5)', padding: '0.8rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <div className="st-pd-wx" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.8rem', marginTop: '0.6rem' }}>
+                          <div className="st-pd-wx-cell" style={{ background: 'rgba(0,0,0,0.5)', padding: '0.8rem', border: '1px solid rgba(255,255,255,0.08)' }}>
                             <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>TEMPERATURE</span>
                             <p style={{ color: '#fff', fontSize: '1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{liveWeather.temperature}</p>
                           </div>
-                          <div style={{ background: 'rgba(0,0,0,0.5)', padding: '0.8rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                          <div className="st-pd-wx-cell" style={{ background: 'rgba(0,0,0,0.5)', padding: '0.8rem', border: '1px solid rgba(255,255,255,0.08)' }}>
                             <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>HUMIDITY</span>
                             <p style={{ color: '#fff', fontSize: '1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{liveWeather.humidity}</p>
                           </div>
-                          <div style={{ background: 'rgba(0,0,0,0.5)', padding: '0.8rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                          <div className="st-pd-wx-cell" style={{ background: 'rgba(0,0,0,0.5)', padding: '0.8rem', border: '1px solid rgba(255,255,255,0.08)' }}>
                             <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>WIND SPEED</span>
                             <p style={{ color: '#fff', fontSize: '1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{liveWeather.wind_speed}</p>
                           </div>
-                          <div style={{ background: 'rgba(0,0,0,0.5)', padding: '0.8rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                          <div className="st-pd-wx-cell" style={{ background: 'rgba(0,0,0,0.5)', padding: '0.8rem', border: '1px solid rgba(255,255,255,0.08)' }}>
                             <span style={{ color: '#71717a', fontSize: '0.6rem', letterSpacing: '1px' }}>CONDITION</span>
                             <p style={{ color: '#fff', fontSize: '1rem', fontWeight: '700', margin: '0.3rem 0 0 0' }}>{liveWeather.condition}</p>
                           </div>
@@ -3515,7 +3577,6 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
       <canvas ref={modalCanvasRef} style={{ position: 'fixed', inset: 0, zIndex: 2, pointerEvents: 'none' }} />
 
       <motion.div 
-        layoutId={`launch-card-${launch.id}`}
         className="st-lm-inner"
         style={{ maxWidth: '900px', margin: '0 auto', width: '100%', position: 'relative', zIndex: 3 }}
       >
@@ -3726,4 +3787,4 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
       </motion.div>
     </motion.div>
   );
-                  }
+          }
