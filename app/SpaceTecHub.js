@@ -2310,30 +2310,36 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
       </motion.div>
 
       {/* EXPLORE MORE LAUNCHES FULL PAGE VIEW */}
-      <AnimatePresence>
-        {showAllLaunchesPage && (
-          <AllLaunchesPage 
-            launches={upcomingLaunchList} 
-            mode="upcoming"
-            spaceBackgrounds={spaceBackgrounds}
-            onClose={() => { setShowAllLaunchesPage(false); setExpandedLaunch(null); }}
-            onSelectLaunch={(launch) => setExpandedLaunch(launch)}
-          />
-        )}
-      </AnimatePresence>
+      {/* Rendered WITHOUT <AnimatePresence> on purpose: this page has no exit
+          animation, and AnimatePresence would keep the whole page (including the
+          opaque "returning" SPACETEC screen) mounted if the shared-layout
+          "alllaunches-brand" elements inside it never report that they are done
+          exiting. Plain conditional rendering unmounts it immediately. */}
+      {showAllLaunchesPage && (
+        <AllLaunchesPage 
+          launches={upcomingLaunchList} 
+          mode="upcoming"
+          spaceBackgrounds={spaceBackgrounds}
+          onClose={() => { setShowAllLaunchesPage(false); setExpandedLaunch(null); }}
+          onSelectLaunch={(launch) => setExpandedLaunch(launch)}
+        />
+      )}
 
       {/* EXPLORE MORE PAST LAUNCHES FULL PAGE VIEW */}
-      <AnimatePresence>
-        {showAllPastLaunchesPage && (
-          <AllLaunchesPage 
-            launches={pastLaunchList} 
-            mode="past"
-            spaceBackgrounds={spaceBackgrounds}
-            onClose={() => { setShowAllPastLaunchesPage(false); setExpandedLaunch(null); }}
-            onSelectLaunch={(launch) => setExpandedLaunch(launch)}
-          />
-        )}
-      </AnimatePresence>
+      {/* Rendered WITHOUT <AnimatePresence> on purpose: this page has no exit
+          animation, and AnimatePresence would keep the whole page (including the
+          opaque "returning" SPACETEC screen) mounted if the shared-layout
+          "alllaunches-brand" elements inside it never report that they are done
+          exiting. Plain conditional rendering unmounts it immediately. */}
+      {showAllPastLaunchesPage && (
+        <AllLaunchesPage 
+          launches={pastLaunchList} 
+          mode="past"
+          spaceBackgrounds={spaceBackgrounds}
+          onClose={() => { setShowAllPastLaunchesPage(false); setExpandedLaunch(null); }}
+          onSelectLaunch={(launch) => setExpandedLaunch(launch)}
+        />
+      )}
 
       {/* SATELLITE WIKI FULL PAGE VIEW */}
       <AnimatePresence>
