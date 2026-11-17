@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../lib/AuthContext';
 import { logRecentView } from '../lib/spaceActivity';
 import SaveButton from '../components/SaveButton';
+import useIsMobile from '../lib/useIsMobile';
 
 // --- AGENCY PROFILE HELPERS (used only by the Agency Directory / Agency Profile) ---
 // These only ever read fields that already exist on an agency record. Nothing
@@ -126,7 +127,83 @@ export function findLaunchpadForAgency(agencyName, allLaunchpads) {
   return allLaunchpads.find((pad) => (pad.operator || '').toUpperCase().includes(needle)) || null;
 }
 
+// Phone-only directory list. Same .stl-xcard language as the Explore More
+// launch cards; every value comes from the existing agency record (the HQ
+// image is only shown when it exists and actually loads).
+function AgencyThumb({ src, name }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt={name ? `${name} headquarters` : 'Agency headquarters'} loading="lazy" draggable={false} onError={() => setFailed(true)} />
+  );
+}
+
+function MobileAgencyList({ agencies, onSelect }) {
+  const onKey = (agency) => (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelect(agency);
+    }
+  };
+  return (
+    <ul className="stl-list st-xp-list">
+      {agencies.map((agency, index) => {
+        const identity = getAgencyIdentity(agency);
+        return (
+          <li key={agency.id}>
+            <div
+              className="glass-card launch-tile stl-xcard stl-xcard--agency"
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelect(agency)}
+              onKeyDown={onKey(agency)}
+            >
+              <div className="stl-xcard-top">
+                {agency.hqImage && (
+                  <div className="stl-row-media stl-xcard-media" aria-hidden="true">
+                    <AgencyThumb src={agency.hqImage} name={agency.name} />
+                  </div>
+                )}
+                <div className="stl-row-main">
+                  <span className="stl-kicker">// {String(index + 1).padStart(2, '0')}{identity.type ? ` · ${identity.type}` : ''}</span>
+                  <h3 className="stl-row-name stl-xname">{agency.name}</h3>
+                  {agency.tagline && <span className="stl-xtag">{agency.tagline}</span>}
+                </div>
+                <span className="stl-row-chevron" aria-hidden="true">→</span>
+              </div>
+              {(identity.country || identity.headquarters || identity.founded) && (
+                <dl className="stl-xfacts">
+                  {identity.country && (
+                    <div>
+                      <dt>COUNTRY</dt>
+                      <dd>{identity.country}</dd>
+                    </div>
+                  )}
+                  {identity.headquarters && (
+                    <div>
+                      <dt>HQ</dt>
+                      <dd>{identity.headquarters}</dd>
+                    </div>
+                  )}
+                  {identity.founded && (
+                    <div>
+                      <dt>FOUNDED</dt>
+                      <dd>{identity.founded}</dd>
+                    </div>
+                  )}
+                </dl>
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function AllAgenciesPage({ agencies, spaceBackgrounds, onClose, onOpenSatelliteWiki, onOpenLaunchpads, initialAgencyId = null }) {
+  const isMobile = useIsMobile();
   const [bgIdx, setBgIdx] = useState(0);
   const [isReturningMain, setIsReturningMain] = useState(false);
   const [hoveredAgencyId, setHoveredAgencyId] = useState(null);
@@ -166,6 +243,7 @@ export function AllAgenciesPage({ agencies, spaceBackgrounds, onClose, onOpenSat
       exit={{ opacity: 0, y: 20 }}
       transition={{ duration: 0.4 }}
       id="agency-directory-scroll"
+      className="st-ag"
       style={{ position: 'fixed', inset: 0, zIndex: 99998, overflowY: 'auto', backgroundColor: '#000000', boxSizing: 'border-box', fontFamily: '"Space Grotesk", -apple-system, sans-serif' }}
     >
       {spaceBackgrounds.map((bgUrl, idx) => (
@@ -174,10 +252,11 @@ export function AllAgenciesPage({ agencies, spaceBackgrounds, onClose, onOpenSat
       <div style={{ position: 'fixed', inset: 0, zIndex: 1, pointerEvents: 'none', background: 'radial-gradient(circle at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.95) 100%), linear-gradient(180deg, rgba(0,0,0,0.5) 0%, #000000 100%)' }} />
 
       {/* STICKY SPACETEC HEADER — reused for both the directory grid and an open profile, so it never scrolls away. */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 20, backgroundColor: '#000000', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
-        <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', padding: '1.5rem 2rem' }}>
+      <div className="st-ag-bar" style={{ position: 'sticky', top: 0, zIndex: 20, backgroundColor: '#000000', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
+        <div className="st-ag-bar-in" style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', padding: '1.5rem 2rem' }}>
           <motion.span layoutId="agency-dir-brand" style={{ fontSize: '1.25rem', display: 'inline-block', whiteSpace: 'nowrap' }} className="spacetec-wordmark">SPACETEC</motion.span>
           <button
+            className="st-ag-back"
             onClick={() => (selectedAgency ? setSelectedAgency(null) : handleBackToMain())}
             style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '0.8rem 1.5rem', cursor: 'pointer', fontSize: '0.75rem', letterSpacing: '2px', fontWeight: '700', textTransform: 'uppercase' }}
           >
@@ -186,18 +265,21 @@ export function AllAgenciesPage({ agencies, spaceBackgrounds, onClose, onOpenSat
         </div>
       </div>
 
-      <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 3, padding: '2.5rem 2rem 4rem' }}>
+      <div className="st-ag-body" style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 3, padding: '2.5rem 2rem 4rem' }}>
         {!selectedAgency ? (
           <>
-            <div style={{ borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: '2rem', marginBottom: '2.5rem' }}>
-              <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
+            <div className="st-ag-head" style={{ borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: '2rem', marginBottom: '2.5rem' }}>
+              <span className="st-ag-eyebrow" style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.5rem' }}>
                 // GLOBAL SPACE AGENCY DIRECTORY
               </span>
-              <h2 style={{ color: '#fff', fontSize: '2rem', margin: 0, textTransform: 'uppercase', fontWeight: '900' }}>
+              <h2 className="st-ag-title" style={{ color: '#fff', fontSize: '2rem', margin: 0, textTransform: 'uppercase', fontWeight: '900' }}>
                 EXPLORE SPACE AGENCIES
               </h2>
             </div>
 
+            {isMobile ? (
+              <MobileAgencyList agencies={agencies} onSelect={setSelectedAgency} />
+            ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
               {agencies.map((agency, index) => {
                 const isHovered = hoveredAgencyId === agency.id;
@@ -250,6 +332,7 @@ export function AllAgenciesPage({ agencies, spaceBackgrounds, onClose, onOpenSat
                 );
               })}
             </div>
+            )}
           </>
         ) : (
           <AgencyProfile
@@ -279,8 +362,8 @@ export function AllAgenciesPage({ agencies, spaceBackgrounds, onClose, onOpenSat
 
 function ProfileSection({ heading, children }) {
   return (
-    <section style={{ marginBottom: '3rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.2rem' }}>
+    <section className="st-ap-sec" style={{ marginBottom: '3rem' }}>
+      <div className="st-ap-sec-head" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.2rem' }}>
         <h3 style={{ color: '#fff', fontSize: '0.85rem', letterSpacing: '3px', textTransform: 'uppercase', fontWeight: '800', margin: 0, whiteSpace: 'nowrap' }}>
           {heading}
         </h3>
@@ -294,7 +377,7 @@ function ProfileSection({ heading, children }) {
 function IdentityRow({ label, value }) {
   if (!value) return null;
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', padding: '0.85rem 0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+    <div className="st-ap-row" style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', padding: '0.85rem 0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
       <span style={{ color: '#71717a', fontSize: '0.7rem', letterSpacing: '1.5px', textTransform: 'uppercase' }}>{label}</span>
       <span style={{ color: '#fff', fontSize: '0.85rem', fontWeight: '600', textAlign: 'right' }}>{value}</span>
     </div>
@@ -304,6 +387,7 @@ function IdentityRow({ label, value }) {
 function DatabaseLinkButton({ label, onClick }) {
   return (
     <button
+      className="st-ap-link"
       onClick={onClick}
       style={{ marginTop: '1.2rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '0.75rem 1.4rem', cursor: 'pointer', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: '700', textTransform: 'uppercase' }}
     >
@@ -337,18 +421,18 @@ function AgencyProfile({ agency, onOpenSatelliteWiki, onOpenLaunchpads }) {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+    <motion.div className="st-ap" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
       {/* PROFILE HEADER */}
-      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: '2rem', marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+      <div className="st-ap-head" style={{ borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: '2rem', marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
-          <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.6rem' }}>
+          <span className="st-ap-eyebrow" style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700', display: 'block', marginBottom: '0.6rem' }}>
             // SPACE AGENCY PROFILE
           </span>
-          <h2 style={{ color: '#fff', margin: '0 0 0.5rem 0', textTransform: 'uppercase', fontWeight: '900', lineHeight: '1.25', ...getAgencyNameTypography(agency.name, { baseSize: 2.2, minSize: 1.4, baseLetterSpacing: 1 }) }}>
+          <h2 className="st-ap-name" style={{ color: '#fff', margin: '0 0 0.5rem 0', textTransform: 'uppercase', fontWeight: '900', lineHeight: '1.25', ...getAgencyNameTypography(agency.name, { baseSize: 2.2, minSize: 1.4, baseLetterSpacing: 1 }) }}>
             {agency.name}
           </h2>
           {agency.tagline && (
-            <p style={{ color: '#a1a1aa', fontSize: '0.8rem', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '700', margin: 0 }}>
+            <p className="st-ap-tagline" style={{ color: '#a1a1aa', fontSize: '0.8rem', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: '700', margin: 0 }}>
               {agency.tagline}
             </p>
           )}
@@ -358,7 +442,7 @@ function AgencyProfile({ agency, onOpenSatelliteWiki, onOpenLaunchpads }) {
 
       {/* LARGE HQ / AGENCY IMAGE — reuses the existing image field, nothing new is fetched or generated */}
       {agency.hqImage && (
-        <div style={{ width: '100%', height: '380px', marginBottom: '3rem', position: 'relative', border: '1px solid rgba(255,255,255,0.12)' }}>
+        <div className="st-ap-hero" style={{ width: '100%', height: '380px', marginBottom: '3rem', position: 'relative', border: '1px solid rgba(255,255,255,0.12)' }}>
           <div
             style={{
               position: 'absolute',
@@ -387,7 +471,7 @@ function AgencyProfile({ agency, onOpenSatelliteWiki, onOpenLaunchpads }) {
 
       {agency.brief && (
         <ProfileSection heading="OVERVIEW">
-          <p style={{ color: '#d4d4d8', lineHeight: '1.8', fontSize: '0.9rem', margin: 0 }}>{agency.brief}</p>
+          <p className="st-ap-text" style={{ color: '#d4d4d8', lineHeight: '1.8', fontSize: '0.9rem', margin: 0 }}>{agency.brief}</p>
           {agency.specialty && (
             <p style={{ color: '#d4d4d8', lineHeight: '1.8', fontSize: '0.9rem', margin: '1rem 0 0 0' }}>
               Its work centers on {agency.specialty.toLowerCase()}.
@@ -398,13 +482,13 @@ function AgencyProfile({ agency, onOpenSatelliteWiki, onOpenLaunchpads }) {
 
       {agency.history && (
         <ProfileSection heading="HISTORY">
-          <p style={{ color: '#d4d4d8', lineHeight: '1.8', fontSize: '0.9rem', margin: 0 }}>{agency.history}</p>
+          <p className="st-ap-text" style={{ color: '#d4d4d8', lineHeight: '1.8', fontSize: '0.9rem', margin: 0 }}>{agency.history}</p>
         </ProfileSection>
       )}
 
       {capabilities.length > 0 && (
         <ProfileSection heading="PROGRAMMES & CAPABILITIES">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.9rem' }}>
+          <div className="st-ap-caps" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.9rem' }}>
             {capabilities.map((item, i) => (
               <div key={i} style={{ border: '1px solid rgba(255,255,255,0.1)', padding: '1rem 1.2rem', color: '#d4d4d8', fontSize: '0.82rem', lineHeight: '1.5' }}>
                 {item}
@@ -415,42 +499,42 @@ function AgencyProfile({ agency, onOpenSatelliteWiki, onOpenLaunchpads }) {
       )}
 
       <ProfileSection heading="MAJOR MISSIONS">
-        <p style={{ color: '#71717a', fontSize: '0.82rem', lineHeight: '1.6', margin: '0 0 0.2rem 0' }}>
+        <p className="st-ap-note" style={{ color: '#71717a', fontSize: '0.82rem', lineHeight: '1.6', margin: '0 0 0.2rem 0' }}>
           Look up missions associated with {agency.name} in the existing Mission Database.
         </p>
         <DatabaseLinkButton label="VIEW MISSION DATABASE" onClick={() => goToDatabase('/mission-database')} />
       </ProfileSection>
 
       <ProfileSection heading="ROCKETS & LAUNCH SYSTEMS">
-        <p style={{ color: '#71717a', fontSize: '0.82rem', lineHeight: '1.6', margin: '0 0 0.2rem 0' }}>
+        <p className="st-ap-note" style={{ color: '#71717a', fontSize: '0.82rem', lineHeight: '1.6', margin: '0 0 0.2rem 0' }}>
           Look up launch vehicles associated with {agency.name} in the existing Rocket Database.
         </p>
         <DatabaseLinkButton label="VIEW ROCKET DATABASE" onClick={() => goToDatabase('/rocket-database')} />
       </ProfileSection>
 
       <ProfileSection heading="SPACECRAFT">
-        <p style={{ color: '#71717a', fontSize: '0.82rem', lineHeight: '1.6', margin: '0 0 0.2rem 0' }}>
+        <p className="st-ap-note" style={{ color: '#71717a', fontSize: '0.82rem', lineHeight: '1.6', margin: '0 0 0.2rem 0' }}>
           Look up spacecraft associated with {agency.name} in the existing Spacecraft Database.
         </p>
         <DatabaseLinkButton label="VIEW SPACECRAFT DATABASE" onClick={() => goToDatabase('/spacecraft-database')} />
       </ProfileSection>
 
       <ProfileSection heading="ASTRONAUTS">
-        <p style={{ color: '#71717a', fontSize: '0.82rem', lineHeight: '1.6', margin: '0 0 0.2rem 0' }}>
+        <p className="st-ap-note" style={{ color: '#71717a', fontSize: '0.82rem', lineHeight: '1.6', margin: '0 0 0.2rem 0' }}>
           Look up astronauts associated with {agency.name} in the existing Astronaut Database.
         </p>
         <DatabaseLinkButton label="VIEW ASTRONAUT DATABASE" onClick={() => goToDatabase('/astronaut-database')} />
       </ProfileSection>
 
       <ProfileSection heading="SATELLITES">
-        <p style={{ color: '#71717a', fontSize: '0.82rem', lineHeight: '1.6', margin: '0 0 0.2rem 0' }}>
+        <p className="st-ap-note" style={{ color: '#71717a', fontSize: '0.82rem', lineHeight: '1.6', margin: '0 0 0.2rem 0' }}>
           Search the existing Satellite Database for objects associated with {agency.name}.
         </p>
         <DatabaseLinkButton label="VIEW SATELLITE DATABASE" onClick={() => onOpenSatelliteWiki && onOpenSatelliteWiki(agency.name)} />
       </ProfileSection>
 
       <ProfileSection heading="LAUNCH FACILITIES">
-        <p style={{ color: '#71717a', fontSize: '0.82rem', lineHeight: '1.6', margin: '0 0 0.2rem 0' }}>
+        <p className="st-ap-note" style={{ color: '#71717a', fontSize: '0.82rem', lineHeight: '1.6', margin: '0 0 0.2rem 0' }}>
           View launch facilities operated by or associated with {agency.name} in the existing Launchpad directory.
         </p>
         <DatabaseLinkButton label="VIEW LAUNCH PADS" onClick={() => onOpenLaunchpads && onOpenLaunchpads(agency.name)} />
