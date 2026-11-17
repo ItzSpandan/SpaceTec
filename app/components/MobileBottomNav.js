@@ -48,6 +48,12 @@ const IconTracking = () => (
 const IconSatellite = () => (
   <svg {...iconProps}><rect x="9.5" y="9.5" width="5" height="5" rx="1" transform="rotate(45 12 12)" /><path d="M4 8l4 4M16 12l4 4M5 3l4 4M15 17l4 4" /><path d="M3.5 19.5c2.2.3 4-.4 5.5-2" /></svg>
 );
+const IconUpcoming = () => (
+  <svg {...iconProps}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+);
+const IconPast = () => (
+  <svg {...iconProps}><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" /><path d="M12 8v4l2.5 1.5" /></svg>
+);
 const IconIss = () => (
   <svg {...iconProps}><path d="M12 7v10M3 9h6v6H3zM15 9h6v6h-6z" /><circle cx="12" cy="12" r="2" /></svg>
 );
@@ -66,12 +72,18 @@ export default function MobileBottomNav({
   onSatelliteTracker,
   onIssTracker,
   onLaunches,
+  onUpcomingLaunches,
+  onPastLaunches,
   onHome,
 }) {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState('home');
   const [trackingOpen, setTrackingOpen] = useState(false);
+  const [launchesOpen, setLaunchesOpen] = useState(false);
+  // which launch list is in view, so the submenu can mark it
+  const [launchesSection, setLaunchesSection] = useState('upcoming');
   const trackingBtnRef = useRef(null);
+  const launchesBtnRef = useRef(null);
   const navRef = useRef(null);
   const btnRefs = useRef({});
   // Measured geometry of the highlighted tab (px, relative to the bar), so the
@@ -85,6 +97,8 @@ export default function MobileBottomNav({
         entries.forEach((entry) => {
           if (entry.isIntersecting && entry.target.id in SECTION_TO_TAB) {
             setActiveTab(SECTION_TO_TAB[entry.target.id]);
+            if (entry.target.id === 'launches') setLaunchesSection('upcoming');
+            if (entry.target.id === 'past-launches') setLaunchesSection('past');
           }
         });
       },
@@ -98,18 +112,20 @@ export default function MobileBottomNav({
     return () => observer.disconnect();
   }, [isMobile]);
 
-  // Escape closes the Tracking popup.
+  // Escape closes whichever popup (Tracking / Launches) is open.
   useEffect(() => {
-    if (!trackingOpen) return undefined;
+    if (!trackingOpen && !launchesOpen) return undefined;
     const onKey = (e) => {
       if (e.key === 'Escape') {
+        const ref = trackingOpen ? trackingBtnRef : launchesBtnRef;
         setTrackingOpen(false);
-        trackingBtnRef.current?.focus();
+        setLaunchesOpen(false);
+        ref.current?.focus();
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [trackingOpen]);
+  }, [trackingOpen, launchesOpen]);
 
   const measure = useCallback((tabId) => {
     const el = btnRefs.current[tabId];
@@ -127,7 +143,7 @@ export default function MobileBottomNav({
     });
   }, []);
 
-  const highlightedTab = trackingOpen ? 'tracking' : activeTab;
+  const highlightedTab = trackingOpen ? 'tracking' : launchesOpen ? 'launches' : activeTab;
   useLayoutEffect(() => {
     if (!isMobile || !highlightedTab) return undefined;
     measure(highlightedTab);
@@ -148,6 +164,7 @@ export default function MobileBottomNav({
 
   const choose = (fn) => () => {
     setTrackingOpen(false);
+    setLaunchesOpen(false);
     if (fn) fn();
   };
 
@@ -155,23 +172,23 @@ export default function MobileBottomNav({
     agencies: { label: 'Agencies', Icon: IconAgencies, onClick: choose(onAgencies) },
     launchpad: { label: 'Launchpad', Icon: IconLaunchpad, onClick: choose(onLaunchpad) },
     home: { label: 'Home', Icon: IconHome, onClick: choose(goHome) },
-    tracking: { label: 'Tracking', Icon: IconTracking, onClick: () => setTrackingOpen((o) => !o) },
-    launches: { label: 'Launches', Icon: IconLaunches, onClick: choose(onLaunches) },
+    tracking: { label: 'Tracking', Icon: IconTracking, onClick: () => { setLaunchesOpen(false); setTrackingOpen((o) => !o); } },
+    launches: { label: 'Launches', Icon: IconLaunches, onClick: () => { setTrackingOpen(false); setLaunchesOpen((o) => !o); } },
   };
 
   // The highlight follows the open Tracking popup, otherwise the section in view.
-  const highlighted = trackingOpen ? 'tracking' : activeTab;
+  const highlighted = trackingOpen ? 'tracking' : launchesOpen ? 'launches' : activeTab;
   const highlightIndex = TAB_ORDER.indexOf(highlighted);
 
   return (
     <>
-      {trackingOpen && (
+      {(trackingOpen || launchesOpen) && (
         <button
           type="button"
           className="st-nav-scrim"
-          aria-label="Close tracking menu"
+          aria-label={trackingOpen ? 'Close tracking menu' : 'Close launches menu'}
           tabIndex={-1}
-          onClick={() => setTrackingOpen(false)}
+          onClick={() => { setTrackingOpen(false); setLaunchesOpen(false); }}
         />
       )}
       <nav className="st-bottom-nav" aria-label="Primary" ref={navRef}>
@@ -184,6 +201,29 @@ export default function MobileBottomNav({
             <button type="button" role="menuitem" onClick={choose(onIssTracker)}>
               <IconIss />
               <span>ISS Tracker</span>
+            </button>
+          </div>
+        )}
+
+        {launchesOpen && (
+          <div className="st-track-pop" role="menu" aria-label="Launches">
+            <button
+              type="button"
+              role="menuitem"
+              data-current={launchesSection === 'upcoming' && activeTab === 'launches' ? 'true' : undefined}
+              onClick={choose(onUpcomingLaunches || onLaunches)}
+            >
+              <IconUpcoming />
+              <span>Upcoming</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              data-current={launchesSection === 'past' && activeTab === 'launches' ? 'true' : undefined}
+              onClick={choose(onPastLaunches || onLaunches)}
+            >
+              <IconPast />
+              <span>Past</span>
             </button>
           </div>
         )}
@@ -209,11 +249,12 @@ export default function MobileBottomNav({
               ref={(el) => {
                 btnRefs.current[id] = el;
                 if (id === 'tracking') trackingBtnRef.current = el;
+                if (id === 'launches') launchesBtnRef.current = el;
               }}
               onClick={onClick}
-              aria-current={isActive && id !== 'tracking' ? 'page' : undefined}
-              aria-expanded={id === 'tracking' ? trackingOpen : undefined}
-              aria-haspopup={id === 'tracking' ? 'menu' : undefined}
+              aria-current={isActive && id !== 'tracking' && !(id === 'launches' && launchesOpen) ? 'page' : undefined}
+              aria-expanded={id === 'tracking' ? trackingOpen : id === 'launches' ? launchesOpen : undefined}
+              aria-haspopup={id === 'tracking' || id === 'launches' ? 'menu' : undefined}
               data-active={isActive ? 'true' : undefined}
             >
               <Icon />
