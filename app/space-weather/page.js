@@ -250,9 +250,9 @@ export default function SpaceWeatherPage() {
               animate={{ scale: 1, letterSpacing: '0.22em' }}
             >
               <h1 style={{ fontSize: 'calc(3.5rem + 4vw)',
-                  margin: 0, letterSpacing: 'inherit' }} className="spacetec-wordmark">SPACETEC</h1>
+                  margin: 0, letterSpacing: 'inherit' }} className="spacetec-wordmark st-xt-mark">SPACETEC</h1>
             </motion.div>
-            <motion.p
+            <motion.p className="st-xt-sub"
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
