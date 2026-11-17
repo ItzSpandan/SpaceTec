@@ -266,6 +266,13 @@
     background: rgba(255, 255, 255, 0.12);
     outline: none;
   }
+  /* Launches submenu reuses .st-track-pop; mark the list currently in view */
+  .st-track-pop button[data-current='true'] {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .st-track-pop {
+    max-width: calc(100vw - 24px);
+  }
   .st-track-pop svg {
     width: 20px;
     height: 20px;
@@ -882,4 +889,428 @@
   .st-track-pop {
     animation: none;
   }
-     }
+}
+
+/* ==========================================================================
+   Full-screen SPACETEC transition / loading screens — phone sizing
+   --------------------------------------------------------------------------
+   Every transition screen (Explore More pages, ISS Tracker, Satellite Wiki,
+   return-to-main, databases, page intros) renders a big centred wordmark
+   (.st-xt-mark, 8 letters at calc(3.5rem + 4vw) ≈ 85px on a phone — wider
+   than the screen) with a letter-spaced subtitle (.st-xt-sub). These rules
+   only re-size them; animations, layoutIds (wordmark -> header docking) and
+   desktop are untouched. Only the wordmark/subtitle and the wordmark's DIRECT
+   parent are styled, never the full-screen overlay or any page container.
+   ========================================================================== */
+@media (max-width: 767px) {
+  div:has(> .st-xt-mark),
+  div:has(> .as-intro-title),
+  div:has(> .fb-intro-title),
+  div:has(> .help-intro-title) {
+    box-sizing: border-box;
+    max-width: 100vw;
+    min-width: 0;
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  }
+  /* the motion wrapper (iss/weather/news/...) sits between the centre block and the h1 */
+  div:has(> div > .st-xt-mark) {
+    box-sizing: border-box;
+    max-width: 100vw;
+    min-width: 0;
+  }
+
+  /* 8 wide Orbitron letters + 0.22em tracking must fit 288px (320px phone minus padding) */
+  .st-xt-mark,
+  h1.as-intro-title,
+  h1.fb-intro-title,
+  h1.help-intro-title {
+    font-size: clamp(1.5rem, 7.6vw, 2.6rem) !important;
+    line-height: 1.1 !important;
+    max-width: 100%;
+    white-space: nowrap;
+    text-align: center;
+  }
+  /* wordmarks that animate their spacing through an inherited value keep it;
+     the others get calmer tracking on phones */
+  .st-xt-mark:not([style*="letter-spacing"]) {
+    letter-spacing: 0.14em !important;
+  }
+
+  /* subtitle / loading message: wraps naturally, calmer tracking, never cropped */
+  .st-xt-sub,
+  .as-intro-tagline,
+  .fb-intro-tagline,
+  .help-intro-tagline {
+    box-sizing: border-box;
+    max-width: min(100%, 22rem) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    margin-top: 1.1rem !important;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    font-size: clamp(0.6rem, 2.8vw, 0.75rem) !important;
+    letter-spacing: 0.18em !important;
+    line-height: 1.7 !important;
+    text-align: center !important;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+  }
+}
+
+/* ==========================================================================
+   Explore More Agencies + Explore More Launchpads (phone)
+   --------------------------------------------------------------------------
+   Directory cards reuse .stl-xcard / .stl-xcard-top / .stl-xcard-media /
+   .stl-row-main / .stl-kicker / .stl-row-name / .stl-xfacts / .stl-xstatus
+   from the Explore More Launches cards above; only small variants are added.
+   The expanded agency profile (.st-ap*) and expanded launchpad (.st-pd*) use
+   the same card surface as the expanded launch detail (.st-lm-card).
+   ========================================================================== */
+@media (max-width: 767px) {
+  /* ---------- shared card variants ---------- */
+  .stl-xcard--agency .stl-row-name,
+  .stl-xcard--pad .stl-row-name {
+    overflow-wrap: anywhere;
+  }
+  /* agency directory card: logo tile + large name only */
+  .stl-xcard--agency {
+    gap: 0;
+    padding: 0.8rem 1rem 0.8rem 0.8rem;
+  }
+  .stl-xcard--agency .stl-xcard-top {
+    min-height: 72px;
+  }
+  .stl-xcard--agency .stl-xname {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+  }
+  .stl-logo-tile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 72px;
+    width: 72px;
+    height: 72px;
+    box-sizing: border-box;
+    padding: 0.6rem;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .stl-logo-tile:empty {
+    display: none; /* no logo file / failed to load: no empty box */
+  }
+  .stl-logo {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: brightness(0) invert(1); /* official artwork rendered white, shape untouched */
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+  .stl-xtag {
+    display: block;
+    margin-top: 0.1rem;
+    font-size: 0.68rem;
+    line-height: 1.35;
+    color: #a1a1aa;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
+
+  /* ---------- Launchpad directory frame (the page reuses .st-xp) ---------- */
+  .st-pp-tools {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+    margin-bottom: 1rem !important;
+  }
+  .st-pp-count {
+    font-size: 0.62rem !important;
+    letter-spacing: 1.6px !important;
+  }
+  .st-pp-tools .st-xp-filters {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+  .st-pp-tools input.st-xp-select {
+    width: 100% !important;
+  }
+
+  /* ---------- Agency directory frame ---------- */
+  .st-ag {
+    overscroll-behavior: contain;
+  }
+  @supports (height: 100dvh) {
+    .st-ag {
+      height: 100dvh !important;
+    }
+  }
+  .st-ag-bar-in {
+    padding-top: calc(0.6rem + env(safe-area-inset-top, 0px)) !important;
+    padding-bottom: 0.6rem !important;
+    padding-left: max(1rem, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(1rem, env(safe-area-inset-right, 0px)) !important;
+    gap: 0.75rem !important;
+  }
+  .st-ag-back {
+    min-height: 44px;
+    padding: 0 0.9rem !important;
+    font-size: 0.64rem !important;
+    letter-spacing: 1.5px !important;
+    border-radius: 12px;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .st-ag-body {
+    padding-top: 1.25rem !important;
+    padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px)) !important;
+    padding-left: max(1rem, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(1rem, env(safe-area-inset-right, 0px)) !important;
+  }
+  .st-ag-head {
+    padding-bottom: 1.1rem !important;
+    margin-bottom: 1.1rem !important;
+  }
+  .st-ag-eyebrow {
+    font-size: 0.62rem !important;
+    letter-spacing: 2.5px !important;
+    line-height: 1.5;
+  }
+  .st-ag-title {
+    font-size: clamp(1.25rem, 6vw, 1.6rem) !important;
+    line-height: 1.25;
+    letter-spacing: 0.04em;
+    overflow-wrap: anywhere;
+  }
+
+  /* ---------- Expanded agency profile ---------- */
+  .st-ap {
+    min-width: 0;
+  }
+  .st-ap-head {
+    flex-wrap: nowrap !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+    padding-bottom: 1rem !important;
+    margin-bottom: 1rem !important;
+  }
+  .st-ap-head > div:first-child {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .st-ap-eyebrow {
+    font-size: 0.6rem !important;
+    letter-spacing: 2.5px !important;
+    margin-bottom: 0.45rem !important;
+  }
+  .st-ap-name {
+    font-size: clamp(1.2rem, 6vw, 1.55rem) !important;
+    letter-spacing: 0.04em !important;
+    line-height: 1.25 !important;
+    overflow-wrap: anywhere;
+  }
+  .st-ap-tagline {
+    font-size: 0.66rem !important;
+    letter-spacing: 1.4px !important;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+  .st-ap-hero {
+    height: auto !important;
+    aspect-ratio: 16 / 9;
+    max-height: 210px;
+    margin-bottom: 1rem !important;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .st-ap-sec {
+    box-sizing: border-box;
+    min-width: 0;
+    margin-bottom: 0.85rem !important;
+    padding: 1rem;
+    border-radius: 16px;
+    background: rgba(6, 6, 6, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .st-ap-sec-head {
+    gap: 0.75rem !important;
+    margin-bottom: 0.7rem !important;
+  }
+  .st-ap-sec-head h3 {
+    font-size: 0.64rem !important;
+    letter-spacing: 2.2px !important;
+    white-space: normal !important;
+    line-height: 1.4;
+  }
+  .st-ap-row {
+    gap: 0.75rem !important;
+    padding: 0.6rem 0 !important;
+    align-items: baseline;
+  }
+  .st-ap-row:last-child {
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+  }
+  .st-ap-row > span:first-child {
+    flex: none;
+    font-size: 0.58rem !important;
+    letter-spacing: 1.6px !important;
+  }
+  .st-ap-row > span:last-child {
+    min-width: 0;
+    font-size: 0.78rem !important;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+  .st-ap-text {
+    font-size: 0.84rem !important;
+    line-height: 1.65 !important;
+    overflow-wrap: anywhere;
+  }
+  .st-ap-caps {
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)) !important;
+    gap: 0.5rem !important;
+  }
+  .st-ap-caps > div {
+    padding: 0.65rem 0.8rem !important;
+    border-radius: 12px;
+    font-size: 0.76rem !important;
+    line-height: 1.4 !important;
+    overflow-wrap: anywhere;
+  }
+  .st-ap-note {
+    font-size: 0.78rem !important;
+    line-height: 1.55 !important;
+    overflow-wrap: anywhere;
+  }
+  .st-ap-link {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 44px;
+    margin-top: 0.75rem !important;
+    padding: 0.6rem 0.9rem !important;
+    border-radius: 12px;
+    font-size: 0.64rem !important;
+    letter-spacing: 1.5px !important;
+    line-height: 1.4;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ---------- Expanded launchpad: true full-screen ----------
+     The overlay (.st-pd) becomes the full viewport and the card (.st-pd-card)
+     fills it and scrolls internally; the header stays pinned so the close
+     button is always reachable. Desktop keeps its centred panel. */
+  .st-pd {
+    padding: 0 !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    background: #000000 !important;
+    overscroll-behavior: contain;
+  }
+  @supports (height: 100dvh) {
+    .st-pd {
+      height: 100dvh;
+    }
+  }
+  .st-pd-card {
+    box-sizing: border-box;
+    width: 100% !important;
+    max-width: none !important;
+    height: 100% !important;
+    max-height: none !important;
+    padding: 0 0 calc(1.5rem + env(safe-area-inset-bottom, 0px)) !important;
+    border: none !important;
+    border-radius: 0 !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .st-pd-head {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    align-items: center !important;
+    padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
+    padding-bottom: 0.75rem;
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+    background: rgba(5, 5, 5, 0.96);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  .st-pd-id {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .st-pd-eyebrow {
+    display: block;
+    font-size: 0.6rem !important;
+    letter-spacing: 2px !important;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+  .st-pd-title {
+    margin-top: 0.3rem !important;
+    font-size: clamp(1.1rem, 5.4vw, 1.45rem) !important;
+    letter-spacing: 0.03em !important;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+  .st-pd-close {
+    flex: none;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 0.9rem !important;
+    border-radius: 12px;
+    font-size: 0.64rem !important;
+    letter-spacing: 1.5px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .st-pd-body {
+    margin-top: 0 !important;
+    gap: 0.8rem !important;
+    padding: 1rem max(1rem, env(safe-area-inset-right, 0px)) 0 max(1rem, env(safe-area-inset-left, 0px));
+  }
+  .st-pd-sec {
+    box-sizing: border-box;
+    min-width: 0;
+    padding: 1rem;
+    border-radius: 16px;
+    background: rgba(6, 6, 6, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .st-pd-sec > p:first-child {
+    font-size: 0.58rem !important;
+    letter-spacing: 2px !important;
+  }
+  .st-pd-sec > p:not(:first-child) {
+    font-size: 0.84rem;
+    line-height: 1.65 !important;
+    overflow-wrap: anywhere;
+  }
+  .st-pd-wx {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.6rem !important;
+  }
+  .st-pd-wx-cell {
+    min-width: 0;
+    padding: 0.7rem 0.75rem !important;
+    border-radius: 12px;
+  }
+  .st-pd-wx-cell p {
+    font-size: 0.9rem !important;
+    overflow-wrap: anywhere;
+  }
+}
