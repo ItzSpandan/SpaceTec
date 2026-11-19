@@ -44,7 +44,28 @@ const CATEGORIES = {
   station: { label: 'Stations', color: '#ffffff', size: 0.012, shape: 'ico' },
   other: { label: 'Other', color: '#b9c2d0', size: 0.0042, shape: 'octa' },
 };
-const CAT_KEYS = Object.keys(CATEGORIES);
+
+// Render kinds: one InstancedMesh each. `category` (orbit class) stays in the data API;
+// `kind` is an optional hint, otherwise it is derived from category / name (display only).
+const KINDS = {
+  comms: { label: 'Communications', color: '#ffcf70', size: 0.0105 },
+  starlink: { label: 'Broadband constellation', color: '#cfe6ff', size: 0.0075 },
+  nav: { label: 'Navigation', color: '#9fe3b0', size: 0.0085 },
+  weather: { label: 'Weather & Earth observation', color: '#8fc5ff', size: 0.0085 },
+  cubesat: { label: 'CubeSat', color: '#d9a8ff', size: 0.0045 },
+  station: { label: 'Space station', color: '#ffffff', size: 0.016 },
+  generic: { label: 'Other', color: '#b9c2d0', size: 0.0055 },
+};
+const KIND_KEYS = Object.keys(KINDS);
+
+// Texture sets per quality tier (files live in /public/globe-lab/earth, see README there).
+const TIER_SPECS = {
+  low: { day: '2k', night: '2k', normal: '2k', spec: '1k', clouds: '1k' },
+  medium: { day: '4k', night: '2k', normal: '4k', spec: '2k', clouds: '2k' },
+  ultra: { day: '8k', night: '4k', normal: '4k', spec: '2k', clouds: '4k' },
+};
+const TIER_ORDER = ['ultra', 'medium', 'low'];
+const TIER_MIN_TEXTURE = { ultra: 8192, medium: 4096, low: 0 };
 
 const INITIAL_VIEW = { lat: 18, lng: -35, distance: 3.6 };
 
@@ -93,6 +114,190 @@ function sunDirection(date, out) {
   const decl = -23.44 * Math.cos(((2 * Math.PI) / 365) * (doy + 10));
   const hours = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
   return llToVec(decl, -(hours - 12) * 15, 1, out);
+}
+
+// ---------------------------------------------------------------------------
+// Satellite kinds and lightweight category-based models
+// Axes of every model: +X along-track, +Y solar-array axis (orbit normal), +Z away from Earth.
+// These are REPRESENTATIVE silhouettes per category, not the real spacecraft.
+// ---------------------------------------------------------------------------
+function resolveKind(sat) {
+  if (sat && sat.kind && KINDS[sat.kind]) return sat.kind;
+  const name = String((sat && sat.name) || '').toUpperCase();
+  if ((sat && sat.category === 'station') || /\b(ISS|ZARYA|TIANGONG|CSS)\b/.test(name)) return 'station';
+  if (name.includes('STARLINK')) return 'starlink';
+  if (/NAVSTAR|\bGPS\b|GALILEO|GLONASS|BEIDOU|QZS/.test(name)) return 'nav';
+  if (/NOAA|GOES|METEOR|METOP|JPSS|HIMAWARI|LANDSAT|SENTINEL|FENGYUN/.test(name)) return 'weather';
+  if (/CUBESAT|\bCUBE\b|\bDOVE\b|FLOCK|LEMUR/.test(name)) return 'cubesat';
+  if (sat && sat.category === 'geo') return 'comms';
+  if (sat && sat.category === 'meo') return 'nav';
+  return 'generic';
+}
+
+const UNIT_BOX = new THREE.BoxGeometry(1, 1, 1);
+const UNIT_CYL = new THREE.CylinderGeometry(0.5, 0.5, 1, 14);
+const UNIT_CONE = new THREE.CylinderGeometry(0.5, 0.12, 1, 14);
+const UNIT_OCTA = new THREE.OctahedronGeometry(0.5);
+
+const GOLD = '#d9b04a';
+const SILVER = '#d5d9e0';
+const WHITE = '#f1f3f6';
+const GREY = '#8b929c';
+const PANEL = '#4a7bc4';
+const PANEL_LINE = '#10244d';
+
+// lvl 0 = core silhouette, 1 = antennas/instruments, 2 = fine detail (selected-model only)
+const box = (sx, sy, sz, x, y, z, color, lvl = 0) => ({ geo: UNIT_BOX, scale: [sx, sy, sz], pos: [x, y, z], color, lvl });
+const cyl = (r, len, axis, x, y, z, color, lvl = 0, cone = false) => ({
+  geo: cone ? UNIT_CONE : UNIT_CYL,
+  scale: [r * 2, len, r * 2],
+  rot: axis === 'x' ? [0, 0, Math.PI / 2] : axis === 'z' ? [Math.PI / 2, 0, 0] : [0, 0, 0],
+  pos: [x, y, z],
+  color,
+  lvl,
+});
+function panel(cx, cy, cz, sx, sy, sz, cells = true) {
+  const out = [box(sx, sy, sz, cx, cy, cz, PANEL)];
+  if (cells) {
+    const n = Math.max(3, Math.round(sy / 0.09));
+    for (let i = 1; i <= n; i += 1) {
+      out.push(box(sx * 1.02, 0.006, sz * 2.4, cx, cy - sy / 2 + (i * sy) / (n + 1), cz, PANEL_LINE, 2));
+    }
+  }
+  return out;
+}
+
+function kindParts(kind) {
+  switch (kind) {
+    case 'comms':
+      return [
+        box(0.3, 0.3, 0.36, 0, 0, 0, GOLD),
+        ...panel(0, 0.44, 0, 0.34, 0.52, 0.02),
+        ...panel(0, -0.44, 0, 0.34, 0.52, 0.02),
+        cyl(0.13, 0.05, 'z', 0, 0, -0.21, WHITE, 1, true),
+        box(0.04, 0.04, 0.18, 0, 0, 0.27, GREY, 1),
+        cyl(0.05, 0.05, 'z', 0.1, 0.08, -0.2, GREY, 2),
+        box(0.12, 0.12, 0.02, 0, 0, 0.19, SILVER, 2),
+      ];
+    case 'starlink':
+      return [
+        box(0.46, 0.26, 0.035, 0, 0, 0, SILVER),
+        ...panel(0, 0.69, 0, 0.46, 1.1, 0.012),
+        box(0.1, 0.1, 0.03, 0, 0, -0.03, GREY, 1),
+        box(0.08, 0.04, 0.02, -0.15, -0.1, 0.03, GREY, 2),
+      ];
+    case 'nav':
+      return [
+        box(0.26, 0.26, 0.3, 0, 0, 0, '#cdb779'),
+        ...panel(0, 0.38, 0, 0.26, 0.46, 0.015),
+        ...panel(0, -0.38, 0, 0.26, 0.46, 0.015),
+        box(0.2, 0.2, 0.03, 0, 0, -0.17, WHITE, 1),
+        cyl(0.015, 0.14, 'z', 0, 0, 0.22, GREY, 1),
+        box(0.08, 0.08, 0.02, 0.1, 0.1, -0.2, GREY, 2),
+      ];
+    case 'weather':
+      return [
+        box(0.24, 0.24, 0.5, 0, 0, 0, SILVER),
+        ...panel(0, 0.5, 0, 0.3, 0.78, 0.015),
+        cyl(0.09, 0.22, 'z', 0, 0, -0.34, GREY, 1),
+        box(0.02, 0.02, 0.4, 0.2, 0, 0, GREY, 1),
+        cyl(0.05, 0.03, 'z', -0.1, 0, 0.27, WHITE, 2, true),
+      ];
+    case 'cubesat':
+      return [
+        box(0.1, 0.1, 0.3, 0, 0, 0, '#c9ccd2'),
+        ...panel(0, 0.16, 0, 0.1, 0.2, 0.01),
+        ...panel(0, -0.16, 0, 0.1, 0.2, 0.01),
+        box(0.02, 0.02, 0.12, 0.04, 0.04, 0.2, GREY, 1),
+      ];
+    case 'station':
+      return [
+        box(0.05, 1.1, 0.05, 0, 0, 0, SILVER),
+        box(0.5, 0.14, 0.012, 0, 0.58, 0, PANEL),
+        box(0.5, 0.14, 0.012, 0, 0.4, 0, PANEL),
+        box(0.5, 0.14, 0.012, 0, -0.58, 0, PANEL),
+        box(0.5, 0.14, 0.012, 0, -0.4, 0, PANEL),
+        cyl(0.05, 0.4, 'x', 0, 0, -0.06, WHITE, 0),
+        cyl(0.04, 0.22, 'y', 0, 0, -0.06, WHITE, 1),
+        box(0.015, 0.2, 0.2, 0, 0.22, 0.14, '#e8e8e8', 1),
+        box(0.015, 0.2, 0.2, 0, -0.22, 0.14, '#e8e8e8', 1),
+        cyl(0.03, 0.14, 'z', 0.14, 0, -0.12, WHITE, 2),
+        cyl(0.03, 0.14, 'z', -0.14, 0, -0.12, WHITE, 2),
+        box(0.03, 0.5, 0.03, 0, 0.8, 0, GREY, 2),
+        box(0.03, 0.5, 0.03, 0, -0.8, 0, GREY, 2),
+      ];
+    default:
+      return [{ geo: UNIT_OCTA, scale: [1, 1, 1], pos: [0, 0, 0], color: '#b9c2d0', lvl: 0 }];
+  }
+}
+
+function bakeParts(parts, factor) {
+  const pos = [];
+  const nor = [];
+  const col = [];
+  const m = new THREE.Matrix4();
+  const nm = new THREE.Matrix3();
+  const v = new THREE.Vector3();
+  const c = new THREE.Color();
+  const q = new THREE.Quaternion();
+  const e = new THREE.Euler();
+  const t = new THREE.Vector3();
+  const sc = new THREE.Vector3();
+  parts.forEach(p => {
+    const g = p.geo.index ? p.geo.toNonIndexed() : p.geo.clone();
+    t.set(...(p.pos || [0, 0, 0]));
+    sc.set(...(p.scale || [1, 1, 1]));
+    e.set(...(p.rot || [0, 0, 0]));
+    q.setFromEuler(e);
+    m.compose(t, q, sc);
+    nm.getNormalMatrix(m);
+    c.set(p.color);
+    const P = g.getAttribute('position');
+    const N = g.getAttribute('normal');
+    for (let i = 0; i < P.count; i += 1) {
+      v.fromBufferAttribute(P, i).applyMatrix4(m).multiplyScalar(factor);
+      pos.push(v.x, v.y, v.z);
+      v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize();
+      nor.push(v.x, v.y, v.z);
+      col.push(c.r, c.g, c.b);
+    }
+    g.dispose();
+  });
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  out.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return out;
+}
+
+const NORM_CACHE = new Map();
+function normFactor(kind) {
+  if (NORM_CACHE.has(kind)) return NORM_CACHE.get(kind);
+  const g = bakeParts(kindParts(kind).filter(p => p.lvl === 0), 1);
+  g.computeBoundingBox();
+  const size = g.boundingBox.getSize(new THREE.Vector3());
+  g.dispose();
+  const f = 1 / Math.max(size.x, size.y, size.z, 1e-6);
+  NORM_CACHE.set(kind, f);
+  return f;
+}
+
+function bakeKind(kind, level) {
+  return bakeParts(kindParts(kind).filter(p => p.lvl <= level), normFactor(kind));
+}
+
+function disposeObject(obj) {
+  obj.traverse(o => {
+    if (o.geometry) o.geometry.dispose();
+    const mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
+    mats.forEach(mm => {
+      Object.keys(mm).forEach(key => {
+        const val = mm[key];
+        if (val && val.isTexture) val.dispose();
+      });
+      mm.dispose();
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -214,10 +419,10 @@ function buildProceduralTextures(w, h, withClouds) {
 
       if (cloudImg) {
         const c = smoothstep(0.52, 0.72, fbm(px * 2.6 + 20, py * 2.6, pz * 2.6, 5));
-        cloudImg.data[o] = 255;
-        cloudImg.data[o + 1] = 255;
-        cloudImg.data[o + 2] = 255;
-        cloudImg.data[o + 3] = c * 215;
+        cloudImg.data[o] = c * 235;
+        cloudImg.data[o + 1] = c * 235;
+        cloudImg.data[o + 2] = c * 235;
+        cloudImg.data[o + 3] = 255;
       }
     }
   }
@@ -252,33 +457,59 @@ void main(){
 }`;
 
 const EARTH_FRAG = `
-uniform sampler2D dayMap; uniform sampler2D nightMap; uniform vec3 sunDir;
+uniform sampler2D dayMap; uniform sampler2D nightMap; uniform sampler2D normalMap;
+uniform sampler2D specMap; uniform sampler2D cloudMap;
+uniform vec3 sunDir; uniform float hasNormal; uniform float hasSpec; uniform float cloudShadow;
+uniform float cloudU; uniform float normalStrength;
 varying vec2 vUv; varying vec3 vN; varying vec3 vView;
 void main(){
-  vec3 n = normalize(vN); vec3 s = normalize(sunDir);
-  float l = dot(n, s);
-  float dayMix = smoothstep(-0.12, 0.18, l);
+  vec3 g = normalize(vN);
+  vec3 n = g;
+  if (hasNormal > 0.5) {
+    // Analytic east/north tangent frame: Earth is fixed, north = +Y, u increases eastward.
+    vec3 t = normalize(vec3(g.z, 0.0, -g.x) + vec3(1e-5, 0.0, 0.0));
+    vec3 b = cross(g, t);
+    vec3 m = texture2D(normalMap, vUv).xyz * 2.0 - 1.0;
+    m.xy *= normalStrength;
+    n = normalize(t * m.x + b * m.y + g * m.z);
+  }
+  vec3 s = normalize(sunDir);
+  vec3 v = normalize(vView);
+  float lg = dot(g, s);
+  float ln = dot(n, s);
+  float dayMix = smoothstep(-0.12, 0.18, lg);
   vec3 day = texture2D(dayMap, vUv).rgb;
   vec3 night = texture2D(nightMap, vUv).rgb;
-  vec3 col = mix(night * 1.1, day * (0.06 + 0.94 * max(l, 0.0)), dayMix);
-  float tw = smoothstep(-0.18, 0.0, l) * (1.0 - smoothstep(0.0, 0.22, l));
-  col += vec3(0.5, 0.22, 0.08) * tw * 0.12;
-  float ocean = clamp((day.b - day.r * 1.4) * 3.0, 0.0, 1.0);
-  vec3 hv = normalize(s + vView);
-  col += vec3(0.8, 0.9, 1.0) * pow(max(dot(n, hv), 0.0), 60.0) * ocean * step(0.0, l) * 0.45;
-  float fr = pow(1.0 - max(dot(n, vView), 0.0), 3.0);
-  col += vec3(0.18, 0.38, 0.8) * fr * (0.25 + 0.75 * dayMix) * 0.6;
+  float spec = hasSpec > 0.5 ? texture2D(specMap, vUv).r : clamp((day.b - day.r * 1.4) * 3.0, 0.0, 1.0);
+  float cs = 0.0;
+  if (cloudShadow > 0.5) cs = texture2D(cloudMap, vec2(vUv.x + cloudU, vUv.y)).r;
+  float diffuse = max(mix(lg, ln, 0.85), 0.0);
+  vec3 lit = day * (0.05 + 0.95 * diffuse) * (1.0 - cs * 0.4);
+  vec3 col = mix(night * 1.2 * (1.0 - cs * 0.5), lit, dayMix);
+  float tw = smoothstep(-0.18, 0.0, lg) * (1.0 - smoothstep(0.0, 0.22, lg));
+  col += vec3(0.5, 0.22, 0.08) * tw * 0.1;
+  vec3 hv = normalize(s + v);
+  float nh = max(dot(n, hv), 0.0);
+  float glint = (pow(nh, 80.0) * 0.55 + pow(nh, 14.0) * 0.07) * spec * step(0.0, lg) * (1.0 - cs);
+  col += vec3(1.0, 0.95, 0.85) * glint;
+  float fr = pow(1.0 - max(dot(g, v), 0.0), 3.0);
+  float dusk = (1.0 - smoothstep(0.0, 0.35, lg)) * smoothstep(-0.25, 0.05, lg);
+  vec3 scat = mix(vec3(0.15, 0.35, 0.85), vec3(0.9, 0.45, 0.2), dusk);
+  col += scat * fr * (0.15 + 0.85 * dayMix) * 0.6;
   gl_FragColor = vec4(col, 1.0);
 }`;
 
 const CLOUD_FRAG = `
-uniform sampler2D cloudMap; uniform vec3 sunDir;
+uniform sampler2D cloudMap; uniform vec3 sunDir; uniform float cloudU;
 varying vec2 vUv; varying vec3 vN; varying vec3 vView;
 void main(){
-  vec4 c = texture2D(cloudMap, vUv);
-  float l = dot(normalize(vN), normalize(sunDir));
-  float lit = 0.07 + 0.93 * smoothstep(-0.1, 0.3, l);
-  gl_FragColor = vec4(vec3(lit), c.a * 0.85);
+  float a = texture2D(cloudMap, vec2(vUv.x + cloudU, vUv.y)).r;
+  vec3 n = normalize(vN);
+  float l = dot(n, normalize(sunDir));
+  float lit = 0.05 + 0.95 * smoothstep(-0.1, 0.3, l);
+  float edge = pow(1.0 - max(dot(n, normalize(vView)), 0.0), 2.0);
+  vec3 tint = mix(vec3(1.0), vec3(1.0, 0.82, 0.7), (1.0 - smoothstep(0.0, 0.25, l)) * 0.6);
+  gl_FragColor = vec4(tint * lit, clamp(a * (0.9 + edge * 0.2), 0.0, 1.0));
 }`;
 
 const ATMO_VERT = `
@@ -296,7 +527,9 @@ void main(){
   float a = clamp(-dot(normalize(vN), vec3(0.0, 0.0, 1.0)), 0.0, 1.0);
   float i = pow(clamp(a / 0.34, 0.0, 1.0), 1.7);
   float sun = 0.3 + 0.7 * smoothstep(-0.35, 0.45, dot(vW, normalize(sunDir)));
-  gl_FragColor = vec4(vec3(0.24, 0.52, 1.0) * i * sun * 1.15, i * sun);
+  float twl = 1.0 - smoothstep(0.0, 0.22, abs(dot(vW, normalize(sunDir))));
+  vec3 base = mix(vec3(0.24, 0.52, 1.0), vec3(1.0, 0.5, 0.25), twl * 0.55);
+  gl_FragColor = vec4(base * i * sun * 1.15, i * sun);
 }`;
 
 // ---------------------------------------------------------------------------
@@ -307,8 +540,18 @@ class GlobeEngine {
     this.container = container;
     this.cb = opts.callbacks || {};
     this.textureUrls = opts.textureUrls || null;
+    this.assetBase = opts.assetBase || '/globe-lab';
+    this.tierRequest = opts.textureTier || 'auto';
+    this.modelUrls = opts.modelUrls || null;
+    this.normalStrength = Number.isFinite(opts.normalScale) ? opts.normalScale : 1;
+    this.cloudUniform = { value: 0 };
+    this.detail = null;
+    this.detailToken = 0;
+    this.detailCache = new Map();
+    this.assetInfo = null;
     this.lowTier = opts.quality === 'low' || (opts.quality !== 'high' && detectLowTier());
     this.maxDpr = this.lowTier ? 1.5 : 2;
+    this.detailEnabled = opts.detailedModels === true || (opts.detailedModels !== false && !this.lowTier);
     this.dpr = Math.min(window.devicePixelRatio || 1, this.maxDpr);
 
     this.disposed = false;
@@ -405,7 +648,7 @@ class GlobeEngine {
     this.canvas.addEventListener('pointercancel', this.onPointerCancel);
     document.addEventListener('visibilitychange', this.onVisibility);
 
-    sunDirection(new Date(), this.sun);
+    this.refreshSun();
     this.requestRun();
   }
 
@@ -468,26 +711,45 @@ class GlobeEngine {
     this.scene.add(this.atmosphere);
   }
 
+  refreshSun() {
+    sunDirection(new Date(), this.sun);
+    if (this.sunLight) this.sunLight.position.copy(this.sun).multiplyScalar(10);
+  }
+
   buildEarth(tex) {
     this.textures = tex;
-    const aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
-    [tex.day, tex.night, tex.clouds].forEach(t => {
+    const maps = ['day', 'night', 'normal', 'spec', 'clouds'].filter(n => tex[n]);
+    this.assetInfo = { source: tex.procedural ? 'procedural' : 'local', tier: tex.tier || null, maps };
+    const aniso = Math.min(this.lowTier ? 4 : 16, this.renderer.capabilities.getMaxAnisotropy());
+    const dummyTex = this.track(new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1));
+    dummyTex.needsUpdate = true;
+    ['day', 'night', 'normal', 'spec', 'clouds'].forEach(n => {
+      const t = tex[n];
       if (!t) return;
       t.anisotropy = aniso;
+      if (n === 'clouds') t.wrapS = THREE.RepeatWrapping;
       this.track(t);
+      // Upload now (behind the loading overlay) instead of hitching the first frame.
+      if (this.renderer.initTexture) this.renderer.initTexture(t);
     });
     const seg = this.lowTier ? 64 : 128;
     const geo = this.track(new THREE.SphereGeometry(1, seg, Math.floor(seg * 0.75)));
+    const useCloudShadow = tex.clouds && !this.lowTier ? 1 : 0;
+    this.earthUniforms = {
+      dayMap: { value: tex.day },
+      nightMap: { value: tex.night || dummyTex },
+      normalMap: { value: tex.normal || dummyTex },
+      specMap: { value: tex.spec || dummyTex },
+      cloudMap: { value: tex.clouds || dummyTex },
+      sunDir: { value: this.sun },
+      hasNormal: { value: tex.normal ? 1 : 0 },
+      hasSpec: { value: tex.spec ? 1 : 0 },
+      cloudShadow: { value: useCloudShadow },
+      cloudU: this.cloudUniform,
+      normalStrength: { value: this.normalStrength },
+    };
     const mat = this.track(
-      new THREE.ShaderMaterial({
-        vertexShader: SURFACE_VERT,
-        fragmentShader: EARTH_FRAG,
-        uniforms: {
-          dayMap: { value: tex.day },
-          nightMap: { value: tex.night },
-          sunDir: { value: this.sun },
-        },
-      })
+      new THREE.ShaderMaterial({ vertexShader: SURFACE_VERT, fragmentShader: EARTH_FRAG, uniforms: this.earthUniforms })
     );
     this.earth = new THREE.Mesh(geo, mat);
     this.scene.add(this.earth);
@@ -497,7 +759,7 @@ class GlobeEngine {
         new THREE.ShaderMaterial({
           vertexShader: SURFACE_VERT,
           fragmentShader: CLOUD_FRAG,
-          uniforms: { cloudMap: { value: tex.clouds }, sunDir: { value: this.sun } },
+          uniforms: { cloudMap: { value: tex.clouds }, sunDir: { value: this.sun }, cloudU: this.cloudUniform },
           transparent: true,
           depthWrite: false,
         })
@@ -509,18 +771,31 @@ class GlobeEngine {
     this.atmosphere.visible = true;
   }
 
+  setNormalScale(v) {
+    this.normalStrength = v;
+    if (this.earthUniforms) this.earthUniforms.normalStrength.value = v;
+  }
+
   buildSatelliteGroups() {
-    const shapes = {
-      octa: () => new THREE.OctahedronGeometry(1),
-      box: () => new THREE.BoxGeometry(1.3, 1.3, 1.3),
-      tetra: () => new THREE.TetrahedronGeometry(1.3),
-      ico: () => new THREE.IcosahedronGeometry(1, 0),
-    };
-    CAT_KEYS.forEach(k => {
-      const cfg = CATEGORIES[k];
-      const geometry = this.track(shapes[cfg.shape]());
-      const material = this.track(new THREE.MeshBasicMaterial({ color: cfg.color }));
-      this.groups[k] = { k, geometry, material, mesh: null, cap: 0, count: 0, pos: new Float32Array(0), sats: [] };
+    // Background fleet: one shared lit material, one baked geometry per kind, one InstancedMesh per kind.
+    const level = this.lowTier ? 0 : 1;
+    this.satMaterial = this.track(new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x1b2433 }));
+    this.ambient = new THREE.AmbientLight(0xffffff, 1.1);
+    this.sunLight = new THREE.DirectionalLight(0xffffff, 2.4);
+    this.scene.add(this.ambient, this.sunLight);
+    KIND_KEYS.forEach(k => {
+      const geometry = this.track(bakeKind(k, level));
+      this.groups[k] = {
+        k,
+        geometry,
+        mesh: null,
+        cap: 0,
+        count: 0,
+        pos: new Float32Array(0),
+        basis: new Float32Array(0),
+        has: new Uint8Array(0),
+        sats: [],
+      };
     });
   }
 
@@ -545,33 +820,62 @@ class GlobeEngine {
     this.pathLine = null;
   }
 
+  // ----- Earth assets -------------------------------------------------------
+  pickTier() {
+    const req = this.tierRequest;
+    if (req && req !== 'auto' && TIER_SPECS[req]) return req;
+    return this.lowTier ? 'low' : 'medium';
+  }
+
+  async loadEarthAssets() {
+    const base = `${this.assetBase.replace(/\/$/, '')}/earth`;
+    const explicit = this.textureUrls;
+    const maxTex = this.renderer.capabilities.maxTextureSize || 4096;
+    const optional = ['night', 'normal', 'spec', 'clouds'];
+
+    const attempt = async (urlOf, tier) => {
+      const day = await loadTexture(urlOf('day')); // required; throws if missing
+      const rest = await Promise.all(
+        optional.map(n => {
+          const u = urlOf(n);
+          return u ? loadTexture(u).catch(() => null) : Promise.resolve(null);
+        })
+      );
+      return { day, night: rest[0], normal: rest[1], spec: rest[2], clouds: rest[3], tier, procedural: false };
+    };
+
+    if (explicit && explicit.day) {
+      try {
+        return await attempt(n => explicit[n] || null, 'custom');
+      } catch (error) {
+        console.warn('[SpaceTecGlobeEngine] custom textureUrls failed, trying local tiers', error);
+      }
+    }
+    const req = this.pickTier();
+    const chain = TIER_ORDER.slice(TIER_ORDER.indexOf(req)).filter(t => maxTex >= TIER_MIN_TEXTURE[t]);
+    for (const tier of chain) {
+      const spec = TIER_SPECS[tier];
+      try {
+        return await attempt(n => `${base}/earth_${n}_${spec[n]}.jpg`, tier);
+      } catch (error) {
+        console.warn(`[SpaceTecGlobeEngine] Earth ${tier} textures not found in ${base}`);
+      }
+    }
+    return null;
+  }
+
   async init() {
     await new Promise(r => setTimeout(r, 30)); // let the loading state paint first
     let tex = null;
-    const urls = this.textureUrls;
-    if (urls && urls.day) {
-      try {
-        const [day, night, clouds] = await Promise.all([
-          loadTexture(urls.day),
-          urls.night ? loadTexture(urls.night) : Promise.resolve(null),
-          urls.clouds && !this.lowTier ? loadTexture(urls.clouds) : Promise.resolve(null),
-        ]);
-        if (!night) {
-          const c = document.createElement('canvas');
-          c.width = 2;
-          c.height = 2;
-          const ctx = c.getContext('2d');
-          ctx.fillStyle = '#02040a';
-          ctx.fillRect(0, 0, 2, 2);
-          tex = { day, night: new THREE.CanvasTexture(c), clouds };
-        } else {
-          tex = { day, night, clouds };
-        }
-      } catch (error) {
-        console.warn('[SpaceTecGlobeEngine] local textures failed, using procedural Earth', error);
-      }
+    try {
+      tex = await this.loadEarthAssets();
+    } catch (error) {
+      console.warn('[SpaceTecGlobeEngine] Earth asset loading failed', error);
     }
-    if (this.disposed) return;
+    if (this.disposed) {
+      if (tex) [tex.day, tex.night, tex.normal, tex.spec, tex.clouds].forEach(t => t && t.dispose());
+      return;
+    }
     if (!tex) {
       const w = this.lowTier ? 512 : 1024;
       tex = buildProceduralTextures(w, w / 2, !this.lowTier);
@@ -590,7 +894,7 @@ class GlobeEngine {
     for (let i = 0; same && i < src.length; i += 1) {
       const a = src[i];
       const b = this.order[i];
-      if (a.id !== b.id || a.category !== b.category) same = false;
+      if (a.id !== b.id || a.category !== b.category || a.kind !== b.kind) same = false;
     }
     if (!same) this.rebuildSlots(src);
     this.order = src;
@@ -599,25 +903,25 @@ class GlobeEngine {
 
   rebuildSlots(src) {
     const counts = {};
-    CAT_KEYS.forEach(k => {
+    KIND_KEYS.forEach(k => {
       counts[k] = 0;
     });
     const n = src.length;
     this.slotCat = new Uint8Array(n);
     this.slotIdx = new Uint32Array(n);
     this.idMap = new Map();
-    const catIndex = {};
-    CAT_KEYS.forEach((k, i) => {
-      catIndex[k] = i;
+    const kindIndex = {};
+    KIND_KEYS.forEach((k, i) => {
+      kindIndex[k] = i;
     });
     for (let i = 0; i < n; i += 1) {
-      const k = CATEGORIES[src[i].category] ? src[i].category : 'other';
-      this.slotCat[i] = catIndex[k];
+      const k = resolveKind(src[i]);
+      this.slotCat[i] = kindIndex[k];
       this.slotIdx[i] = counts[k];
       this.idMap.set(String(src[i].id), { k, idx: counts[k] });
       counts[k] += 1;
     }
-    CAT_KEYS.forEach(k => {
+    KIND_KEYS.forEach(k => {
       const g = this.groups[k];
       g.count = counts[k];
       g.sats = new Array(counts[k]);
@@ -627,20 +931,29 @@ class GlobeEngine {
           if (g.mesh.dispose) g.mesh.dispose();
         }
         g.cap = Math.max(64, Math.ceil(counts[k] * 1.25));
-        g.mesh = new THREE.InstancedMesh(g.geometry, g.material, g.cap);
+        g.mesh = new THREE.InstancedMesh(g.geometry, this.satMaterial, g.cap);
         g.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        g.mesh.frustumCulled = false;
+        g.mesh.frustumCulled = false; // one huge bounding sphere; per-instance culling is not available
         this.scene.add(g.mesh);
         g.pos = new Float32Array(g.cap * 3);
+        g.basis = new Float32Array(g.cap * 9);
+        g.has = new Uint8Array(g.cap);
+      } else {
+        g.has.fill(0); // slots were reassigned: previous positions no longer belong to the same satellite
       }
       if (g.mesh) g.mesh.count = counts[k];
     });
-    // Keep the selection if the same id still exists.
     if (this.selected) {
       const prev = this.selected.id;
       const hit = this.idMap.get(String(prev));
+      const kindChanged = hit && hit.k !== this.selected.k;
       this.selected = hit ? { ...hit, id: prev } : null;
-      if (!hit) this.ring.visible = false;
+      if (!hit) {
+        this.ring.visible = false;
+        this.hideDetail();
+      } else if (kindChanged) {
+        this.showDetail(hit.k);
+      }
     }
   }
 
@@ -648,50 +961,202 @@ class GlobeEngine {
     const src = this.order;
     const v = this._v;
     const scales = {};
-    CAT_KEYS.forEach(k => {
-      scales[k] = CATEGORIES[k].size * this.markerScale;
+    KIND_KEYS.forEach(k => {
+      scales[k] = KINDS[k].size * this.markerScale;
     });
     for (let i = 0; i < src.length; i += 1) {
       const sat = src[i];
-      const k = CAT_KEYS[this.slotCat[i]];
+      const k = KIND_KEYS[this.slotCat[i]];
       const g = this.groups[k];
       const idx = this.slotIdx[i];
       const r = 1 + Math.max(0, Number(sat.altitudeKm) || 0) / EARTH_KM;
       llToVec(Number(sat.lat) || 0, Number(sat.lng) || 0, r, v);
+      const p = idx * 3;
+      const b = idx * 9;
+      const zl = v.length() || 1;
+      const zx = v.x / zl;
+      const zy = v.y / zl;
+      const zz = v.z / zl;
+
+      // Along-track direction from the movement since the previous update (tangential part only).
+      let dx = 0;
+      let dy = 0;
+      let dz = 0;
+      let ok = false;
+      if (g.has[idx]) {
+        dx = v.x - g.pos[p];
+        dy = v.y - g.pos[p + 1];
+        dz = v.z - g.pos[p + 2];
+        const dn = dx * zx + dy * zy + dz * zz;
+        dx -= dn * zx;
+        dy -= dn * zy;
+        dz -= dn * zz;
+        const dl = Math.hypot(dx, dy, dz);
+        if (dl > 1e-7) {
+          dx /= dl;
+          dy /= dl;
+          dz /= dl;
+          ok = true;
+        }
+      }
+      if (!ok && g.has[idx]) {
+        // Not moving enough to tell: keep the previous heading, re-orthogonalised to the new radial.
+        dx = g.basis[b];
+        dy = g.basis[b + 1];
+        dz = g.basis[b + 2];
+        const dn = dx * zx + dy * zy + dz * zz;
+        dx -= dn * zx;
+        dy -= dn * zy;
+        dz -= dn * zz;
+        const dl = Math.hypot(dx, dy, dz);
+        if (dl > 1e-6) {
+          dx /= dl;
+          dy /= dl;
+          dz /= dl;
+          ok = true;
+        }
+      }
+      if (!ok) {
+        // First sample: face east until real motion is seen.
+        dx = zz;
+        dy = 0;
+        dz = -zx;
+        const dl = Math.hypot(dx, dz);
+        if (dl < 1e-6) {
+          dx = 1;
+          dz = 0;
+        } else {
+          dx /= dl;
+          dz /= dl;
+        }
+      }
+      const yx = zy * dz - zz * dy;
+      const yy = zz * dx - zx * dz;
+      const yz = zx * dy - zy * dx;
+
+      g.basis[b] = dx; g.basis[b + 1] = dy; g.basis[b + 2] = dz;
+      g.basis[b + 3] = yx; g.basis[b + 4] = yy; g.basis[b + 5] = yz;
+      g.basis[b + 6] = zx; g.basis[b + 7] = zy; g.basis[b + 8] = zz;
+      g.pos[p] = v.x;
+      g.pos[p + 1] = v.y;
+      g.pos[p + 2] = v.z;
+      g.has[idx] = 1;
       g.sats[idx] = sat;
-      g.pos[idx * 3] = v.x;
-      g.pos[idx * 3 + 1] = v.y;
-      g.pos[idx * 3 + 2] = v.z;
+
       const a = g.mesh.instanceMatrix.array;
       const o = idx * 16;
       const s = scales[k];
-      a[o] = s; a[o + 1] = 0; a[o + 2] = 0; a[o + 3] = 0;
-      a[o + 4] = 0; a[o + 5] = s; a[o + 6] = 0; a[o + 7] = 0;
-      a[o + 8] = 0; a[o + 9] = 0; a[o + 10] = s; a[o + 11] = 0;
+      a[o] = dx * s; a[o + 1] = dy * s; a[o + 2] = dz * s; a[o + 3] = 0;
+      a[o + 4] = yx * s; a[o + 5] = yy * s; a[o + 6] = yz * s; a[o + 7] = 0;
+      a[o + 8] = zx * s; a[o + 9] = zy * s; a[o + 10] = zz * s; a[o + 11] = 0;
       a[o + 12] = v.x; a[o + 13] = v.y; a[o + 14] = v.z; a[o + 15] = 1;
     }
     this.appliedScale = this.markerScale;
-    CAT_KEYS.forEach(k => {
+    KIND_KEYS.forEach(k => {
       const g = this.groups[k];
       if (g.mesh) g.mesh.instanceMatrix.needsUpdate = true;
     });
   }
 
   rescaleMarkers() {
-    CAT_KEYS.forEach(k => {
+    KIND_KEYS.forEach(k => {
       const g = this.groups[k];
       if (!g.mesh) return;
-      const s = CATEGORIES[k].size * this.markerScale;
+      const s = KINDS[k].size * this.markerScale;
       const a = g.mesh.instanceMatrix.array;
+      const bs = g.basis;
       for (let i = 0; i < g.count; i += 1) {
         const o = i * 16;
-        a[o] = s;
-        a[o + 5] = s;
-        a[o + 10] = s;
+        const b = i * 9;
+        a[o] = bs[b] * s; a[o + 1] = bs[b + 1] * s; a[o + 2] = bs[b + 2] * s;
+        a[o + 4] = bs[b + 3] * s; a[o + 5] = bs[b + 4] * s; a[o + 6] = bs[b + 5] * s;
+        a[o + 8] = bs[b + 6] * s; a[o + 9] = bs[b + 7] * s; a[o + 10] = bs[b + 8] * s;
       }
       g.mesh.instanceMatrix.needsUpdate = true;
     });
     this.appliedScale = this.markerScale;
+  }
+
+  // ----- detailed model for the selected satellite (lazy) -----------------
+  hideDetail() {
+    this.detailToken += 1;
+    if (this.detail) {
+      this.scene.remove(this.detail);
+      this.detail = null;
+    }
+  }
+
+  showDetail(kind) {
+    this.hideDetail();
+    if (!this.detailEnabled || kind === 'generic') return;
+    const token = this.detailToken;
+    this.getDetailModel(kind).then(
+      obj => {
+        if (this.disposed || token !== this.detailToken || !this.selected) return;
+        obj.matrixAutoUpdate = false;
+        this.detail = obj;
+        this.scene.add(obj);
+      },
+      error => console.warn('[SpaceTecGlobeEngine] detailed model failed', error)
+    );
+  }
+
+  async getDetailModel(kind) {
+    if (this.detailCache.has(kind)) return this.detailCache.get(kind);
+    let obj = null;
+    const url = this.modelUrls && this.modelUrls[kind];
+    if (url) {
+      try {
+        obj = await this.loadGltf(url);
+      } catch (error) {
+        console.warn(`[SpaceTecGlobeEngine] ${url} failed, using the built-in model`, error);
+      }
+    }
+    if (!obj) {
+      if (!this.detailMat) {
+        this.detailMat = this.track(
+          new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.15, roughness: 0.6, emissive: 0x101826 })
+        );
+      }
+      obj = new THREE.Mesh(this.track(bakeKind(kind, 2)), this.detailMat);
+    }
+    if (this.disposed) return obj;
+    this.detailCache.set(kind, obj);
+    return obj;
+  }
+
+  // Optional custom GLB per kind (axes: +X along-track, +Y panel axis, +Z away from Earth).
+  async loadGltf(url) {
+    const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+    const gltf = await new Promise((resolve, reject) => new GLTFLoader().load(url, resolve, undefined, reject));
+    const root = gltf.scene;
+    const bb = new THREE.Box3().setFromObject(root);
+    const size = bb.getSize(new THREE.Vector3());
+    const centre = bb.getCenter(new THREE.Vector3());
+    root.position.sub(centre);
+    const holder = new THREE.Group();
+    holder.add(root);
+    holder.scale.setScalar(1 / (Math.max(size.x, size.y, size.z) || 1));
+    const wrap = new THREE.Group();
+    wrap.add(holder);
+    return wrap;
+  }
+
+  updateDetail(sp, dist) {
+    if (!this.detail || !this.selected) return;
+    const g = this.groups[this.selected.k];
+    const idx = this.selected.idx;
+    if (!g.has[idx]) return;
+    const b = idx * 9;
+    const bs = g.basis;
+    const s = Math.max(0.02, dist * 0.028); // exaggerated so the silhouette is readable
+    this.detail.matrix.set(
+      bs[b] * s, bs[b + 3] * s, bs[b + 6] * s, sp.x,
+      bs[b + 1] * s, bs[b + 4] * s, bs[b + 7] * s, sp.y,
+      bs[b + 2] * s, bs[b + 5] * s, bs[b + 8] * s, sp.z,
+      0, 0, 0, 1
+    );
+    this.detail.matrixWorldNeedsUpdate = true;
   }
 
   setTicker(fn, intervalMs) {
@@ -704,13 +1169,16 @@ class GlobeEngine {
       this.selected = null;
       this.ring.visible = false;
       this.setOrbitPath(null);
+      this.hideDetail();
       if (!silent && this.cb.onSelect) this.cb.onSelect(null);
       return;
     }
     const hit = this.idMap.get(String(id));
     if (!hit) return;
+    const changed = !this.selected || String(this.selected.id) !== String(id);
     this.selected = { ...hit, id };
     this.ring.visible = true;
+    if (changed) this.showDetail(hit.k);
     if (!silent && this.cb.onSelect) this.cb.onSelect(this.getSelectedSat());
   }
 
@@ -844,7 +1312,7 @@ class GlobeEngine {
     const v = this._v;
     let best = null;
     let bestD = radius * radius;
-    CAT_KEYS.forEach(k => {
+    KIND_KEYS.forEach(k => {
       const g = this.groups[k];
       for (let i = 0; i < g.count; i += 1) {
         v.set(g.pos[i * 3], g.pos[i * 3 + 1], g.pos[i * 3 + 2]);
@@ -941,9 +1409,9 @@ class GlobeEngine {
     this.sunClock += dt;
     if (this.sunClock > 30) {
       this.sunClock = 0;
-      sunDirection(new Date(), this.sun);
+      this.refreshSun();
     }
-    if (this.clouds) this.clouds.rotation.y += dt * 0.0025;
+    this.cloudUniform.value = (this.cloudUniform.value + dt * 0.00003) % 1; // ~0.65 deg of drift per minute
 
     if (this.tween) {
       const tw = this.tween;
@@ -985,7 +1453,9 @@ class GlobeEngine {
       const sp = this.selectedPosition(this._v);
       if (sp) {
         this.ring.position.copy(sp);
-        this.ring.scale.setScalar(cam.position.distanceTo(sp) * 0.045);
+        const camDist = cam.position.distanceTo(sp);
+        this.ring.scale.setScalar(camDist * 0.06);
+        this.updateDetail(sp, camDist);
       }
     }
 
@@ -1010,7 +1480,7 @@ class GlobeEngine {
       this.statClock = 0;
       if (this.cb.onStats) {
         const counts = {};
-        CAT_KEYS.forEach(k => {
+        KIND_KEYS.forEach(k => {
           counts[k] = this.groups[k].count;
         });
         const s = this.getSelectedSat();
@@ -1021,6 +1491,8 @@ class GlobeEngine {
           counts,
           selected: s ? { ...s } : null,
           lowTier: this.lowTier,
+          assets: this.assetInfo,
+          detail: Boolean(this.detail),
         });
       }
     }
@@ -1039,6 +1511,9 @@ class GlobeEngine {
     this.disposed = true;
     this.stop();
     this.ticker = null;
+    this.hideDetail();
+    this.detailCache.forEach(disposeObject);
+    this.detailCache.clear();
     document.removeEventListener('visibilitychange', this.onVisibility);
     this.canvas.removeEventListener('webglcontextlost', this.onLost);
     this.canvas.removeEventListener('webglcontextrestored', this.onRestored);
@@ -1048,7 +1523,7 @@ class GlobeEngine {
     this.controls.removeEventListener('start', this.onControlStart);
     this.controls.dispose();
     this.setOrbitPath(null);
-    CAT_KEYS.forEach(k => {
+    KIND_KEYS.forEach(k => {
       const g = this.groups[k];
       if (g.mesh && g.mesh.dispose) g.mesh.dispose();
     });
@@ -1071,7 +1546,7 @@ function generateTestFleet(count, timeScale) {
   const sats = [];
   const recs = [];
   const byId = new Map();
-  const add = (category, name, altKm, incDeg, raanDeg, phaseDeg) => {
+  const add = (category, name, altKm, incDeg, raanDeg, phaseDeg, kind) => {
     const a = EARTH_KM + altKm;
     const inc = incDeg * DEG;
     const raan = raanDeg * DEG;
@@ -1081,6 +1556,7 @@ function generateTestFleet(count, timeScale) {
       id,
       name,
       category,
+      kind,
       lat: 0,
       lng: 0,
       altitudeKm: altKm,
@@ -1095,21 +1571,27 @@ function generateTestFleet(count, timeScale) {
     byId.set(id, rec);
   };
 
-  add('station', 'Test Station Alpha', 410, 51.6, 40, 10);
-  add('station', 'Test Station Beta', 390, 41.5, 200, 120);
-  add('station', 'Test Station Gamma', 430, 97.4, 300, 250);
+  add('station', 'Test station Alpha', 410, 51.6, 40, 10, 'station');
+  add('station', 'Test station Beta', 390, 41.5, 200, 120, 'station');
+  add('station', 'Test station Gamma', 430, 97.4, 300, 250, 'station');
   const incLeo = [53, 53, 70, 97.6, 98.2, 86.4, 43];
   for (let i = sats.length; i < count; i += 1) {
     const r = rnd();
     const num = 10000 + i;
-    if (r < 0.8) {
-      add('leo', `LEO-${num}`, 350 + Math.pow(rnd(), 1.5) * 1400, incLeo[Math.floor(rnd() * incLeo.length)] + (rnd() - 0.5) * 0.4, rnd() * 360, rnd() * 360);
-    } else if (r < 0.92) {
-      add('meo', `MEO-${num}`, 19100 + rnd() * 4100, rnd() < 0.5 ? 55 + rnd() : 64.8 + rnd(), rnd() * 360, rnd() * 360);
-    } else if (r < 0.98) {
-      add('geo', `GEO-${num}`, 35786, rnd() * 4, rnd() * 360, rnd() * 360);
+    if (r < 0.46) {
+      add('leo', `Broadband-${num}`, 530 + rnd() * 60, [53, 53, 53, 70, 97.6][Math.floor(rnd() * 5)] + (rnd() - 0.5) * 0.3, rnd() * 360, rnd() * 360, 'starlink');
+    } else if (r < 0.58) {
+      add('leo', `EO-${num}`, 600 + rnd() * 250, 97.4 + rnd() * 1.4, rnd() * 360, rnd() * 360, 'weather');
+    } else if (r < 0.72) {
+      add('leo', `Cube-${num}`, 400 + rnd() * 200, 50 + rnd() * 48, rnd() * 360, rnd() * 360, 'cubesat');
+    } else if (r < 0.78) {
+      add('leo', `LEO-${num}`, 350 + Math.pow(rnd(), 1.5) * 1400, incLeo[Math.floor(rnd() * incLeo.length)] + (rnd() - 0.5) * 0.4, rnd() * 360, rnd() * 360, 'generic');
+    } else if (r < 0.88) {
+      add('meo', `Nav-${num}`, 19100 + rnd() * 4100, rnd() < 0.5 ? 55 + rnd() : 64.8 + rnd(), rnd() * 360, rnd() * 360, 'nav');
+    } else if (r < 0.97) {
+      add('geo', `Comms-${num}`, 35786, rnd() * 4, rnd() * 360, rnd() * 360, 'comms');
     } else {
-      add('other', `OBJ-${num}`, 600 + rnd() * 900, rnd() * 100, rnd() * 360, rnd() * 360);
+      add('other', `OBJ-${num}`, 600 + rnd() * 900, rnd() * 100, rnd() * 360, rnd() * 360, 'generic');
     }
   }
 
@@ -1171,6 +1653,11 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
     onSelect,
     orbitPath,
     textureUrls,
+    assetBase = '/globe-lab',
+    textureTier = 'auto',
+    modelUrls,
+    detailedModels = 'auto',
+    normalScale = 1,
     quality = 'auto',
     showControls = true,
     showTestControls = true,
@@ -1199,7 +1686,7 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
   const usingTest = !Array.isArray(satellites);
   const fleet = useMemo(() => (usingTest ? generateTestFleet(count, testTimeScale) : null), [usingTest, count, testTimeScale]);
   const data = usingTest ? fleet.sats : satellites;
-  const texKey = JSON.stringify(textureUrls || null);
+  const texKey = JSON.stringify([textureUrls || null, assetBase, textureTier, detailedModels, modelUrls || null]);
   const effectiveSel = selectedId !== undefined ? selectedId : internalSel;
 
   useEffect(() => setRotate(autoRotate), [autoRotate]);
@@ -1221,6 +1708,11 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
         eng = new GlobeEngine(el, {
           quality,
           textureUrls: textureUrls || null,
+          assetBase,
+          textureTier,
+          modelUrls: modelUrls || null,
+          detailedModels: detailedModels === 'auto' ? undefined : detailedModels,
+          normalScale,
           callbacks: {
             onSelect: sat => {
               setInternalSel(sat ? sat.id : null);
@@ -1296,6 +1788,10 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
   useEffect(() => {
     if (engine) engine.setAutoRotate(rotate);
   }, [engine, rotate]);
+
+  useEffect(() => {
+    if (engine) engine.setNormalScale(normalScale);
+  }, [engine, normalScale]);
 
   // Selection from props / internal state.
   useEffect(() => {
@@ -1394,10 +1890,17 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
               {stats ? stats.total.toLocaleString() : 0} objects
               {stats ? <span className="stge-fps"> {stats.fps} fps</span> : null}
             </div>
-            {CAT_KEYS.map(k => (
+            {stats && stats.assets ? (
+              <div className="stge-assets">
+                {stats.assets.source === 'local'
+                  ? `Earth: photographic ${stats.assets.tier} (${stats.assets.maps.join(', ')})`
+                  : 'Earth: procedural placeholder (add textures to /public/globe-lab/earth)'}
+              </div>
+            ) : null}
+            {KIND_KEYS.map(k => (
               <div key={k} className="stge-legend-row">
-                <i style={{ background: CATEGORIES[k].color }} />
-                <span>{CATEGORIES[k].label}</span>
+                <i style={{ background: KINDS[k].color }} />
+                <span>{KINDS[k].label}</span>
                 <b>{stats ? (stats.counts[k] || 0).toLocaleString() : 0}</b>
               </div>
             ))}
@@ -1427,7 +1930,8 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
                 </button>
               </div>
               <dl>
-                <div><dt>Category</dt><dd>{(CATEGORIES[sel.category] || CATEGORIES.other).label}</dd></div>
+                <div><dt>Orbit class</dt><dd>{(CATEGORIES[sel.category] || CATEGORIES.other).label}</dd></div>
+                <div><dt>Model</dt><dd>Representative {KINDS[resolveKind(sel)].label.toLowerCase()}</dd></div>
                 <div><dt>Altitude</dt><dd>{Number(sel.altitudeKm).toFixed(0)} km</dd></div>
                 <div><dt>Latitude</dt><dd>{Number(sel.lat).toFixed(2)}°</dd></div>
                 <div><dt>Longitude</dt><dd>{Number(sel.lng).toFixed(2)}°</dd></div>
