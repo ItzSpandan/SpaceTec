@@ -1,4 +1,3 @@
-
 'use client';
 
 import SpaceTecGlobeEngine from '../SpaceTecGlobeEngine';
@@ -12,7 +11,7 @@ export default function GlobeLabPage() {
         overflow: 'hidden',
       }}
     >
-      <SpaceTecGlobeEngine />
+      <SpaceTecGlobeEngine detailedModels={true} />
     </main>
   );
 }
