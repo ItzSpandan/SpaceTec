@@ -246,3 +246,17 @@
     transition: none;
   }
 }
+
+.stge-assets {
+  max-width: 230px;
+  margin: 0 0 0.45rem;
+  color: var(--stge-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+@media (max-width: 640px) {
+  .stge-assets {
+    max-width: 170px;
+  }
+}
