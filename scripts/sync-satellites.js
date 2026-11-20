@@ -1,5 +1,51 @@
 const satellite = require('satellite.js');
 
+// ---------------------------------------------------------------------------
+// Mission / family classification from the satellite NAME only.
+// Independent of the orbital category. Returns one of:
+//   broadband | navigation | communications | weather | earth_observation |
+//   cubesat | station | research | other
+// Rules run in a fixed order; the first confident match wins.
+// ---------------------------------------------------------------------------
+const SATELLITE_TYPE_RULES = [
+  ['broadband', /STARLINK|ONEWEB|KUIPER/],
+  ['navigation', /\bGPS\b|NAVSTAR|GALILEO|GLONASS|BEIDOU|\bQZS|MICHIBIKI|NAVIC|IRNSS/],
+  // Earth observation is checked BEFORE weather so an imaging mission can never end up as "weather".
+  [
+    'earth_observation',
+    /LANDSAT|SENTINEL|NISAR|WORLDVIEW|GEOEYE|IKONOS|QUICKBIRD|PLEIADES|\bSPOT\b|\bALOS\b|RADARSAT|TERRASAR|TANDEM-X|COSMO-SKYMED|CARTOSAT|RESOURCESAT|RESURS|SKYSAT|ICEYE|CAPELLA|UMBRA|BLACKSKY|SAOCOM|KOMPSAT|GAOFEN|YAOGAN|ZIYUAN|\bTERRA\b|\bAQUA\b/,
+  ],
+  [
+    'weather',
+    /\bNOAA\b|\bGOES\b|METEOR|METEOSAT|METOP|HIMAWARI|FENGYUN|\bFY-?\d|\bJPSS\b|\bMTG\b|ELEKTRO-L|\bGK-?2A\b|\bDMSP\b/,
+  ],
+  [
+    'communications',
+    /INTELSAT|EUTELSAT|INMARSAT|IRIDIUM|GLOBALSTAR|ORBCOMM|\bTDRS\b|\bSES-?\d|\bASTRA\b|SKYNET|VIASAT|THURAYA|ARABSAT|TELESAT|TELSTAR|\bANIK\b|HISPASAT|YAMAL|\bO3B\b|MILSTAR|\bWGS\b|\bAEHF\b|\bDSCS\b|ECHOSTAR|DIRECTV|SIRIUS|\bGALAXY\b|THAICOM|NILESAT|TURKSAT|APSTAR|ASIASAT|CHINASAT|OPTUS|\bJCSAT\b|SUPERBIRD/,
+  ],
+  ['cubesat', /CUBESAT|CUBE-SAT|\bCUBE\b|\bDOVE\b|\bFLOCK\b|\bLEMUR\b|\bSPIRE\b|NANOSAT/],
+  [
+    'research',
+    /HUBBLE|\bHST\b|\bJWST\b|JAMES WEBB|CHANDRA|\bTESS\b|\bKEPLER\b|\bGRACE\b|\bSWARM\b|\bFERMI\b|NUSTAR|\bNICER\b|\bXMM\b|INTEGRAL|\bGAIA\b|SPITZER|NEOWISE|\bIXPE\b|XRISM|CHEOPS|RHESSI|\bAGILE\b|\bSOHO\b|\bSTEREO\b|\bMMS\b|\bTHEMIS\b|VAN ALLEN|\bSWIFT\b/,
+  ],
+];
+
+const STATION_PATTERN = /\bISS\b|ZARYA|ZVEZDA|TIANGONG|TIANHE|WENTIAN|MENGTIAN|\bCSS\b|SPACE STATION/;
+const DEBRIS_PATTERN = /\bDEB\b|\bR\/B\b/;
+
+function classifySatelliteType(name) {
+  const text = String(name == null ? '' : name).toUpperCase().trim();
+  if (!text) return 'other';
+  // Debris / rocket bodies are never a mission family.
+  if (DEBRIS_PATTERN.test(text)) return 'other';
+  // Stations are matched first, ahead of every other name rule (ISS must never fall through).
+  if (STATION_PATTERN.test(text)) return 'station';
+  for (const [type, pattern] of SATELLITE_TYPE_RULES) {
+    if (pattern.test(text)) return type;
+  }
+  return 'other';
+}
+
 async function fetchCelesTrakWithRetry(maxRetries = 4) {
   const url = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=json';
 
@@ -126,6 +172,7 @@ async function runSync() {
         id: noradId,
         name: nameStr,
         organization: org,
+        satellite_type: classifySatelliteType(nameStr),
 
         inclination: omm.INCLINATION,
         mean_motion: omm.MEAN_MOTION,
