@@ -10,10 +10,37 @@
  * - Earth-fixed frame: Earth never rotates in the scene. Satellites arrive
  *   as geodetic lat/lng/altitude, so real propagated data can drop in later.
  *
- * Satellite data contract (props.satellites):
+ * GENERIC SUBJECT INTERFACE (feature-independent, step 1 of the engine/feature separation)
+ *
+ * The globe itself knows nothing about satellites, launch pads, the ISS, etc. A feature plugs in by
+ * supplying a "subject" (prop `subject`, or engine.attachSubject(subject)):
+ *
+ *   GlobeEntity   { id, lat (deg), lng (deg), altitudeKm?, type?, timestamp? (ms), ...anything }
+ *                 Extra fields are opaque to the engine and handed back untouched in callbacks.
+ *   GlobePathPoint{ lat (deg), lng (deg), altitudeKm? }
+ *   GlobeSubject  {
+ *     id?: string,
+ *     getEntities(): GlobeEntity[],                      // REQUIRED: the objects to display now
+ *     subscribe?(push): unsubscribe,                     // push-style updates: push(entities?)
+ *     tickMs?: number, tick?(nowMs): GlobeEntity[]|void, // pull-style updates (returning a list pushes it)
+ *     resolveType?(entity): string,                      // rendering type key (see note below)
+ *     getPath?(entityId, nowMs): GlobePathPoint[]|null,  // optional path/trajectory for an entity
+ *     onSelect?(entity|null),                            // selection callback
+ *   }
+ *
+ * Engine API (generic names): setEntities, setSelectedEntity, getSelectedEntity, focusEntity,
+ * setPath, followSelected, attachSubject, detachSubject, plus the existing flyTo / resetView /
+ * setAutoRotate / setTicker camera and lifecycle methods.
+ *
+ * TEMPORARY COMPATIBILITY LAYER: rendering types still map onto the built-in satellite render kinds
+ * (KINDS), so an unknown type falls back to the generic marker. Satellite classification, the
+ * instanced satellite models, the follow chase camera, the legend, the selection card and the
+ * generated test fleet still live in this file and move to an Orbital Tracking adapter in a later step.
+ *
+ * Legacy satellite data contract (props.satellites, still supported and unchanged):
  *   { id, name?, category?: 'leo'|'meo'|'geo'|'station'|'other',
  *     lat (deg), lng (deg), altitudeKm, velocityKmS? }
- * If `satellites` is omitted, an internal generated test fleet is used.
+ * If neither `subject` nor `satellites` is given, the internal generated test fleet is used.
  */
 
 import {
@@ -914,6 +941,10 @@ class MotionTracker {
 }
 // </motion-tracker>
 
+function isValidSubject(subject) {
+  return Boolean(subject) && typeof subject.getEntities === 'function';
+}
+
 class GlobeEngine {
   constructor(container, opts) {
     this.container = container;
@@ -979,6 +1010,10 @@ class GlobeEngine {
     this._qd = new THREE.Quaternion();
     this._qinv = new THREE.Quaternion();
     this.motion = new MotionTracker();
+    this.subject = null; // currently attached GlobeSubject handle (see attachSubject)
+    this.typeOf = resolveKind; // entity -> render type key; a subject may override via resolveType
+    this.layoutVersion = 0; // bumped when typeOf changes so the slots are rebuilt
+    this.slotVersion = 0;
     this.followState = { engage: 0, wantDist: 0, hasPrev: false, prevQ: new THREE.Quaternion() };
     this.envRT = null;
     this.envTex = null;
@@ -1297,7 +1332,7 @@ class GlobeEngine {
   setSatellites(list) {
     if (this.disposed) return;
     const src = Array.isArray(list) ? list : [];
-    let same = src.length === this.order.length;
+    let same = src.length === this.order.length && this.slotVersion === this.layoutVersion;
     for (let i = 0; same && i < src.length; i += 1) {
       const a = src[i];
       const b = this.order[i];
@@ -1309,6 +1344,7 @@ class GlobeEngine {
   }
 
   rebuildSlots(src) {
+    this.slotVersion = this.layoutVersion;
     const counts = {};
     KIND_KEYS.forEach(k => {
       counts[k] = 0;
@@ -1322,7 +1358,8 @@ class GlobeEngine {
       kindIndex[k] = i;
     });
     for (let i = 0; i < n; i += 1) {
-      const k = resolveKind(src[i]);
+      let k = this.typeOf(src[i]);
+      if (!(k in kindIndex)) k = 'generic'; // unknown render types fall back to the generic marker
       this.slotCat[i] = kindIndex[k];
       this.slotIdx[i] = counts[k];
       this.idMap.set(String(src[i].id), { k, idx: counts[k] });
@@ -1688,6 +1725,94 @@ class GlobeEngine {
     g.mesh.instanceMatrix.needsUpdate = true;
   }
 
+  // ----- generic subject interface (feature-independent) -------------------------
+  // Thin, behaviour-preserving wrappers over the existing implementation. New code should call these;
+  // the older satellite-named methods remain as the temporary compatibility layer.
+  setEntities(list) {
+    this.setSatellites(list);
+  }
+
+  setSelectedEntity(id, silent) {
+    this.setSelected(id, silent);
+  }
+
+  getSelectedEntity() {
+    return this.getSelectedSat();
+  }
+
+  focusEntity(id) {
+    this.focusSatellite(id);
+  }
+
+  setPath(points) {
+    this.setOrbitPath(points);
+  }
+
+  followSelected(on) {
+    this.setFollow(on);
+  }
+
+  notifySelect(entity) {
+    if (this.cb.onSelect) this.cb.onSelect(entity);
+    const h = this.subject;
+    if (h && typeof h.subject.onSelect === 'function') {
+      try {
+        h.subject.onSelect(entity);
+      } catch (error) {
+        console.error('[SpaceTecGlobeEngine] subject.onSelect failed', error);
+      }
+    }
+  }
+
+  // Connects a feature's content to the globe. Returns false (and attaches nothing) for an invalid subject.
+  attachSubject(subject) {
+    this.detachSubject();
+    if (this.disposed) return false;
+    if (!isValidSubject(subject)) {
+      console.error('[SpaceTecGlobeEngine] attachSubject: a subject needs a getEntities() function', subject);
+      return false;
+    }
+    const nextType = typeof subject.resolveType === 'function' ? subject.resolveType : resolveKind;
+    if (nextType !== this.typeOf) {
+      this.typeOf = nextType;
+      this.layoutVersion += 1;
+    }
+    const handle = { subject, unsubscribe: null, ticking: false };
+    this.subject = handle;
+    const push = list => {
+      if (this.subject !== handle || this.disposed) return; // stale callback from a detached subject
+      this.setEntities(Array.isArray(list) ? list : subject.getEntities());
+    };
+    push();
+    if (typeof subject.subscribe === 'function') {
+      const off = subject.subscribe(push);
+      handle.unsubscribe = typeof off === 'function' ? off : null;
+    }
+    if (typeof subject.tick === 'function' && subject.tickMs > 0) {
+      handle.ticking = true;
+      this.setTicker(ms => push(subject.tick(ms)), subject.tickMs);
+    }
+    return true;
+  }
+
+  detachSubject() {
+    const h = this.subject;
+    if (!h) return;
+    this.subject = null;
+    if (h.unsubscribe) {
+      try {
+        h.unsubscribe();
+      } catch (error) {
+        console.warn('[SpaceTecGlobeEngine] subject unsubscribe failed', error);
+      }
+    }
+    if (h.ticking) this.setTicker(null);
+    if (this.typeOf !== resolveKind) {
+      this.typeOf = resolveKind;
+      this.layoutVersion += 1;
+    }
+  }
+
   setTicker(fn, intervalMs) {
     this.ticker = fn ? { fn, interval: intervalMs } : null;
     this.tickAcc = intervalMs || 0; // fire on the next frame
@@ -1704,7 +1829,7 @@ class GlobeEngine {
       this.setOrbitPath(null);
       this.hideDetail();
       if (had && this.order.length) this.writePositions(); // restore the hidden instanced marker
-      if (!silent && this.cb.onSelect) this.cb.onSelect(null);
+      if (!silent) this.notifySelect(null);
       return;
     }
     const hit = this.idMap.get(String(id));
@@ -1723,7 +1848,7 @@ class GlobeEngine {
       if (this.order.length) this.writePositions(); // restores the previous marker, hides this one, seeds motion
       this.showDetail(hit.k);
     }
-    if (!silent && this.cb.onSelect) this.cb.onSelect(this.getSelectedSat());
+    if (!silent) this.notifySelect(this.getSelectedSat());
   }
 
   getSelectedSat() {
@@ -2142,6 +2267,7 @@ class GlobeEngine {
     if (this.disposed) return;
     this.disposed = true;
     this.stop();
+    this.detachSubject();
     this.ticker = null;
     this.hideDetail();
     if (this.envRT) this.envRT.dispose();
@@ -2279,10 +2405,26 @@ function generateTestFleet(count, timeScale) {
 // ---------------------------------------------------------------------------
 // React component
 // ---------------------------------------------------------------------------
+// TEMPORARY COMPATIBILITY: the generated test fleet expressed through the generic subject interface.
+// It moves out of this file together with the other satellite-specific code in a later step.
+function createTestFleetSubject(fleet) {
+  return {
+    id: 'generated-test-fleet',
+    getEntities: () => fleet.sats,
+    tickMs: 50,
+    tick: ms => {
+      fleet.update(ms);
+      return fleet.sats;
+    },
+    getPath: (id, ms) => fleet.orbitPath(String(id), ms),
+  };
+}
+
 const TEST_COUNTS = [500, 1000, 3000, 5000, 10000, 20000];
 
 const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
   {
+    subject: subjectProp,
     satellites,
     selectedId,
     onSelect,
@@ -2318,9 +2460,10 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
 
-  const usingTest = !Array.isArray(satellites);
+  const usingTest = !subjectProp && !Array.isArray(satellites);
   const fleet = useMemo(() => (usingTest ? generateTestFleet(count, testTimeScale) : null), [usingTest, count, testTimeScale]);
-  const data = usingTest ? fleet.sats : satellites;
+  const subject = useMemo(() => subjectProp || (fleet ? createTestFleetSubject(fleet) : null), [subjectProp, fleet]);
+  const data = subjectProp ? null : usingTest ? fleet.sats : satellites;
   const texKey = JSON.stringify([textureUrls || null, assetBase, textureTier, detailedModels, modelUrls || null]);
   const effectiveSel = selectedId !== undefined ? selectedId : internalSel;
 
@@ -2406,19 +2549,16 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [engineKey, quality, texKey]);
 
-  // Satellite data (external prop) or the generated fleet's ticker.
+  // Content: a feature subject (or the generated test fleet, itself a subject) or a legacy `satellites` array.
   useEffect(() => {
     if (!engine) return undefined;
-    engine.setSatellites(data);
-    if (usingTest) {
-      engine.setTicker(ms => {
-        fleet.update(ms);
-        engine.setSatellites(fleet.sats);
-      }, 50);
-      return () => engine.setTicker(null);
+    if (subject) {
+      engine.attachSubject(subject);
+      return () => engine.detachSubject();
     }
+    engine.setEntities(data);
     return undefined;
-  }, [engine, data, usingTest, fleet]);
+  }, [engine, subject, data]);
 
   useEffect(() => {
     if (engine) engine.setAutoRotate(rotate);
@@ -2436,28 +2576,28 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
     } else if (!engine.selected || String(engine.selected.id) !== String(effectiveSel)) {
       engine.setSelected(effectiveSel, true);
     }
-  }, [engine, effectiveSel, data]);
+  }, [engine, effectiveSel, data, subject]);
 
   // Orbit path for the selected satellite.
   useEffect(() => {
     if (!engine) return undefined;
     if (!showOrbit || effectiveSel === null || effectiveSel === undefined) {
-      engine.setOrbitPath(null);
+      engine.setPath(null);
       return undefined;
     }
     if (Array.isArray(orbitPath)) {
-      engine.setOrbitPath(orbitPath);
+      engine.setPath(orbitPath);
       return undefined;
     }
-    if (usingTest) {
-      const draw = () => engine.setOrbitPath(fleet.orbitPath(String(effectiveSel), Date.now()));
+    if (subject && typeof subject.getPath === 'function') {
+      const draw = () => engine.setPath(subject.getPath(String(effectiveSel), Date.now()));
       draw();
-      const id = setInterval(draw, 250); // keeps the path under the satellite as the Earth turns
+      const id = setInterval(draw, 250); // keeps the path under the object as the Earth turns
       return () => clearInterval(id);
     }
-    engine.setOrbitPath(null);
+    engine.setPath(null);
     return undefined;
-  }, [engine, effectiveSel, showOrbit, orbitPath, usingTest, fleet]);
+  }, [engine, effectiveSel, showOrbit, orbitPath, subject]);
 
   useImperativeHandle(
     ref,
@@ -2466,6 +2606,8 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
       flyTo: (lat, lng, distance) => engine && engine.flyTo(lat, lng, distance),
       setFollow: on => engine && engine.setFollow(on),
       focusSatellite: id => engine && engine.focusSatellite(id),
+      focusEntity: id => engine && engine.focusEntity(id),
+      followSelected: on => engine && engine.followSelected(on),
     }),
     [engine]
   );
