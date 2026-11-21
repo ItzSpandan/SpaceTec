@@ -386,23 +386,139 @@ export async function prepareOrbitalRecords(rows, options = {}) {
   return records;
 }
 
+// ---------------------------------------------------------------------------
+// View filters (satellite_type) and display limit for the real subject
+// ---------------------------------------------------------------------------
+// Filters use the database `satellite_type` (mission family) ONLY - never satellite names. Preset keys match
+// the production Orbital Globe's filter chips; a raw satellite_type value (e.g. 'navigation'), an array of
+// them, or 'unclassified' (rows whose satellite_type is missing/unknown) are accepted too.
+// A preset wins over a raw type of the same name ('weather' = weather + earth_observation).
+export const ORBITAL_FILTERS = {
+  all: { label: 'All active', types: null },
+  stations: { label: 'Space stations', types: ['station'] },
+  starlink: { label: 'Broadband constellations', types: ['broadband'] },
+  weather: { label: 'Weather & Earth observation', types: ['weather', 'earth_observation'] },
+};
+const FILTER_ALIASES = { active: 'all', '': 'all' };
+const UNCLASSIFIED = 'unclassified';
+export const DEFAULT_ORBITAL_FILTER = 'all';
+
+// Normalises a filter spec to { key, types|null, unclassified } or null when it is not a valid filter.
+// null / undefined / 'all' / 'active' all mean "no filter".
+function resolveOrbitalFilter(spec) {
+  if (spec === null || spec === undefined) return { key: 'all', types: null, unclassified: false };
+  if (Array.isArray(spec)) {
+    const types = [];
+    for (const item of spec) {
+      const t = normalizeSatelliteType(item);
+      if (!t) return null;
+      if (!types.includes(t)) types.push(t);
+    }
+    if (!types.length) return null;
+    return { key: types.slice().sort().join('+'), types, unclassified: false };
+  }
+  if (typeof spec !== 'string') return null;
+  let key = spec.trim().toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(FILTER_ALIASES, key)) key = FILTER_ALIASES[key];
+  if (Object.prototype.hasOwnProperty.call(ORBITAL_FILTERS, key)) {
+    return { key, types: ORBITAL_FILTERS[key].types, unclassified: false };
+  }
+  if (key === UNCLASSIFIED) return { key, types: null, unclassified: true };
+  const t = normalizeSatelliteType(key);
+  return t ? { key: t, types: [t], unclassified: false } : null;
+}
+
+export function isValidOrbitalFilter(spec) {
+  return resolveOrbitalFilter(spec) !== null;
+}
+
+// Display limit: a positive whole number caps the list; null / undefined / 0 / Infinity / NaN / negative = no cap.
+function resolveOrbitalLimit(value) {
+  const n = Number(value);
+  if (value === null || value === undefined || !Number.isFinite(n) || n <= 0) return 0;
+  return Math.floor(n);
+}
+
 /**
  * The real Orbital Tracking subject for the generic globe engine.
- * records: from prepareOrbitalRecords. options: { onSelect?(entity|null), id? }
+ * records: from prepareOrbitalRecords. options: { onSelect?(entity|null), id?, filter?, limit? }
  *
  * - getEntities(): the persistent entity array (same objects, same order, every call).
- * - tick(nowMs) every second: re-propagates each trackable satellite with SGP4 and updates its entity in place.
- *   A failed propagation keeps the previous good position (the object never vanishes or jumps to 0,0).
+ * - tick(nowMs) every second: re-propagates each VISIBLE trackable satellite with SGP4 and updates its entity
+ *   in place. A failed propagation keeps the previous good position (never vanishes or jumps to 0,0).
  * - getPath(id, nowMs): orbit path generated on demand for ONE satellite (generateOrbitPath, with its jump and
  *   near-stationary safeguards); never computed for the whole catalogue.
  * - subscribe(push): lets the owner push a replacement list; update(records) swaps the catalogue.
+ *
+ * View control (Step 4A) - all of it works on the records that are ALREADY prepared; none of it touches
+ * Supabase or rebuilds a satrec:
+ * - setFilter(spec): show only records whose satellite_type matches (see ORBITAL_FILTERS). Returns false (and
+ *   changes nothing) for an unknown filter. setFilter() / setFilter('all') resets it.
+ * - setLimit(n): show at most the first n records of the filtered list (catalogue order). 0/null = unlimited.
+ * - resetView(): filter 'all' + no limit.
+ * - getView(): { filter, limit, visible, total }.   getFilterCounts(): { all, stations, ..., unclassified }.
+ * An unchanged filter/limit is a no-op (nothing is pushed to the engine). Records outside the view are not
+ * propagated, which also makes a small limit cheaper per tick.
  */
 export function createRealOrbitalSubject(records, options = {}) {
-  let current = Array.isArray(records) ? records : [];
-  let entities = current.map(r => r.entity);
-  let byId = new Map(current.map(r => [String(r.entity.id), r]));
+  let all = Array.isArray(records) ? records : [];
+  let types = all.map(r => normalizeSatelliteType(r.entity.satellite_type));
+  let filter = resolveOrbitalFilter(options.filter) || resolveOrbitalFilter(null);
+  let limit = resolveOrbitalLimit(options.limit);
+  let current = [];
+  let entities = [];
+  let byId = new Map();
   const listeners = new Set();
   const stats = { propagated: 0, failed: 0, lastTickMs: 0 };
+
+  const matches = i => {
+    if (filter.unclassified) return types[i] === null;
+    return filter.types === null || (types[i] !== null && filter.types.includes(types[i]));
+  };
+
+  // Propagates one record in place. Returns true / false (failed) / null (static object, nothing to do).
+  const propagate = (rec, date, nowMs) => {
+    if (!rec.satrec) return null;
+    const state = computeSatelliteState(rec.satrec, date);
+    if (!state) return false;
+    const e = rec.entity;
+    e.lat = state.lat;
+    e.lng = state.lng;
+    e.altitudeKm = state.altitudeKm;
+    e.velocityKmS = state.velocityKmS;
+    e.timestamp = nowMs;
+    return true;
+  };
+
+  // Rebuilds the visible list from `all` + filter + limit. Same record objects, same relative order.
+  const rebuildView = () => {
+    const out = [];
+    for (let i = 0; i < all.length; i += 1) {
+      if (!matches(i)) continue;
+      out.push(all[i]);
+      if (limit > 0 && out.length >= limit) break;
+    }
+    current = out;
+    entities = out.map(r => r.entity);
+  };
+
+  // Records that were hidden were not propagated, so refresh any that went stale before showing them again.
+  const refreshStale = () => {
+    const nowMs = Date.now();
+    const date = new Date(nowMs);
+    for (let i = 0; i < current.length; i += 1) {
+      const rec = current[i];
+      if (rec.satrec && nowMs - (Number(rec.entity.timestamp) || 0) > LIVE_TICK_MS / 2) propagate(rec, date, nowMs);
+    }
+  };
+
+  const publish = () => {
+    refreshStale();
+    listeners.forEach(push => push(entities));
+  };
+
+  byId = new Map(all.map(r => [String(r.entity.id), r]));
+  rebuildView();
 
   const subject = createOrbitalTrackingSubject({
     id: options.id || 'orbital-tracking-live',
@@ -413,20 +529,9 @@ export function createRealOrbitalSubject(records, options = {}) {
       let ok = 0;
       let failed = 0;
       for (let i = 0; i < current.length; i += 1) {
-        const rec = current[i];
-        if (!rec.satrec) continue; // static (database-position) object
-        const state = computeSatelliteState(rec.satrec, date);
-        if (!state) {
-          failed += 1;
-          continue;
-        }
-        const e = rec.entity;
-        e.lat = state.lat;
-        e.lng = state.lng;
-        e.altitudeKm = state.altitudeKm;
-        e.velocityKmS = state.velocityKmS;
-        e.timestamp = nowMs;
-        ok += 1;
+        const result = propagate(current[i], date, nowMs);
+        if (result === true) ok += 1;
+        else if (result === false) failed += 1;
       }
       stats.propagated = ok;
       stats.failed = failed;
@@ -449,14 +554,66 @@ export function createRealOrbitalSubject(records, options = {}) {
     describeEntity: describeRealSatellite,
   });
 
-  // Replaces the whole catalogue (e.g. a new filter) and pushes it to every attached engine.
+  // Replaces the whole catalogue (e.g. a re-download) and pushes it to every attached engine.
+  // The current filter and limit stay in force.
   subject.update = nextRecords => {
-    current = Array.isArray(nextRecords) ? nextRecords : [];
-    entities = current.map(r => r.entity);
-    byId = new Map(current.map(r => [String(r.entity.id), r]));
+    all = Array.isArray(nextRecords) ? nextRecords : [];
+    types = all.map(r => normalizeSatelliteType(r.entity.satellite_type));
+    byId = new Map(all.map(r => [String(r.entity.id), r]));
+    rebuildView();
     listeners.forEach(push => push(entities));
   };
-  subject.getStats = () => ({ ...stats, total: current.length });
+
+  subject.setFilter = spec => {
+    const next = resolveOrbitalFilter(spec);
+    if (!next) return false;
+    const same = next.key === filter.key;
+    filter = next;
+    if (!same) {
+      rebuildView();
+      publish();
+    }
+    return true;
+  };
+
+  subject.setLimit = value => {
+    const next = resolveOrbitalLimit(value);
+    if (next === limit) return;
+    limit = next;
+    rebuildView();
+    publish();
+  };
+
+  subject.resetView = () => {
+    const f = resolveOrbitalFilter(null);
+    const changed = filter.key !== f.key || limit !== 0;
+    filter = f;
+    limit = 0;
+    if (changed) {
+      rebuildView();
+      publish();
+    }
+  };
+
+  subject.getView = () => ({ filter: filter.key, limit, visible: current.length, total: all.length });
+
+  // Counts over the prepared catalogue, ignoring the limit: preset keys, every satellite_type, and 'unclassified'.
+  subject.getFilterCounts = () => {
+    const byType = Object.fromEntries(Object.keys(SATELLITE_TYPE_LABELS).map(k => [k, 0]));
+    let unclassified = 0;
+    for (let i = 0; i < types.length; i += 1) {
+      if (types[i] === null) unclassified += 1;
+      else byType[types[i]] += 1;
+    }
+    const counts = { ...byType, [UNCLASSIFIED]: unclassified };
+    for (const [key, def] of Object.entries(ORBITAL_FILTERS)) {
+      counts[key] = def.types ? def.types.reduce((n, t) => n + byType[t], 0) : all.length;
+    }
+    return counts;
+  };
+
+  // `total` = prepared catalogue size, `visible` = what the current filter + limit show.
+  subject.getStats = () => ({ ...stats, total: all.length, visible: current.length });
   return subject;
 }
 
