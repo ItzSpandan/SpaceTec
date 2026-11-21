@@ -37,7 +37,21 @@
  *   }
  *
  * Engine API: setEntities, setSelectedEntity, getSelectedEntity, focusEntity, setPath, setFollow,
- * attachSubject, detachSubject, applyTypeSystem, flyTo, resetView, setAutoRotate, setTicker.
+ * attachSubject, detachSubject, applyTypeSystem, flyTo, resetView, setAutoRotate, setTicker,
+ * setInteractive, setIsolateSelected, getHoveredEntity, hasEntity.
+ *
+ * Interaction (all generic; none of it knows what an entity is):
+ *   onHover(entity|null, { x, y })   mouse/pen pointer over an entity (x, y: pixels inside the globe); null when it
+ *                                    leaves. Coalesced to one pick per ~60 ms inside the render loop.
+ *   interactive (default true)       false = no drag/zoom/pan, no tap selection, no hover; touch-action is released
+ *                                    so the page scrolls over the globe. Programmatic control (selectedId,
+ *                                    focusEntity, follow, flyTo) keeps working.
+ *   isolateSelected (default false)  while an entity is selected the other entities are drawn faint (picking is
+ *                                    unchanged); the selected entity, its model, ring and path stay fully visible.
+ *
+ * Selection consistency: if the selected entity is no longer in the list (removed, filtered out, list replaced or
+ * emptied) the engine clears the selection, leaves follow mode, hides the model/path and reports onSelect(null) and
+ * onFollowChange(false). A hovered entity that disappears is cleared the same way (onHover(null)).
  * Optional GLB models per type can still be passed with the `modelUrls` prop (keyed by type).
  */
 
@@ -62,6 +76,9 @@ import { EARTH_KM, DEG, mulberry32, bakeParts, UNIT_OCTA } from './globe/globeSh
 // (`subject.types`) and models (`subject.models`); these defaults serve entities without a subject.
 // Every registry contains FALLBACK_TYPE: entities whose type is unknown are drawn with it.
 const FALLBACK_TYPE = 'generic';
+const HOVER_INTERVAL_MS = 60; // at most one hover pick per this many ms (picking is O(entities))
+const HOVER_RADIUS_PX = 10; // pick radius for hover (taps use 12 / 24)
+const ISOLATE_OPACITY = 0.14; // opacity of de-emphasised entities while `isolateSelected` is active
 const DEFAULT_TYPES = {
   generic: { label: 'Objects', color: '#b9c2d0', size: 0.0055 },
 };
@@ -573,6 +590,13 @@ class GlobeEngine {
     this.slotIdx = new Uint32Array(0);
     this.idMap = new Map();
     this.selected = null; // { k, idx }
+    this.selectionLost = false; // set by rebuildSlots when the selected entity left the list
+    this.interactive = opts.interactive !== false;
+    this.isolate = opts.isolateSelected === true;
+    this.isolated = false; // dimming currently applied (isolate && something selected)
+    this.hovered = null; // { id } of the entity under the pointer
+    this.hoverReq = null; // latest pointer position waiting for a pick: { x, y }
+    this.hoverAt = -1e9;
     this.markerScale = 1;
     this.appliedScale = 1;
     this.pointers = new Set();
@@ -647,6 +671,7 @@ class GlobeEngine {
       if (this.tween && !this.tween.lock) this.tween = null;
     };
     this.controls.addEventListener('start', this.onControlStart);
+    this.baseTouchAction = (this.canvas.style && this.canvas.style.touchAction) || 'none'; // as set by OrbitControls
 
     this.buildStars();
     this.buildAtmosphere();
@@ -669,7 +694,10 @@ class GlobeEngine {
     this.canvas.addEventListener('pointerdown', this.onPointerDown);
     this.canvas.addEventListener('pointerup', this.onPointerUp);
     this.canvas.addEventListener('pointercancel', this.onPointerCancel);
+    this.canvas.addEventListener('pointermove', this.onPointerMove);
+    this.canvas.addEventListener('pointerleave', this.onPointerLeave);
     document.addEventListener('visibilitychange', this.onVisibility);
+    this.setInteractive(this.interactive, true);
 
     this.refreshSun();
     this.requestRun();
@@ -803,6 +831,9 @@ class GlobeEngine {
     // Entities share one lit material; one baked geometry and one InstancedMesh per render type
     // (created by applyTypeSystem).
     this.entityMaterial = this.track(new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x1b2433 }));
+    // The selected entity's stand-in has its own material, so dimming the instanced entities (isolateSelected)
+    // never dims it.
+    this.selMaterial = this.track(new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x1b2433 }));
     this.ambient = new THREE.AmbientLight(0xffffff, 1.1);
     this.sunLight = new THREE.DirectionalLight(0xffffff, 2.4);
     this.scene.add(this.ambient, this.sunLight);
@@ -831,7 +862,7 @@ class GlobeEngine {
 
     // Stand-in for the selected entity when no detailed model is shown: one ordinary mesh,
     // positioned from the interpolated motion (the instanced copy is hidden).
-    this.selMarker = new THREE.Mesh(this.track(new THREE.BufferGeometry()), this.entityMaterial);
+    this.selMarker = new THREE.Mesh(this.track(new THREE.BufferGeometry()), this.selMaterial);
     this.selMarker.matrixAutoUpdate = false;
     this.selMarker.visible = false;
     this.selMarker.frustumCulled = false;
@@ -912,11 +943,35 @@ class GlobeEngine {
     for (let i = 0; same && i < src.length; i += 1) {
       const a = src[i];
       const b = this.order[i];
-      if (a.id !== b.id || a.category !== b.category || a.kind !== b.kind) same = false;
+      if (a.id !== b.id || a.category !== b.category || a.kind !== b.kind || a.type !== b.type) same = false;
     }
     if (!same) this.rebuildSlots(src);
     this.order = src;
     this.writePositions();
+    this.settleAfterUpdate();
+  }
+
+  // After the list changed: drop a selection / hover whose entity is gone, so nothing keeps a stale reference.
+  settleAfterUpdate() {
+    if (this.selectionLost) {
+      this.selectionLost = false;
+      this.dropLostSelection();
+    }
+    if (this.hovered && !this.idMap.has(this.hovered.id)) this.clearHover();
+  }
+
+  // The selected entity left the list: clear selection state, leave follow mode, restore normal display, tell the owner.
+  dropLostSelection() {
+    if (this.following) this.setFollow(false); // glides back to the Earth-centred orbit and reports onFollowChange(false)
+    this.selected = null;
+    this.ring.visible = false;
+    this.selMarker.visible = false;
+    this.motion.reset();
+    this.followState.hasPrev = false;
+    this.setPath(null);
+    this.hideDetail();
+    this.applyIsolation();
+    this.notifySelect(null);
   }
 
   rebuildSlots(src) {
@@ -971,6 +1026,7 @@ class GlobeEngine {
       if (!hit) {
         this.ring.visible = false;
         this.hideDetail();
+        this.selectionLost = true; // finished by settleAfterUpdate() once the new list is drawn
       } else if (kindChanged) {
         this.showDetail(hit.k);
       }
@@ -1307,7 +1363,8 @@ class GlobeEngine {
     // Compare what the caller passed (not the normalised copy), so re-attaching the same registry is free.
     const src = this.typeSystem && this.typeSystem.src;
     if (src && src.types === ts.types && src.models === ts.models && src.resolveType === ts.resolveType) return;
-    if (this.selected) this.setSelectedEntity(null, true);
+    this.clearHover();
+    if (this.selected) this.setSelectedEntity(null, false); // also leaves follow mode; owner is told
     this.hideDetail();
     this.detailCache.forEach(disposeObject);
     this.detailCache.clear();
@@ -1413,6 +1470,7 @@ class GlobeEngine {
       this.motion.reset();
       this.setPath(null);
       this.hideDetail();
+      this.applyIsolation();
       if (had && this.order.length) this.writePositions(); // restore the hidden instanced marker
       if (!silent) this.notifySelect(null);
       return;
@@ -1422,6 +1480,7 @@ class GlobeEngine {
     const changed = !this.selected || String(this.selected.id) !== String(id);
     this.selected = { ...hit, id };
     this.ring.visible = true;
+    this.applyIsolation();
     if (changed) {
       this.motion.reset();
       this.selMarker.geometry = this.groups[hit.k].geometry;
@@ -1434,6 +1493,10 @@ class GlobeEngine {
       this.showDetail(hit.k);
     }
     if (!silent) this.notifySelect(this.getSelectedEntity());
+  }
+
+  hasEntity(id) {
+    return id !== null && id !== undefined && this.idMap.has(String(id));
   }
 
   getSelectedEntity() {
@@ -1596,6 +1659,9 @@ class GlobeEngine {
 
   // ----- interaction --------------------------------------------------------
   onPointerDown = e => {
+    if (!this.interactive) return;
+    this.hoverReq = null;
+    this.clearHover(); // dragging the globe is not hovering
     this.pointers.add(e.pointerId);
     if (this.pointers.size === 1) {
       this.gesture = { x: e.clientX, y: e.clientY, t: performance.now(), multi: false, type: e.pointerType };
@@ -1605,6 +1671,7 @@ class GlobeEngine {
   };
 
   onPointerUp = e => {
+    if (!this.interactive) return;
     this.pointers.delete(e.pointerId);
     const g = this.gesture;
     if (!g || g.multi) {
@@ -1626,6 +1693,97 @@ class GlobeEngine {
     this.pointers.delete(e.pointerId);
     if (this.pointers.size === 0) this.gesture = null;
   };
+
+  // Hover: mouse / pen only (touch has no hover). The position is stored here and picked inside update(), so a
+  // fast-moving pointer costs at most one O(entities) pick per HOVER_INTERVAL_MS.
+  onPointerMove = e => {
+    if (!this.interactive || this.disposed || e.pointerType === 'touch' || this.pointers.size > 0) return;
+    this.hoverReq = { x: e.clientX, y: e.clientY };
+  };
+
+  onPointerLeave = () => {
+    this.hoverReq = null;
+    this.clearHover();
+  };
+
+  processHover(now) {
+    const req = this.hoverReq;
+    if (!req) return;
+    if (!this.interactive) {
+      this.hoverReq = null;
+      return;
+    }
+    if (now - this.hoverAt < HOVER_INTERVAL_MS) return; // keep the request for a later frame
+    this.hoverAt = now;
+    this.hoverReq = null;
+    const hit = this.pickEntity(req.x, req.y, HOVER_RADIUS_PX);
+    const entity = hit ? this.groups[hit.k].entities[hit.idx] || null : null;
+    this.setHovered(entity, req);
+  }
+
+  setHovered(entity, pointer) {
+    const id = entity ? String(entity.id) : null;
+    if (id === (this.hovered ? this.hovered.id : null)) return;
+    this.hovered = entity ? { id } : null;
+    if (!this.cb.onHover) return;
+    let pos = null;
+    if (entity && pointer) {
+      const rect = this.canvas.getBoundingClientRect();
+      pos = { x: pointer.x - rect.left, y: pointer.y - rect.top };
+    }
+    try {
+      this.cb.onHover(entity, pos);
+    } catch (error) {
+      console.error('[SpaceTecGlobeEngine] onHover failed', error);
+    }
+  }
+
+  clearHover() {
+    this.hoverReq = null;
+    if (this.hovered) this.setHovered(null, null);
+  }
+
+  getHoveredEntity() {
+    if (!this.hovered) return null;
+    const hit = this.idMap.get(this.hovered.id);
+    return hit ? this.groups[hit.k].entities[hit.idx] || null : null;
+  }
+
+  // Enables / disables user interaction. Disabled: the camera ignores drag / zoom / pan, taps do not select,
+  // hover is off, and touch-action is released so the page can scroll over the globe. Programmatic control
+  // (selectedId, focusEntity, follow, flyTo, autoRotate) is unaffected.
+  setInteractive(on, quiet) {
+    const next = Boolean(on);
+    if (next === this.interactive && !quiet) return;
+    this.interactive = next;
+    this.controls.enabled = next;
+    if (this.canvas.style) this.canvas.style.touchAction = next ? this.baseTouchAction : 'auto';
+    if (!next) {
+      this.pointers.clear();
+      this.gesture = null;
+      this.lastTap = null;
+      this.clearHover();
+    }
+  }
+
+  // While something is selected, draw every other entity faint (see ISOLATE_OPACITY). Purely visual: the
+  // entities stay in the list and stay pickable; clearing the selection restores the normal display.
+  setIsolateSelected(on) {
+    this.isolate = Boolean(on);
+    this.applyIsolation();
+  }
+
+  applyIsolation() {
+    const dim = this.isolate && Boolean(this.selected);
+    if (dim === this.isolated) return;
+    this.isolated = dim;
+    const m = this.entityMaterial;
+    if (!m) return;
+    m.transparent = dim;
+    m.opacity = dim ? ISOLATE_OPACITY : 1;
+    m.depthWrite = !dim;
+    m.needsUpdate = true;
+  }
 
   tap(clientX, clientY, radius) {
     const hit = this.pickEntity(clientX, clientY, radius);
@@ -1734,6 +1892,8 @@ class GlobeEngine {
   update(dt, now) {
     const cam = this.camera;
     const ctl = this.controls;
+
+    if (this.hoverReq) this.processHover(now);
 
     if (this.ticker) {
       this.tickAcc += dt * 1000;
@@ -1866,6 +2026,10 @@ class GlobeEngine {
     this.canvas.removeEventListener('pointerdown', this.onPointerDown);
     this.canvas.removeEventListener('pointerup', this.onPointerUp);
     this.canvas.removeEventListener('pointercancel', this.onPointerCancel);
+    this.canvas.removeEventListener('pointermove', this.onPointerMove);
+    this.canvas.removeEventListener('pointerleave', this.onPointerLeave);
+    this.hovered = null;
+    this.hoverReq = null;
     this.controls.removeEventListener('start', this.onControlStart);
     this.controls.dispose();
     this.setPath(null);
@@ -1911,6 +2075,9 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
     entities,
     selectedId,
     onSelect,
+    onHover,
+    interactive = true,
+    isolateSelected = false,
     path,
     legendExtras,
     textureUrls,
@@ -1939,6 +2106,8 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
 
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
+  const onHoverRef = useRef(onHover);
+  onHoverRef.current = onHover;
 
   const texKey = JSON.stringify([textureUrls || null, assetBase, textureTier, detailedModels, modelUrls || null]);
   const effectiveSel = selectedId !== undefined ? selectedId : internalSel;
@@ -1967,10 +2136,15 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
           modelUrls: modelUrls || null,
           detailedModels: detailedModels === 'auto' ? undefined : detailedModels,
           normalScale,
+          interactive,
+          isolateSelected,
           callbacks: {
             onSelect: entity => {
               setInternalSel(entity ? entity.id : null);
               if (onSelectRef.current) onSelectRef.current(entity);
+            },
+            onHover: (entity, pos) => {
+              if (onHoverRef.current) onHoverRef.current(entity, pos);
             },
             onFollowChange: setFollowing,
             onStats: setStats,
@@ -2045,10 +2219,21 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
     if (engine) engine.setNormalScale(normalScale);
   }, [engine, normalScale]);
 
+  useEffect(() => {
+    if (engine) engine.setInteractive(interactive);
+  }, [engine, interactive]);
+
+  useEffect(() => {
+    if (engine) engine.setIsolateSelected(isolateSelected);
+  }, [engine, isolateSelected]);
+
   // Selection from props / internal state.
   useEffect(() => {
     if (!engine) return;
     if (effectiveSel === null || effectiveSel === undefined) {
+      if (engine.selected) engine.setSelectedEntity(null, true);
+    } else if (!engine.hasEntity(effectiveSel)) {
+      // The requested entity is not in the list (filtered out, removed, not loaded yet): show no selection.
       if (engine.selected) engine.setSelectedEntity(null, true);
     } else if (!engine.selected || String(engine.selected.id) !== String(effectiveSel)) {
       engine.setSelectedEntity(effectiveSel, true);
