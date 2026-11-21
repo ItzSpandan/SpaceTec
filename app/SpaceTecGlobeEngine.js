@@ -1,46 +1,44 @@
 'use client';
 
 /**
- * SpaceTecGlobeEngine: an independent, in-house Three.js globe.
+ * SpaceTecGlobeEngine: an independent, feature-free Three.js globe.
  *
  * - Plain Three.js + OrbitControls. No react-globe.gl / three-globe / Cesium.
- * - Satellites are drawn with one THREE.InstancedMesh per category.
+ * - Earth, atmosphere, clouds, lighting, camera, picking, selection, follow camera and path rendering.
+ * - Entities are drawn with one THREE.InstancedMesh per render type.
  * - The rendering engine (class GlobeEngine) knows nothing about React.
  *   The React component below owns sizing, lifecycle and the UI overlay.
- * - Earth-fixed frame: Earth never rotates in the scene. Satellites arrive
- *   as geodetic lat/lng/altitude, so real propagated data can drop in later.
+ * - Earth-fixed frame: Earth never rotates in the scene. Entities arrive as geodetic lat/lng/altitude.
  *
- * GENERIC SUBJECT INTERFACE (feature-independent, step 1 of the engine/feature separation)
+ * The engine does not know what a satellite, launch pad or the ISS is. A feature plugs in through a
+ * "subject" (prop `subject`, or engine.attachSubject(subject)), usually built by a feature adapter such as
+ * app/globe/adapters/OrbitalTrackingAdapter.js. The engine never imports an adapter.
  *
- * The globe itself knows nothing about satellites, launch pads, the ISS, etc. A feature plugs in by
- * supplying a "subject" (prop `subject`, or engine.attachSubject(subject)):
- *
- *   GlobeEntity   { id, lat (deg), lng (deg), altitudeKm?, type?, timestamp? (ms), ...anything }
- *                 Extra fields are opaque to the engine and handed back untouched in callbacks.
- *   GlobePathPoint{ lat (deg), lng (deg), altitudeKm? }
- *   GlobeSubject  {
+ *   GlobeEntity    { id, lat (deg), lng (deg), altitudeKm?, type?, timestamp? (ms), velocityKmS?, ...anything }
+ *                  Extra fields are opaque to the engine and returned untouched in callbacks.
+ *   GlobePathPoint { lat (deg), lng (deg), altitudeKm? }
+ *   GlobeSubject   {
  *     id?: string,
  *     getEntities(): GlobeEntity[],                      // REQUIRED: the objects to display now
  *     subscribe?(push): unsubscribe,                     // push-style updates: push(entities?)
  *     tickMs?: number, tick?(nowMs): GlobeEntity[]|void, // pull-style updates (returning a list pushes it)
- *     resolveType?(entity): string,                      // rendering type key (see note below)
- *     getPath?(entityId, nowMs): GlobePathPoint[]|null,  // optional path/trajectory for an entity
+ *     getPath?(entityId, nowMs): GlobePathPoint[]|null,  // optional path/trajectory for the selected entity
  *     onSelect?(entity|null),                            // selection callback
+ *     // rendering configuration (all optional; defaults draw every entity as a plain marker):
+ *     types?: { [typeKey]: { label, color, size } },     // render types; one instanced mesh each. A 'generic'
+ *                                                        //   type is always present and is the fallback.
+ *     resolveType?(entity): typeKey,                     // default: entity.type
+ *     models?: {                                         // optional 3D models per type
+ *       silhouette(typeKey, level): THREE.BufferGeometry, //   instanced marker (vertex-coloured, ~1 unit)
+ *       detail?(typeKey, ctx): THREE.Object3D|null,       //   lazy model of the selected entity
+ *     },                                                  //   ctx: { envMap, maxAnisotropy, track, registerEnvMaterial, store }
+ *     describeEntity?(entity): { title, subtitle?, rows: [{ label, value }] },   // selection card
+ *     labels?: { legend?, selected?, path? },            // UI wording
  *   }
  *
- * Engine API (generic names): setEntities, setSelectedEntity, getSelectedEntity, focusEntity,
- * setPath, followSelected, attachSubject, detachSubject, plus the existing flyTo / resetView /
- * setAutoRotate / setTicker camera and lifecycle methods.
- *
- * TEMPORARY COMPATIBILITY LAYER: rendering types still map onto the built-in satellite render kinds
- * (KINDS), so an unknown type falls back to the generic marker. Satellite classification, the
- * instanced satellite models, the follow chase camera, the legend, the selection card and the
- * generated test fleet still live in this file and move to an Orbital Tracking adapter in a later step.
- *
- * Legacy satellite data contract (props.satellites, still supported and unchanged):
- *   { id, name?, category?: 'leo'|'meo'|'geo'|'station'|'other',
- *     lat (deg), lng (deg), altitudeKm, velocityKmS? }
- * If neither `subject` nor `satellites` is given, the internal generated test fleet is used.
+ * Engine API: setEntities, setSelectedEntity, getSelectedEntity, focusEntity, setPath, setFollow,
+ * attachSubject, detachSubject, applyTypeSystem, flyTo, resetView, setAutoRotate, setTicker.
+ * Optional GLB models per type can still be passed with the `modelUrls` prop (keyed by type).
  */
 
 import {
@@ -48,42 +46,30 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
-  useMemo,
   useRef,
   useState,
 } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import './SpaceTecGlobeEngine.css';
+import { EARTH_KM, DEG, mulberry32, bakeParts, UNIT_OCTA } from './globe/globeShared';
 
 // ---------------------------------------------------------------------------
 // Constants and small helpers
 // ---------------------------------------------------------------------------
-const EARTH_KM = 6371;
-const MU = 398600.4418; // km^3 / s^2
-const OMEGA_E = 7.2921159e-5; // rad / s
-const DEG = Math.PI / 180;
 
-const CATEGORIES = {
-  leo: { label: 'Low orbit', color: '#7fd4ff', size: 0.0042, shape: 'octa' },
-  meo: { label: 'Medium orbit', color: '#ffd27a', size: 0.0062, shape: 'box' },
-  geo: { label: 'Geostationary', color: '#ff9f80', size: 0.0085, shape: 'tetra' },
-  station: { label: 'Stations', color: '#ffffff', size: 0.012, shape: 'ico' },
-  other: { label: 'Other', color: '#b9c2d0', size: 0.0042, shape: 'octa' },
+// Render types. The engine draws one InstancedMesh per type key. A subject supplies its own registry
+// (`subject.types`) and models (`subject.models`); these defaults serve entities without a subject.
+// Every registry contains FALLBACK_TYPE: entities whose type is unknown are drawn with it.
+const FALLBACK_TYPE = 'generic';
+const DEFAULT_TYPES = {
+  generic: { label: 'Objects', color: '#b9c2d0', size: 0.0055 },
 };
-
-// Render kinds: one InstancedMesh each. `category` (orbit class) stays in the data API;
-// `kind` is an optional hint, otherwise it is derived from category / name (display only).
-const KINDS = {
-  comms: { label: 'Communications', color: '#ffcf70', size: 0.0105 },
-  starlink: { label: 'Broadband constellation', color: '#cfe6ff', size: 0.0075 },
-  nav: { label: 'Navigation', color: '#9fe3b0', size: 0.0085 },
-  weather: { label: 'Weather & Earth observation', color: '#8fc5ff', size: 0.0085 },
-  cubesat: { label: 'CubeSat', color: '#d9a8ff', size: 0.0045 },
-  station: { label: 'Space station', color: '#ffffff', size: 0.016 },
-  generic: { label: 'Other', color: '#b9c2d0', size: 0.0055 },
+const DEFAULT_MODELS = {
+  silhouette: () => bakeParts([{ geo: UNIT_OCTA, scale: [1, 1, 1], pos: [0, 0, 0], color: '#b9c2d0', lvl: 0 }], 1),
 };
-const KIND_KEYS = Object.keys(KINDS);
+const defaultResolveType = entity => (entity && entity.type) || FALLBACK_TYPE;
+const DEFAULT_TYPE_SYSTEM = { types: DEFAULT_TYPES, models: DEFAULT_MODELS, resolveType: defaultResolveType };
 
 // Texture sets per quality tier (files live in /public/globe-lab/earth, see README there).
 const TIER_SPECS = {
@@ -102,16 +88,6 @@ const smoothstep = (a, b, x) => {
   return t * t * (3 - 2 * t);
 };
 const easeInOut = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-
-function mulberry32(seed) {
-  let a = seed | 0;
-  return function rnd() {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 // Earth-fixed mapping that matches THREE.SphereGeometry's UV layout:
 // lng 0 -> +X, lng 90E -> -Z, north -> +Y.
@@ -141,398 +117,6 @@ function sunDirection(date, out) {
   const decl = -23.44 * Math.cos(((2 * Math.PI) / 365) * (doy + 10));
   const hours = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
   return llToVec(decl, -(hours - 12) * 15, 1, out);
-}
-
-// ---------------------------------------------------------------------------
-// Satellite kinds and lightweight category-based models
-// Axes of every model: +X along-track, +Y solar-array axis (orbit normal), +Z away from Earth.
-// These are REPRESENTATIVE silhouettes per category, not the real spacecraft.
-// ---------------------------------------------------------------------------
-function resolveKind(sat) {
-  if (sat && sat.kind && KINDS[sat.kind]) return sat.kind;
-  const name = String((sat && sat.name) || '').toUpperCase();
-  if ((sat && sat.category === 'station') || /\b(ISS|ZARYA|TIANGONG|CSS)\b/.test(name)) return 'station';
-  if (name.includes('STARLINK')) return 'starlink';
-  if (/NAVSTAR|\bGPS\b|GALILEO|GLONASS|BEIDOU|QZS/.test(name)) return 'nav';
-  if (/NOAA|GOES|METEOR|METOP|JPSS|HIMAWARI|LANDSAT|SENTINEL|FENGYUN/.test(name)) return 'weather';
-  if (/CUBESAT|\bCUBE\b|\bDOVE\b|FLOCK|LEMUR/.test(name)) return 'cubesat';
-  if (sat && sat.category === 'geo') return 'comms';
-  if (sat && sat.category === 'meo') return 'nav';
-  return 'generic';
-}
-
-const UNIT_BOX = new THREE.BoxGeometry(1, 1, 1);
-const UNIT_CYL = new THREE.CylinderGeometry(0.5, 0.5, 1, 14);
-const UNIT_CONE = new THREE.CylinderGeometry(0.5, 0.12, 1, 14);
-const UNIT_OCTA = new THREE.OctahedronGeometry(0.5);
-// Dish cap: apex on +Y, concave side opens toward -Y (base radius ~0.42).
-const UNIT_CAP = new THREE.SphereGeometry(0.5, 28, 10, 0, Math.PI * 2, 0, 1.0);
-const UNIT_SPH = new THREE.SphereGeometry(0.5, 16, 12);
-
-const GOLD = '#d9b04a';
-const SILVER = '#d5d9e0';
-const WHITE = '#f1f3f6';
-const GREY = '#8b929c';
-const PANEL = '#4a7bc4';
-const PANEL_LINE = '#10244d';
-
-// lvl 0 = core silhouette, 1 = antennas/instruments, 2 = fine detail (selected-model only)
-const box = (sx, sy, sz, x, y, z, color, lvl = 0) => ({ geo: UNIT_BOX, scale: [sx, sy, sz], pos: [x, y, z], color, lvl });
-const cyl = (r, len, axis, x, y, z, color, lvl = 0, cone = false) => ({
-  geo: cone ? UNIT_CONE : UNIT_CYL,
-  scale: [r * 2, len, r * 2],
-  rot: axis === 'x' ? [0, 0, Math.PI / 2] : axis === 'z' ? [Math.PI / 2, 0, 0] : [0, 0, 0],
-  pos: [x, y, z],
-  color,
-  lvl,
-});
-function panel(cx, cy, cz, sx, sy, sz, cells = true) {
-  const out = [box(sx, sy, sz, cx, cy, cz, PANEL)];
-  if (cells) {
-    const n = Math.max(3, Math.round(sy / 0.09));
-    for (let i = 1; i <= n; i += 1) {
-      out.push(box(sx * 1.02, 0.006, sz * 2.4, cx, cy - sy / 2 + (i * sy) / (n + 1), cz, PANEL_LINE, 2));
-    }
-  }
-  return out;
-}
-
-function kindParts(kind) {
-  switch (kind) {
-    case 'comms':
-      return [
-        box(0.3, 0.3, 0.36, 0, 0, 0, GOLD),
-        ...panel(0, 0.44, 0, 0.34, 0.52, 0.02),
-        ...panel(0, -0.44, 0, 0.34, 0.52, 0.02),
-        cyl(0.13, 0.05, 'z', 0, 0, -0.21, WHITE, 1, true),
-        box(0.04, 0.04, 0.18, 0, 0, 0.27, GREY, 1),
-        cyl(0.05, 0.05, 'z', 0.1, 0.08, -0.2, GREY, 2),
-        box(0.12, 0.12, 0.02, 0, 0, 0.19, SILVER, 2),
-      ];
-    case 'starlink':
-      return [
-        box(0.46, 0.26, 0.035, 0, 0, 0, SILVER),
-        ...panel(0, 0.69, 0, 0.46, 1.1, 0.012),
-        box(0.1, 0.1, 0.03, 0, 0, -0.03, GREY, 1),
-        box(0.08, 0.04, 0.02, -0.15, -0.1, 0.03, GREY, 2),
-      ];
-    case 'nav':
-      return [
-        box(0.26, 0.26, 0.3, 0, 0, 0, '#cdb779'),
-        ...panel(0, 0.38, 0, 0.26, 0.46, 0.015),
-        ...panel(0, -0.38, 0, 0.26, 0.46, 0.015),
-        box(0.2, 0.2, 0.03, 0, 0, -0.17, WHITE, 1),
-        cyl(0.015, 0.14, 'z', 0, 0, 0.22, GREY, 1),
-        box(0.08, 0.08, 0.02, 0.1, 0.1, -0.2, GREY, 2),
-      ];
-    case 'weather':
-      return [
-        box(0.24, 0.24, 0.5, 0, 0, 0, SILVER),
-        ...panel(0, 0.5, 0, 0.3, 0.78, 0.015),
-        cyl(0.09, 0.22, 'z', 0, 0, -0.34, GREY, 1),
-        box(0.02, 0.02, 0.4, 0.2, 0, 0, GREY, 1),
-        cyl(0.05, 0.03, 'z', -0.1, 0, 0.27, WHITE, 2, true),
-      ];
-    case 'cubesat':
-      return [
-        box(0.1, 0.1, 0.3, 0, 0, 0, '#c9ccd2'),
-        ...panel(0, 0.16, 0, 0.1, 0.2, 0.01),
-        ...panel(0, -0.16, 0, 0.1, 0.2, 0.01),
-        box(0.02, 0.02, 0.12, 0.04, 0.04, 0.2, GREY, 1),
-      ];
-    case 'station':
-      return [
-        box(0.05, 1.1, 0.05, 0, 0, 0, SILVER),
-        box(0.5, 0.14, 0.012, 0, 0.58, 0, PANEL),
-        box(0.5, 0.14, 0.012, 0, 0.4, 0, PANEL),
-        box(0.5, 0.14, 0.012, 0, -0.58, 0, PANEL),
-        box(0.5, 0.14, 0.012, 0, -0.4, 0, PANEL),
-        cyl(0.05, 0.4, 'x', 0, 0, -0.06, WHITE, 0),
-        cyl(0.04, 0.22, 'y', 0, 0, -0.06, WHITE, 1),
-        box(0.015, 0.2, 0.2, 0, 0.22, 0.14, '#e8e8e8', 1),
-        box(0.015, 0.2, 0.2, 0, -0.22, 0.14, '#e8e8e8', 1),
-        cyl(0.03, 0.14, 'z', 0.14, 0, -0.12, WHITE, 2),
-        cyl(0.03, 0.14, 'z', -0.14, 0, -0.12, WHITE, 2),
-        box(0.03, 0.5, 0.03, 0, 0.8, 0, GREY, 2),
-        box(0.03, 0.5, 0.03, 0, -0.8, 0, GREY, 2),
-      ];
-    default:
-      return [{ geo: UNIT_OCTA, scale: [1, 1, 1], pos: [0, 0, 0], color: '#b9c2d0', lvl: 0 }];
-  }
-}
-
-function bakeParts(parts, factor, withUV = false) {
-  const pos = [];
-  const nor = [];
-  const col = [];
-  const uvs = [];
-  const m = new THREE.Matrix4();
-  const nm = new THREE.Matrix3();
-  const v = new THREE.Vector3();
-  const c = new THREE.Color();
-  const q = new THREE.Quaternion();
-  const e = new THREE.Euler();
-  const t = new THREE.Vector3();
-  const sc = new THREE.Vector3();
-  parts.forEach(p => {
-    const g = p.geo.index ? p.geo.toNonIndexed() : p.geo.clone();
-    t.set(...(p.pos || [0, 0, 0]));
-    sc.set(...(p.scale || [1, 1, 1]));
-    e.set(...(p.rot || [0, 0, 0]));
-    q.setFromEuler(e);
-    m.compose(t, q, sc);
-    nm.getNormalMatrix(m);
-    c.set(p.color);
-    const P = g.getAttribute('position');
-    const N = g.getAttribute('normal');
-    const U = withUV ? g.getAttribute('uv') : null;
-    const ruv = p.uv || [1, 1];
-    for (let i = 0; i < P.count; i += 1) {
-      v.fromBufferAttribute(P, i).applyMatrix4(m).multiplyScalar(factor);
-      pos.push(v.x, v.y, v.z);
-      v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize();
-      nor.push(v.x, v.y, v.z);
-      col.push(c.r, c.g, c.b);
-      if (U) uvs.push(U.getX(i) * ruv[0], U.getY(i) * ruv[1]);
-    }
-    g.dispose();
-  });
-  const out = new THREE.BufferGeometry();
-  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-  out.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  if (withUV) out.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  return out;
-}
-
-const NORM_CACHE = new Map();
-function normFactor(kind) {
-  if (NORM_CACHE.has(kind)) return NORM_CACHE.get(kind);
-  const g = bakeParts(kindParts(kind).filter(p => p.lvl === 0), 1);
-  g.computeBoundingBox();
-  const size = g.boundingBox.getSize(new THREE.Vector3());
-  g.dispose();
-  const f = 1 / Math.max(size.x, size.y, size.z, 1e-6);
-  NORM_CACHE.set(kind, f);
-  return f;
-}
-
-function bakeKind(kind, level) {
-  return bakeParts(kindParts(kind).filter(p => p.lvl <= level), normFactor(kind));
-}
-
-// ---------------------------------------------------------------------------
-// Detailed procedural models (selected satellite only, built lazily and cached).
-// Representative designs per category, NOT the real spacecraft. Same axes as above.
-// ---------------------------------------------------------------------------
-function makeSolarTexture(maxAniso) {
-  const c = document.createElement('canvas');
-  c.width = 128;
-  c.height = 128;
-  const x = c.getContext('2d');
-  const g = x.createLinearGradient(0, 0, 128, 128);
-  g.addColorStop(0, '#2a4a96');
-  g.addColorStop(0.5, '#1f3d86');
-  g.addColorStop(1, '#163071');
-  x.fillStyle = g;
-  x.fillRect(0, 0, 128, 128);
-  x.fillStyle = '#0d1b40'; // clipped cell corners
-  [[0, 0, 1, 1], [128, 0, -1, 1], [0, 128, 1, -1], [128, 128, -1, -1]].forEach(([cx, cy, sx, sy]) => {
-    x.beginPath();
-    x.moveTo(cx, cy);
-    x.lineTo(cx + 9 * sx, cy);
-    x.lineTo(cx, cy + 9 * sy);
-    x.closePath();
-    x.fill();
-  });
-  x.strokeStyle = 'rgba(210,220,240,0.55)'; // bus bars
-  x.lineWidth = 1.5;
-  [42, 64, 86].forEach(px => {
-    x.beginPath();
-    x.moveTo(px, 5);
-    x.lineTo(px, 123);
-    x.stroke();
-  });
-  x.strokeStyle = '#aebbd6'; // cell border / interconnect gap
-  x.lineWidth = 3;
-  x.strokeRect(1.5, 1.5, 125, 125);
-  const t = new THREE.CanvasTexture(c);
-  t.wrapS = THREE.RepeatWrapping;
-  t.wrapT = THREE.RepeatWrapping;
-  t.anisotropy = maxAniso || 4;
-  if ('colorSpace' in t && THREE.SRGBColorSpace) t.colorSpace = THREE.SRGBColorSpace;
-  else if (THREE.sRGBEncoding) t.encoding = THREE.sRGBEncoding;
-  return t;
-}
-
-function makeDetailBuilder() {
-  const parts = [];
-  const add = (geo, scale, pos, color, mat, rot, uv) => parts.push({ geo, scale, pos, rot, color, mat, uv, lvl: 0 });
-  const B = {
-    parts,
-    box: (sx, sy, sz, x, y, z, color, mat = 'metal') => add(UNIT_BOX, [sx, sy, sz], [x, y, z], color, mat),
-    cyl: (r, len, axis, x, y, z, color, mat = 'metal') =>
-      add(UNIT_CYL, [r * 2, len, r * 2], [x, y, z], color, mat, axis === 'x' ? [0, 0, Math.PI / 2] : axis === 'z' ? [Math.PI / 2, 0, 0] : [0, 0, 0]),
-    // Cone whose WIDE end points toward +axis (sign = 1) or -axis (sign = -1).
-    cone: (rWide, len, axis, sign, x, y, z, color, mat = 'metal') => {
-      let rot = [0, 0, 0];
-      if (axis === 'z') rot = [sign * (Math.PI / 2), 0, 0];
-      else if (axis === 'x') rot = [0, 0, sign * (-Math.PI / 2)];
-      else if (sign < 0) rot = [Math.PI, 0, 0];
-      return add(UNIT_CONE, [rWide * 2, len, rWide * 2], [x, y, z], color, mat, rot);
-    },
-    sph: (r, x, y, z, color, mat = 'paint') => add(UNIT_SPH, [r * 2, r * 2, r * 2], [x, y, z], color, mat),
-    // Parabolic dish, aperture radius rd, opening toward nadir (-Z).
-    dish: (rd, x, y, z, color, mat = 'paint') => {
-      const sc = rd / 0.4207;
-      return add(UNIT_CAP, [sc, sc * 0.55, sc], [x, y, z], color, mat, [Math.PI / 2, 0, 0]);
-    },
-    cells: (sx, sy, sz, x, y, z, ru, rv) => add(UNIT_BOX, [sx, sy, sz], [x, y, z], '#ffffff', 'panel', null, [ru, rv]),
-    // Folding solar wing: framed, backed, individually-celled segments, hinges and a support mast.
-    wing: o => {
-      const { axis, from, to, lat = 0, z = 0, w, segs = 3, gap = 0.012, t = 0.012, fr = 0.008, cell = 0.05, boom = true } = o;
-      const dir = Math.sign(to - from) || 1;
-      const total = Math.abs(to - from);
-      const L = (total - gap * (segs - 1)) / segs;
-      const P = (along, off, zz) => (axis === 'y' ? [lat + off, along, zz] : [along, lat + off, zz]);
-      const D = (a, l, th) => (axis === 'y' ? [l, a, th] : [a, l, th]);
-      const cu = Math.max(1, Math.round((w - 2 * fr) / cell));
-      const cv = Math.max(1, Math.round((L - 2 * fr) / cell));
-      const uv = axis === 'y' ? [cu, cv] : [cv, cu];
-      for (let i = 0; i < segs; i += 1) {
-        const mid = from + dir * (i * (L + gap) + L / 2);
-        add(UNIT_BOX, D(L - 2 * fr, w - 2 * fr, t), P(mid, 0, z), '#ffffff', 'panel', null, uv);
-        add(UNIT_BOX, D(L, w, t * 0.6), P(mid, 0, z - t * 0.8), '#cfd3da', 'paint');
-        [-1, 1].forEach(sg => {
-          add(UNIT_BOX, D(L, fr, t * 1.7), P(mid, sg * (w / 2 - fr / 2), z), '#aab0ba', 'metal');
-          add(UNIT_BOX, D(fr, w, t * 1.7), P(mid + sg * (L / 2 - fr / 2), 0, z), '#aab0ba', 'metal');
-        });
-        if (i > 0) {
-          const hingeAt = from + dir * (i * (L + gap) - gap / 2);
-          const p = P(hingeAt, 0, z);
-          B.cyl(0.008, w * 0.92, axis === 'y' ? 'x' : 'y', p[0], p[1], p[2], '#8f96a2');
-        }
-      }
-      if (boom) {
-        const p = P(from + (dir * total) / 2, 0, z - t * 2.6);
-        B.cyl(0.006, total, axis, p[0], p[1], p[2], '#8f96a2');
-      }
-    },
-  };
-  return B;
-}
-
-function detailParts(kind) {
-  const B = makeDetailBuilder();
-  const SIDES = [-1, 1];
-  switch (kind) {
-    case 'comms': {
-      B.box(0.3, 0.3, 0.36, 0, 0, 0, GOLD);
-      B.box(0.31, 0.31, 0.04, 0, 0, 0.12, '#b8922f');
-      B.box(0.31, 0.31, 0.02, 0, 0, -0.12, '#b8922f');
-      SIDES.forEach(sx => {
-        B.box(0.012, 0.26, 0.3, sx * 0.156, 0, 0, '#eef1f5', 'paint'); // radiator
-        for (let i = 0; i < 6; i += 1) B.box(0.016, 0.26, 0.005, sx * 0.158, 0, -0.13 + i * 0.052, '#8f98a6');
-        B.wing({ axis: 'y', from: sx * 0.17, to: sx * 0.7, w: 0.34, segs: 3 });
-        B.cyl(0.01, 0.2, 'x', sx * 0.25, 0, -0.09, '#9aa3b0'); // reflector boom
-        B.dish(0.17, sx * 0.4, 0, -0.1, '#eceff3');
-        B.cyl(0.004, 0.2, 'z', sx * 0.4, 0, -0.22, '#9aa3b0'); // feed pole
-        B.cone(0.025, 0.05, 'z', 1, sx * 0.4, 0, -0.32, '#c9cdd4');
-        B.cyl(0.004, 0.2, 'z', sx * 0.1, 0.1, 0.3, '#aab1bc'); // TT&C whips
-      });
-      B.box(0.22, 0.22, 0.012, 0, 0, -0.186, '#cfd4db', 'paint');
-      [-0.07, 0, 0.07].forEach(a => [-0.06, 0.06].forEach(b => B.cone(0.028, 0.07, 'z', -1, a, b, -0.2, '#dfe3e8', 'paint')));
-      B.cyl(0.07, 0.04, 'z', 0, 0, 0.205, '#555c66');
-      B.cone(0.055, 0.09, 'z', 1, 0, 0, 0.27, '#3a3f47'); // apogee motor nozzle
-      B.box(0.05, 0.05, 0.05, 0.08, -0.1, 0.2, '#222831', 'paint');
-      B.cyl(0.025, 0.06, 'z', 0.08, -0.1, 0.26, '#111418', 'paint');
-      break;
-    }
-    case 'starlink': {
-      B.box(0.46, 0.26, 0.034, 0, 0, 0, '#e4e7ec', 'paint'); // flat chassis
-      B.box(0.43, 0.23, 0.008, 0, 0, -0.021, '#2b2f36', 'paint'); // phased-array face (nadir)
-      for (let i = 1; i < 6; i += 1) B.box(0.43, 0.003, 0.002, 0, -0.115 + i * 0.0383, -0.026, '#454c57');
-      for (let i = 1; i < 9; i += 1) B.box(0.003, 0.23, 0.002, -0.215 + i * 0.0478, 0, -0.026, '#454c57');
-      B.cyl(0.012, 0.12, 'y', 0, 0.12, 0, '#9aa3b0'); // array yoke
-      B.wing({ axis: 'y', from: 0.14, to: 1.24, w: 0.46, segs: 2, gap: 0.02, cell: 0.055 });
-      B.cyl(0.03, 0.02, 'z', -0.12, -0.05, 0.027, '#8c929c'); // thruster
-      B.cyl(0.018, 0.012, 'z', -0.12, -0.05, 0.04, '#222831');
-      B.box(0.04, 0.04, 0.03, 0.15, -0.08, 0.032, '#222831', 'paint'); // star tracker
-      B.cyl(0.014, 0.03, 'z', 0.15, -0.08, 0.05, '#0b0d10', 'paint');
-      B.box(0.07, 0.02, 0.012, -0.05, 0, 0.022, '#7a808a');
-      break;
-    }
-    case 'nav': {
-      B.box(0.26, 0.26, 0.3, 0, 0, 0, '#cdb779');
-      B.box(0.27, 0.27, 0.03, 0, 0, 0.11, '#b99a45');
-      B.box(0.27, 0.27, 0.02, 0, 0, -0.1, '#b99a45');
-      SIDES.forEach(sx => {
-        B.wing({ axis: 'y', from: sx * 0.15, to: sx * 0.6, w: 0.26, segs: 3 });
-        B.cyl(0.01, 0.14, 'z', sx * 0.09, 0.09, 0.26, '#aab1bc');
-      });
-      B.box(0.22, 0.22, 0.02, 0, 0, -0.17, '#f1f3f6', 'paint'); // nadir antenna plate
-      for (let i = 0; i < 12; i += 1) B.cone(0.022, 0.05, 'z', -1, ((i % 4) - 1.5) * 0.05, (Math.floor(i / 4) - 1) * 0.06, -0.2, '#d8dce2', 'paint');
-      B.box(0.07, 0.07, 0.01, 0, 0, 0.172, '#7f8a99'); // laser retroreflector
-      B.box(0.04, 0.04, 0.03, -0.1, 0.1, 0.17, '#222831', 'paint');
-      break;
-    }
-    case 'weather': {
-      B.box(0.24, 0.24, 0.5, 0, 0, 0, '#c8ccd4');
-      B.box(0.25, 0.25, 0.05, 0, 0, 0.2, '#b99a45');
-      B.cyl(0.012, 0.14, 'y', 0, 0.1, -0.05, '#9aa3b0');
-      B.wing({ axis: 'y', from: 0.14, to: 0.9, z: -0.05, w: 0.3, segs: 4 });
-      B.box(0.18, 0.18, 0.14, 0, 0, -0.32, '#d8dbe1', 'paint'); // instrument module
-      B.cyl(0.08, 0.16, 'z', 0, 0, -0.44, '#9aa0aa'); // telescope
-      B.cyl(0.06, 0.012, 'z', 0, 0, -0.52, '#10141a', 'paint'); // aperture
-      B.cyl(0.008, 0.3, 'x', -0.27, 0, 0.05, '#9aa3b0'); // side boom + antenna
-      B.box(0.08, 0.1, 0.08, -0.44, 0, 0.05, '#d8dbe1', 'paint');
-      B.dish(0.07, -0.44, 0, -0.01, '#f0f2f5');
-      B.box(0.012, 0.22, 0.34, 0.13, 0, -0.02, '#f4f5f7', 'paint'); // radiator
-      B.box(0.04, 0.04, 0.04, 0.05, -0.1, 0.27, '#222831', 'paint');
-      break;
-    }
-    case 'cubesat': {
-      B.box(0.1, 0.1, 0.3, 0, 0, 0, '#c4c8d0');
-      SIDES.forEach(sx => SIDES.forEach(sy => B.box(0.012, 0.012, 0.31, sx * 0.05, sy * 0.05, 0, '#8e949e')));
-      SIDES.forEach(sy => B.cells(0.08, 0.004, 0.26, 0, sy * 0.052, 0, 2, 6)); // body-mounted cells
-      SIDES.forEach(sy => {
-        B.wing({ axis: 'y', from: sy * 0.06, to: sy * 0.3, z: 0.1, w: 0.1, segs: 2, gap: 0.008, t: 0.008, fr: 0.005, cell: 0.04 });
-        B.wing({ axis: 'y', from: sy * 0.06, to: sy * 0.3, z: -0.1, w: 0.1, segs: 2, gap: 0.008, t: 0.008, fr: 0.005, cell: 0.04 });
-      });
-      B.cyl(0.03, 0.03, 'z', 0, 0, -0.16, '#15181d', 'paint'); // camera
-      B.cyl(0.02, 0.008, 'z', 0, 0, -0.178, '#0a1830', 'paint');
-      B.box(0.07, 0.07, 0.006, 0, 0, 0.153, '#2e7d5b', 'paint'); // patch antenna
-      B.box(0.26, 0.004, 0.004, 0, 0.04, 0.17, '#c9cdd4'); // UHF monopole
-      break;
-    }
-    case 'station': {
-      for (let i = 0; i < 4; i += 1) B.box(0.008, 1.1, 0.008, i % 2 ? 0.022 : -0.022, 0, i < 2 ? 0.022 : -0.022, '#c8ccd4'); // truss rails
-      for (let i = 0; i <= 10; i += 1) {
-        const y = -0.5 + i * 0.1;
-        B.box(0.044, 0.006, 0.006, 0, y, 0.022, '#aab0ba');
-        B.box(0.044, 0.006, 0.006, 0, y, -0.022, '#aab0ba');
-        B.box(0.006, 0.006, 0.044, 0.022, y, 0, '#aab0ba');
-        B.box(0.006, 0.006, 0.044, -0.022, y, 0, '#aab0ba');
-      }
-      [-0.58, -0.4, 0.4, 0.58].forEach(y => {
-        B.wing({ axis: 'x', from: 0.03, to: 0.28, lat: y, w: 0.14, segs: 4, gap: 0.008, t: 0.01, cell: 0.04 });
-        B.wing({ axis: 'x', from: -0.03, to: -0.28, lat: y, w: 0.14, segs: 4, gap: 0.008, t: 0.01, cell: 0.04 });
-      });
-      [[-0.2, 0.12, 0.045], [-0.06, 0.18, 0.05], [0.06, 0.1, 0.04], [0.18, 0.16, 0.05], [0.3, 0.1, 0.036]].forEach(([x, len, r]) => {
-        B.cyl(r, len, 'x', x, 0, -0.07, '#e8eaee', 'paint'); // pressurised modules
-        B.cyl(r * 1.1, 0.012, 'x', x + len / 2, 0, -0.07, '#9aa3b0');
-      });
-      B.cyl(0.03, 0.05, 'y', 0, 0.1, -0.07, '#e0e3e8', 'paint');
-      B.sph(0.03, 0, 0, -0.125, '#e8eaee'); // dome-like observation module
-      [-1, 1].forEach(sg => [0, 1, 2].forEach(i => B.box(0.01, 0.17, 0.07, 0, sg * 0.22, 0.04 + i * 0.075, '#f4f5f7', 'paint'))); // radiators
-      B.cyl(0.007, 0.14, 'x', 0.1, 0, -0.14, '#d0d4da'); // robotic arm
-      B.cyl(0.007, 0.12, 'z', 0.17, 0, -0.2, '#d0d4da');
-      break;
-    }
-    default:
-      B.sph(0.5, 0, 0, 0, '#b9c2d0');
-  }
-  return B.parts;
 }
 
 function disposeObject(obj) {
@@ -785,7 +369,7 @@ void main(){
 // GlobeEngine: pure Three.js, no React
 // ---------------------------------------------------------------------------
 // <motion-tracker>
-// Smooth motion for the SELECTED satellite only. Pure JS (no Three.js) so it can be unit tested.
+// Smooth motion for the SELECTED entity only. Pure JS (no Three.js) so it can be unit tested.
 // Samples arrive at irregular times; we extrapolate along the measured velocity and blend away any
 // disagreement when the next sample lands, so there is no steady-state lag behind the true position.
 const MOTION_MAX_EXTRAP_S = 2.5; // never extrapolate further than this (stale / missing updates)
@@ -864,7 +448,7 @@ class MotionTracker {
       this.init(x, y, z, ts);
       return true;
     }
-    // Where the old curve puts the satellite right now (the last evaluate may be up to one frame old).
+    // Where the old curve puts the entity right now (the last evaluate may be up to one frame old).
     const ageOld = Math.max(0, Math.min(MOTION_MAX_EXTRAP_S, (nowMs - this.t1) / 1000));
     const cx = this.p1[0] + this.vel[0] * ageOld + this.err[0];
     const cy = this.p1[1] + this.vel[1] * ageOld + this.err[1];
@@ -897,7 +481,7 @@ class MotionTracker {
     const zx = this.disp[0] / pl;
     const zy = this.disp[1] / pl;
     const zz = this.disp[2] / pl;
-    // Heading = tangential part of the velocity; keep the previous heading if the satellite is ~still.
+    // Heading = tangential part of the velocity; keep the previous heading if the entity is ~still.
     let vx = this.vel[0];
     let vy = this.vel[1];
     let vz = this.vel[2];
@@ -1011,14 +595,19 @@ class GlobeEngine {
     this._qinv = new THREE.Quaternion();
     this.motion = new MotionTracker();
     this.subject = null; // currently attached GlobeSubject handle (see attachSubject)
-    this.typeOf = resolveKind; // entity -> render type key; a subject may override via resolveType
-    this.layoutVersion = 0; // bumped when typeOf changes so the slots are rebuilt
+    this.typeSystem = null; // { types, models, resolveType } currently applied (see applyTypeSystem)
+    this.types = DEFAULT_TYPES; // render-type registry: key -> { label, color, size }
+    this.typeKeys = Object.keys(DEFAULT_TYPES);
+    this.models = DEFAULT_MODELS;
+    this.typeOf = defaultResolveType; // entity -> render type key
+    this.modelStore = {}; // per-engine scratch space for the model provider (materials, caches)
+    this.envMaterials = []; // materials whose reflection map the engine keeps current
+    this.layoutVersion = 0; // bumped when the type system changes so the slots are rebuilt
     this.slotVersion = 0;
     this.followState = { engage: 0, wantDist: 0, hasPrev: false, prevQ: new THREE.Quaternion() };
     this.envRT = null;
     this.envTex = null;
     this.envSun = null;
-    this.detailMats = null;
 
     const w = Math.max(1, container.clientWidth);
     const h = Math.max(1, container.clientHeight);
@@ -1054,14 +643,14 @@ class GlobeEngine {
     this.controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
     this.onControlStart = () => {
       // A release/reset glide is allowed to finish; any other tween is cancelled by the user.
-      // Following is NOT cancelled by rotate/zoom: the camera orbits the satellite instead.
+      // Following is NOT cancelled by rotate/zoom: the camera orbits the entity instead.
       if (this.tween && !this.tween.lock) this.tween = null;
     };
     this.controls.addEventListener('start', this.onControlStart);
 
     this.buildStars();
     this.buildAtmosphere();
-    this.buildSatelliteGroups();
+    this.buildEntityLayer();
     this.buildSelectionRing();
 
     this.onLost = e => {
@@ -1210,27 +799,14 @@ class GlobeEngine {
     if (this.earthUniforms) this.earthUniforms.normalStrength.value = v;
   }
 
-  buildSatelliteGroups() {
-    // Background fleet: one shared lit material, one baked geometry per kind, one InstancedMesh per kind.
-    const level = this.lowTier ? 0 : 1;
-    this.satMaterial = this.track(new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x1b2433 }));
+  buildEntityLayer() {
+    // Entities share one lit material; one baked geometry and one InstancedMesh per render type
+    // (created by applyTypeSystem).
+    this.entityMaterial = this.track(new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x1b2433 }));
     this.ambient = new THREE.AmbientLight(0xffffff, 1.1);
     this.sunLight = new THREE.DirectionalLight(0xffffff, 2.4);
     this.scene.add(this.ambient, this.sunLight);
-    KIND_KEYS.forEach(k => {
-      const geometry = this.track(bakeKind(k, level));
-      this.groups[k] = {
-        k,
-        geometry,
-        mesh: null,
-        cap: 0,
-        count: 0,
-        pos: new Float32Array(0),
-        basis: new Float32Array(0),
-        has: new Uint8Array(0),
-        sats: [],
-      };
-    });
+    this.applyTypeSystem(DEFAULT_TYPE_SYSTEM);
   }
 
   buildSelectionRing() {
@@ -1253,9 +829,9 @@ class GlobeEngine {
     this.pathMat = this.track(new THREE.LineBasicMaterial({ color: 0x8fd0ff, transparent: true, opacity: 0.6 }));
     this.pathLine = null;
 
-    // Stand-in for the selected satellite when no detailed model is shown: one ordinary mesh,
+    // Stand-in for the selected entity when no detailed model is shown: one ordinary mesh,
     // positioned from the interpolated motion (the instanced copy is hidden).
-    this.selMarker = new THREE.Mesh(this.track(new THREE.BufferGeometry()), this.satMaterial);
+    this.selMarker = new THREE.Mesh(this.track(new THREE.BufferGeometry()), this.entityMaterial);
     this.selMarker.matrixAutoUpdate = false;
     this.selMarker.visible = false;
     this.selMarker.frustumCulled = false;
@@ -1328,8 +904,8 @@ class GlobeEngine {
     this.requestRun();
   }
 
-  // ----- satellite data ---------------------------------------------------
-  setSatellites(list) {
+  // ----- entity data ------------------------------------------------------
+  setEntities(list) {
     if (this.disposed) return;
     const src = Array.isArray(list) ? list : [];
     let same = src.length === this.order.length && this.slotVersion === this.layoutVersion;
@@ -1346,7 +922,7 @@ class GlobeEngine {
   rebuildSlots(src) {
     this.slotVersion = this.layoutVersion;
     const counts = {};
-    KIND_KEYS.forEach(k => {
+    this.typeKeys.forEach(k => {
       counts[k] = 0;
     });
     const n = src.length;
@@ -1354,7 +930,7 @@ class GlobeEngine {
     this.slotIdx = new Uint32Array(n);
     this.idMap = new Map();
     const kindIndex = {};
-    KIND_KEYS.forEach((k, i) => {
+    this.typeKeys.forEach((k, i) => {
       kindIndex[k] = i;
     });
     for (let i = 0; i < n; i += 1) {
@@ -1365,17 +941,17 @@ class GlobeEngine {
       this.idMap.set(String(src[i].id), { k, idx: counts[k] });
       counts[k] += 1;
     }
-    KIND_KEYS.forEach(k => {
+    this.typeKeys.forEach(k => {
       const g = this.groups[k];
       g.count = counts[k];
-      g.sats = new Array(counts[k]);
+      g.entities = new Array(counts[k]);
       if (counts[k] > g.cap) {
         if (g.mesh) {
           this.scene.remove(g.mesh);
           if (g.mesh.dispose) g.mesh.dispose();
         }
         g.cap = Math.max(64, Math.ceil(counts[k] * 1.25));
-        g.mesh = new THREE.InstancedMesh(g.geometry, this.satMaterial, g.cap);
+        g.mesh = new THREE.InstancedMesh(g.geometry, this.entityMaterial, g.cap);
         g.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         g.mesh.frustumCulled = false; // one huge bounding sphere; per-instance culling is not available
         this.scene.add(g.mesh);
@@ -1383,7 +959,7 @@ class GlobeEngine {
         g.basis = new Float32Array(g.cap * 9);
         g.has = new Uint8Array(g.cap);
       } else {
-        g.has.fill(0); // slots were reassigned: previous positions no longer belong to the same satellite
+        g.has.fill(0); // slots were reassigned: previous positions no longer belong to the same entity
       }
       if (g.mesh) g.mesh.count = counts[k];
     });
@@ -1407,12 +983,12 @@ class GlobeEngine {
     const selK = this.selected ? this.selected.k : null;
     const selIdx = this.selected ? this.selected.idx : -1;
     const scales = {};
-    KIND_KEYS.forEach(k => {
-      scales[k] = KINDS[k].size * this.markerScale;
+    this.typeKeys.forEach(k => {
+      scales[k] = this.types[k].size * this.markerScale;
     });
     for (let i = 0; i < src.length; i += 1) {
       const sat = src[i];
-      const k = KIND_KEYS[this.slotCat[i]];
+      const k = this.typeKeys[this.slotCat[i]];
       const g = this.groups[k];
       const idx = this.slotIdx[i];
       const r = 1 + Math.max(0, Number(sat.altitudeKm) || 0) / EARTH_KM;
@@ -1487,7 +1063,7 @@ class GlobeEngine {
       g.pos[p + 1] = v.y;
       g.pos[p + 2] = v.z;
       g.has[idx] = 1;
-      g.sats[idx] = sat;
+      g.entities[idx] = sat;
 
       const a = g.mesh.instanceMatrix.array;
       const o = idx * 16;
@@ -1500,17 +1076,17 @@ class GlobeEngine {
     }
     this.hideSelectedInstance();
     this.appliedScale = this.markerScale;
-    KIND_KEYS.forEach(k => {
+    this.typeKeys.forEach(k => {
       const g = this.groups[k];
       if (g.mesh) g.mesh.instanceMatrix.needsUpdate = true;
     });
   }
 
   rescaleMarkers() {
-    KIND_KEYS.forEach(k => {
+    this.typeKeys.forEach(k => {
       const g = this.groups[k];
       if (!g.mesh) return;
-      const s = KINDS[k].size * this.markerScale;
+      const s = this.types[k].size * this.markerScale;
       const a = g.mesh.instanceMatrix.array;
       const bs = g.basis;
       for (let i = 0; i < g.count; i += 1) {
@@ -1526,7 +1102,7 @@ class GlobeEngine {
     this.appliedScale = this.markerScale;
   }
 
-  // ----- detailed model for the selected satellite (lazy) -----------------
+  // ----- detailed model for the selected entity (lazy) -----------------
   hideDetail() {
     this.detailToken += 1;
     if (this.detail) {
@@ -1537,11 +1113,11 @@ class GlobeEngine {
 
   showDetail(kind) {
     this.hideDetail();
-    if (!this.detailEnabled || kind === 'generic') return;
+    if (!this.detailEnabled || kind === FALLBACK_TYPE) return; // the fallback type never has a detailed model
     const token = this.detailToken;
     this.getDetailModel(kind).then(
       obj => {
-        if (this.disposed || token !== this.detailToken || !this.selected) return;
+        if (!obj || this.disposed || token !== this.detailToken || !this.selected) return;
         this.ensureEnv(); // refresh reflections if the sun has moved a lot since they were built
         obj.matrixAutoUpdate = false;
         this.detail = obj;
@@ -1583,12 +1159,10 @@ class GlobeEngine {
       this.envRT = rt;
       this.envTex = rt.texture;
       this.envSun = this.sun.clone();
-      if (this.detailMats) {
-        Object.values(this.detailMats).forEach(m => {
-          m.envMap = this.envTex;
-          m.needsUpdate = true;
-        });
-      }
+      this.envMaterials.forEach(m => {
+        m.envMap = this.envTex;
+        m.needsUpdate = true;
+      });
       if (oldTex) {
         this.detailCache.forEach(obj =>
           obj.traverse(o => {
@@ -1608,34 +1182,6 @@ class GlobeEngine {
     return this.envTex;
   }
 
-  getDetailMaterials() {
-    if (this.detailMats) return this.detailMats;
-    const env = this.ensureEnv();
-    const solar = this.track(makeSolarTexture(Math.min(8, this.renderer.capabilities.getMaxAnisotropy())));
-    const common = { envMap: env || null, side: THREE.DoubleSide };
-    this.detailMats = {
-      metal: this.track(new THREE.MeshStandardMaterial({ ...common, vertexColors: true, metalness: 0.85, roughness: 0.38, envMapIntensity: 1.1 })),
-      paint: this.track(new THREE.MeshStandardMaterial({ ...common, vertexColors: true, metalness: 0.1, roughness: 0.55, envMapIntensity: 0.6 })),
-      panel: this.track(
-        new THREE.MeshStandardMaterial({ ...common, map: solar, metalness: 0.7, roughness: 0.28, envMapIntensity: 1.2, emissive: 0x08142a })
-      ),
-    };
-    return this.detailMats;
-  }
-
-  buildProceduralDetail(kind) {
-    const mats = this.getDetailMaterials();
-    const parts = detailParts(kind);
-    const factor = normFactor(kind); // same scale as the instanced silhouette
-    const group = new THREE.Group();
-    ['metal', 'paint', 'panel'].forEach(m => {
-      const ps = parts.filter(p => p.mat === m);
-      if (!ps.length) return;
-      group.add(new THREE.Mesh(this.track(bakeParts(ps, factor, m === 'panel')), mats[m]));
-    });
-    return group;
-  }
-
   async getDetailModel(kind) {
     if (this.detailCache.has(kind)) return this.detailCache.get(kind);
     let obj = null;
@@ -1647,13 +1193,22 @@ class GlobeEngine {
         console.warn(`[SpaceTecGlobeEngine] ${url} failed, using the built-in model`, error);
       }
     }
-    if (!obj) obj = this.buildProceduralDetail(kind);
+    if (!obj && this.models.detail) {
+      obj = this.models.detail(kind, {
+        envMap: this.ensureEnv(),
+        maxAnisotropy: this.renderer.capabilities.getMaxAnisotropy(),
+        track: o => this.track(o),
+        registerEnvMaterial: m => this.envMaterials.push(m),
+        store: this.modelStore,
+      });
+    }
+    if (!obj) return null; // this type has no detailed model: the instanced marker stays
     if (this.disposed) return obj;
     this.detailCache.set(kind, obj);
     return obj;
   }
 
-  // Optional custom GLB per kind (axes: +X along-track, +Y panel axis, +Z away from Earth).
+  // Optional custom GLB per render type (axes: +X along-track, +Y panel axis, +Z away from Earth).
   async loadGltf(url) {
     const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
     const gltf = await new Promise((resolve, reject) => new GLTFLoader().load(url, resolve, undefined, reject));
@@ -1689,7 +1244,7 @@ class GlobeEngine {
       s = Math.max(0.02, dist * 0.028); // exaggerated so the silhouette is readable
       this.selMarker.visible = false;
     } else {
-      s = KINDS[this.selected.k].size * this.markerScale * 1.5;
+      s = this.types[this.selected.k].size * this.markerScale * 1.5;
       this.selMarker.visible = true;
     }
     this._bx.set(m.bx[0] * s, m.bx[1] * s, m.bx[2] * s);
@@ -1714,7 +1269,7 @@ class GlobeEngine {
     }
   }
 
-  // The selected satellite is drawn from the interpolated motion, so its instanced copy is made degenerate.
+  // The selected entity is drawn from the interpolated motion, so its instanced copy is made degenerate.
   hideSelectedInstance() {
     if (!this.selected) return;
     const g = this.groups[this.selected.k];
@@ -1725,33 +1280,9 @@ class GlobeEngine {
     g.mesh.instanceMatrix.needsUpdate = true;
   }
 
-  // ----- generic subject interface (feature-independent) -------------------------
-  // Thin, behaviour-preserving wrappers over the existing implementation. New code should call these;
-  // the older satellite-named methods remain as the temporary compatibility layer.
-  setEntities(list) {
-    this.setSatellites(list);
-  }
-
-  setSelectedEntity(id, silent) {
-    this.setSelected(id, silent);
-  }
-
-  getSelectedEntity() {
-    return this.getSelectedSat();
-  }
-
-  focusEntity(id) {
-    this.focusSatellite(id);
-  }
-
-  setPath(points) {
-    this.setOrbitPath(points);
-  }
-
-  followSelected(on) {
-    this.setFollow(on);
-  }
-
+  // ----- subject interface (feature-independent) --------------------------------
+  // Subscribers and the pull-style ticker both feed `setEntities`; a subject's type registry, models and
+  // type resolver are applied through `applyTypeSystem`.
   notifySelect(entity) {
     if (this.cb.onSelect) this.cb.onSelect(entity);
     const h = this.subject;
@@ -1764,19 +1295,69 @@ class GlobeEngine {
     }
   }
 
+  // Swaps the render-type registry, model provider and resolver. Everything built from the previous
+  // registry (instanced meshes, detail models) is torn down; the selection is cleared silently.
+  applyTypeSystem(ts) {
+    const next = {
+      types: ts.types && typeof ts.types === 'object' ? ts.types : DEFAULT_TYPES,
+      models: ts.models && typeof ts.models.silhouette === 'function' ? ts.models : DEFAULT_MODELS,
+      resolveType: typeof ts.resolveType === 'function' ? ts.resolveType : defaultResolveType,
+    };
+    if (!next.types[FALLBACK_TYPE]) next.types = { ...next.types, [FALLBACK_TYPE]: DEFAULT_TYPES[FALLBACK_TYPE] };
+    // Compare what the caller passed (not the normalised copy), so re-attaching the same registry is free.
+    const src = this.typeSystem && this.typeSystem.src;
+    if (src && src.types === ts.types && src.models === ts.models && src.resolveType === ts.resolveType) return;
+    if (this.selected) this.setSelectedEntity(null, true);
+    this.hideDetail();
+    this.detailCache.forEach(disposeObject);
+    this.detailCache.clear();
+    this.modelStore = {};
+    this.envMaterials = [];
+    Object.values(this.groups).forEach(g => {
+      if (g.mesh) {
+        this.scene.remove(g.mesh);
+        if (g.mesh.dispose) g.mesh.dispose();
+      }
+      g.geometry.dispose();
+    });
+    this.groups = {};
+
+    this.typeSystem = { ...next, src: { types: ts.types, models: ts.models, resolveType: ts.resolveType } };
+    this.types = next.types;
+    this.typeKeys = Object.keys(next.types);
+    this.models = next.models;
+    this.typeOf = next.resolveType;
+    const level = this.lowTier ? 0 : 1;
+    this.typeKeys.forEach(k => {
+      this.groups[k] = {
+        k,
+        geometry: this.track(this.models.silhouette(k, level)),
+        mesh: null,
+        cap: 0,
+        count: 0,
+        pos: new Float32Array(0),
+        basis: new Float32Array(0),
+        has: new Uint8Array(0),
+        entities: [],
+      };
+    });
+    this.order = [];
+    this.slotCat = new Uint8Array(0);
+    this.slotIdx = new Uint32Array(0);
+    this.idMap = new Map();
+    this.layoutVersion += 1; // slots must be rebuilt against the new registry
+    if (this.selMarker) this.selMarker.geometry = this.groups[FALLBACK_TYPE].geometry;
+  }
+
   // Connects a feature's content to the globe. Returns false (and attaches nothing) for an invalid subject.
   attachSubject(subject) {
-    this.detachSubject();
+    this.releaseSubject();
     if (this.disposed) return false;
     if (!isValidSubject(subject)) {
       console.error('[SpaceTecGlobeEngine] attachSubject: a subject needs a getEntities() function', subject);
       return false;
     }
-    const nextType = typeof subject.resolveType === 'function' ? subject.resolveType : resolveKind;
-    if (nextType !== this.typeOf) {
-      this.typeOf = nextType;
-      this.layoutVersion += 1;
-    }
+    this.applyTypeSystem(subject);
     const handle = { subject, unsubscribe: null, ticking: false };
     this.subject = handle;
     const push = list => {
@@ -1795,7 +1376,8 @@ class GlobeEngine {
     return true;
   }
 
-  detachSubject() {
+  // Stops the current subject's updates but keeps its types on screen (used when swapping subjects).
+  releaseSubject() {
     const h = this.subject;
     if (!h) return;
     this.subject = null;
@@ -1807,10 +1389,13 @@ class GlobeEngine {
       }
     }
     if (h.ticking) this.setTicker(null);
-    if (this.typeOf !== resolveKind) {
-      this.typeOf = resolveKind;
-      this.layoutVersion += 1;
-    }
+  }
+
+  // Releases the subject and returns the engine to its default (feature-free) type system.
+  // `keepTypes` skips the reset when another subject is about to be attached.
+  detachSubject(keepTypes) {
+    this.releaseSubject();
+    if (!keepTypes && !this.disposed) this.applyTypeSystem(DEFAULT_TYPE_SYSTEM);
   }
 
   setTicker(fn, intervalMs) {
@@ -1818,7 +1403,7 @@ class GlobeEngine {
     this.tickAcc = intervalMs || 0; // fire on the next frame
   }
 
-  setSelected(id, silent) {
+  setSelectedEntity(id, silent) {
     if (id === null || id === undefined) {
       const had = Boolean(this.selected);
       if (this.following) this.setFollow(false);
@@ -1826,7 +1411,7 @@ class GlobeEngine {
       this.ring.visible = false;
       this.selMarker.visible = false;
       this.motion.reset();
-      this.setOrbitPath(null);
+      this.setPath(null);
       this.hideDetail();
       if (had && this.order.length) this.writePositions(); // restore the hidden instanced marker
       if (!silent) this.notifySelect(null);
@@ -1848,12 +1433,12 @@ class GlobeEngine {
       if (this.order.length) this.writePositions(); // restores the previous marker, hides this one, seeds motion
       this.showDetail(hit.k);
     }
-    if (!silent) this.notifySelect(this.getSelectedSat());
+    if (!silent) this.notifySelect(this.getSelectedEntity());
   }
 
-  getSelectedSat() {
+  getSelectedEntity() {
     if (!this.selected) return null;
-    return this.groups[this.selected.k].sats[this.selected.idx] || null;
+    return this.groups[this.selected.k].entities[this.selected.idx] || null;
   }
 
   selectedPosition(out) {
@@ -1865,7 +1450,7 @@ class GlobeEngine {
   }
 
   // Updates the existing line in place when the point count is unchanged (no per-refresh allocation).
-  setOrbitPath(points) {
+  setPath(points) {
     if (!points || points.length < 2) {
       if (this.pathLine) {
         this.scene.remove(this.pathLine);
@@ -1940,8 +1525,8 @@ class GlobeEngine {
     if (this.cb.onFollowChange) this.cb.onFollowChange(next);
   }
 
-  // Chase camera: translate with the satellite and rotate the view offset with its orbital frame, so
-  // the satellite stays centred with no trailing, while rotate/zoom keep working around it.
+  // Chase camera: translate with the entity and rotate the view offset with its motion frame, so
+  // the entity stays centred with no trailing, while rotate/zoom keep working around it.
   chaseCamera(dt, sel) {
     const m = this.motion;
     const f = this.followState;
@@ -2001,8 +1586,8 @@ class GlobeEngine {
     this.controls.autoRotate = Boolean(on);
   }
 
-  focusSatellite(id) {
-    this.setSelected(id, false);
+  focusEntity(id) {
+    this.setSelectedEntity(id, false);
     const p = this.selectedPosition(new THREE.Vector3());
     if (!p) return;
     const ll = vecToLL(p);
@@ -2043,17 +1628,17 @@ class GlobeEngine {
   };
 
   tap(clientX, clientY, radius) {
-    const hit = this.pickSatellite(clientX, clientY, radius);
+    const hit = this.pickEntity(clientX, clientY, radius);
     if (hit) {
-      const sat = this.groups[hit.k].sats[hit.idx];
-      this.setSelected(sat.id, false);
+      const sat = this.groups[hit.k].entities[hit.idx];
+      this.setSelectedEntity(sat.id, false);
     } else if (this.selected) {
       this.setFollow(false);
-      this.setSelected(null, false);
+      this.setSelectedEntity(null, false);
     }
   }
 
-  pickSatellite(clientX, clientY, radius) {
+  pickEntity(clientX, clientY, radius) {
     const rect = this.canvas.getBoundingClientRect();
     const px = clientX - rect.left;
     const py = clientY - rect.top;
@@ -2064,7 +1649,7 @@ class GlobeEngine {
     const v = this._v;
     let best = null;
     let bestD = radius * radius;
-    KIND_KEYS.forEach(k => {
+    this.typeKeys.forEach(k => {
       const g = this.groups[k];
       for (let i = 0; i < g.count; i += 1) {
         v.set(g.pos[i * 3], g.pos[i * 3 + 1], g.pos[i * 3 + 2]);
@@ -2077,7 +1662,7 @@ class GlobeEngine {
         const dy = (1 - v.y) * hh - py;
         const d2 = dx * dx + dy * dy;
         if (d2 >= bestD) continue;
-        // Occlusion: does the camera->satellite segment cross the Earth?
+        // Occlusion: does the camera->entity segment cross the Earth?
         const ddx = x - cam.x;
         const ddy = y - cam.y;
         const ddz = z - cam.z;
@@ -2237,15 +1822,17 @@ class GlobeEngine {
       this.statClock = 0;
       if (this.cb.onStats) {
         const counts = {};
-        KIND_KEYS.forEach(k => {
+        this.typeKeys.forEach(k => {
           counts[k] = this.groups[k].count;
         });
-        const s = this.getSelectedSat();
+        const s = this.getSelectedEntity();
         this.cb.onStats({
           fps: Math.round(fps),
           dpr: this.dpr,
           total: this.order.length,
           counts,
+          types: this.types,
+          typeKeys: this.typeKeys,
           selected: s ? { ...s } : null,
           lowTier: this.lowTier,
           assets: this.assetInfo,
@@ -2281,8 +1868,8 @@ class GlobeEngine {
     this.canvas.removeEventListener('pointercancel', this.onPointerCancel);
     this.controls.removeEventListener('start', this.onControlStart);
     this.controls.dispose();
-    this.setOrbitPath(null);
-    KIND_KEYS.forEach(k => {
+    this.setPath(null);
+    this.typeKeys.forEach(k => {
       const g = this.groups[k];
       if (g.mesh && g.mesh.dispose) g.mesh.dispose();
     });
@@ -2298,137 +1885,34 @@ class GlobeEngine {
 }
 
 // ---------------------------------------------------------------------------
-// Generated test fleet (circular orbits; stands in for real propagated data)
-// ---------------------------------------------------------------------------
-function generateTestFleet(count, timeScale) {
-  const rnd = mulberry32(2024);
-  const sats = [];
-  const recs = [];
-  const byId = new Map();
-  const add = (category, name, altKm, incDeg, raanDeg, phaseDeg, kind) => {
-    const a = EARTH_KM + altKm;
-    const inc = incDeg * DEG;
-    const raan = raanDeg * DEG;
-    const n = Math.sqrt(MU / (a * a * a));
-    const id = `STG-${10000 + sats.length}`;
-    const sat = {
-      id,
-      name,
-      category,
-      kind,
-      lat: 0,
-      lng: 0,
-      altitudeKm: altKm,
-      velocityKmS: Math.sqrt(MU / a),
-      inclinationDeg: incDeg,
-      periodMin: (2 * Math.PI) / n / 60,
-      isTest: true,
-      timestamp: 0,
-    };
-    const rec = { a, n, m0: phaseDeg * DEG, cosI: Math.cos(inc), sinI: Math.sin(inc), cosR: Math.cos(raan), sinR: Math.sin(raan) };
-    sats.push(sat);
-    recs.push(rec);
-    byId.set(id, rec);
-  };
-
-  add('station', 'Test station Alpha', 410, 51.6, 40, 10, 'station');
-  add('station', 'Test station Beta', 390, 41.5, 200, 120, 'station');
-  add('station', 'Test station Gamma', 430, 97.4, 300, 250, 'station');
-  const incLeo = [53, 53, 70, 97.6, 98.2, 86.4, 43];
-  for (let i = sats.length; i < count; i += 1) {
-    const r = rnd();
-    const num = 10000 + i;
-    if (r < 0.46) {
-      add('leo', `Broadband-${num}`, 530 + rnd() * 60, [53, 53, 53, 70, 97.6][Math.floor(rnd() * 5)] + (rnd() - 0.5) * 0.3, rnd() * 360, rnd() * 360, 'starlink');
-    } else if (r < 0.58) {
-      add('leo', `EO-${num}`, 600 + rnd() * 250, 97.4 + rnd() * 1.4, rnd() * 360, rnd() * 360, 'weather');
-    } else if (r < 0.72) {
-      add('leo', `Cube-${num}`, 400 + rnd() * 200, 50 + rnd() * 48, rnd() * 360, rnd() * 360, 'cubesat');
-    } else if (r < 0.78) {
-      add('leo', `LEO-${num}`, 350 + Math.pow(rnd(), 1.5) * 1400, incLeo[Math.floor(rnd() * incLeo.length)] + (rnd() - 0.5) * 0.4, rnd() * 360, rnd() * 360, 'generic');
-    } else if (r < 0.88) {
-      add('meo', `Nav-${num}`, 19100 + rnd() * 4100, rnd() < 0.5 ? 55 + rnd() : 64.8 + rnd(), rnd() * 360, rnd() * 360, 'nav');
-    } else if (r < 0.97) {
-      add('geo', `Comms-${num}`, 35786, rnd() * 4, rnd() * 360, rnd() * 360, 'comms');
-    } else {
-      add('other', `OBJ-${num}`, 600 + rnd() * 900, rnd() * 100, rnd() * 360, rnd() * 360, 'generic');
-    }
-  }
-
-  const t0 = Date.now();
-  const frameAt = ms => {
-    const t = ((ms - t0) / 1000) * timeScale;
-    return { t, theta: OMEGA_E * t };
-  };
-  const wrap = d => ((((d + 180) % 360) + 360) % 360) - 180;
-
-  function update(ms) {
-    const { t, theta } = frameAt(ms);
-    for (let i = 0; i < sats.length; i += 1) {
-      const r = recs[i];
-      const u = r.m0 + r.n * t;
-      const cu = Math.cos(u);
-      const su = Math.sin(u);
-      const x1 = r.a * cu;
-      const y1 = r.a * su * r.cosI;
-      const z1 = r.a * su * r.sinI;
-      const x = x1 * r.cosR - y1 * r.sinR;
-      const y = x1 * r.sinR + y1 * r.cosR;
-      const s = sats[i];
-      s.lat = Math.asin(z1 / r.a) / DEG;
-      s.lng = wrap((Math.atan2(y, x) - theta) / DEG);
-      s.timestamp = ms; // sample time, used for interpolation of the selected satellite
-    }
-  }
-
-  function orbitPath(id, ms) {
-    const r = byId.get(id);
-    if (!r) return null;
-    const { theta } = frameAt(ms);
-    const pts = [];
-    for (let k = 0; k <= 180; k += 1) {
-      const u = (k / 180) * Math.PI * 2;
-      const x1 = r.a * Math.cos(u);
-      const y1 = r.a * Math.sin(u) * r.cosI;
-      const z1 = r.a * Math.sin(u) * r.sinI;
-      const x = x1 * r.cosR - y1 * r.sinR;
-      const y = x1 * r.sinR + y1 * r.cosR;
-      pts.push({ lat: Math.asin(z1 / r.a) / DEG, lng: wrap((Math.atan2(y, x) - theta) / DEG), altitudeKm: r.a - EARTH_KM });
-    }
-    return pts;
-  }
-
-  update(t0);
-  return { sats, update, orbitPath };
-}
-
-// ---------------------------------------------------------------------------
 // React component
 // ---------------------------------------------------------------------------
-// TEMPORARY COMPATIBILITY: the generated test fleet expressed through the generic subject interface.
-// It moves out of this file together with the other satellite-specific code in a later step.
-function createTestFleetSubject(fleet) {
-  return {
-    id: 'generated-test-fleet',
-    getEntities: () => fleet.sats,
-    tickMs: 50,
-    tick: ms => {
-      fleet.update(ms);
-      return fleet.sats;
-    },
-    getPath: (id, ms) => fleet.orbitPath(String(id), ms),
-  };
+// Selection card content: the subject's own description, or a generic one built from the entity.
+function describeSelected(subject, entity) {
+  if (subject && typeof subject.describeEntity === 'function') {
+    try {
+      const d = subject.describeEntity(entity);
+      if (d && Array.isArray(d.rows)) return { title: d.title || entity.id, subtitle: d.subtitle || '', rows: d.rows };
+    } catch (error) {
+      console.warn('[SpaceTecGlobeEngine] subject.describeEntity failed', error);
+    }
+  }
+  const rows = [
+    { label: 'Altitude', value: `${Number(entity.altitudeKm || 0).toFixed(0)} km` },
+    { label: 'Latitude', value: `${Number(entity.lat).toFixed(2)}°` },
+    { label: 'Longitude', value: `${Number(entity.lng).toFixed(2)}°` },
+  ];
+  return { title: entity.name || String(entity.id), subtitle: String(entity.id), rows };
 }
-
-const TEST_COUNTS = [500, 1000, 3000, 5000, 10000, 20000];
 
 const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
   {
-    subject: subjectProp,
-    satellites,
+    subject,
+    entities,
     selectedId,
     onSelect,
-    orbitPath,
+    path,
+    legendExtras,
     textureUrls,
     assetBase = '/globe-lab',
     textureTier = 'auto',
@@ -2437,10 +1921,7 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
     normalScale = 1,
     quality = 'auto',
     showControls = true,
-    showTestControls = true,
     autoRotate = false,
-    testCount = 3000,
-    testTimeScale = 60,
     className = '',
     style,
   },
@@ -2452,18 +1933,13 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
   const [engineKey, setEngineKey] = useState(0);
   const [stats, setStats] = useState(null);
   const [following, setFollowing] = useState(false);
-  const [showOrbit, setShowOrbit] = useState(true);
+  const [showPath, setShowPath] = useState(true);
   const [rotate, setRotate] = useState(autoRotate);
-  const [count, setCount] = useState(testCount);
   const [internalSel, setInternalSel] = useState(null);
 
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
 
-  const usingTest = !subjectProp && !Array.isArray(satellites);
-  const fleet = useMemo(() => (usingTest ? generateTestFleet(count, testTimeScale) : null), [usingTest, count, testTimeScale]);
-  const subject = useMemo(() => subjectProp || (fleet ? createTestFleetSubject(fleet) : null), [subjectProp, fleet]);
-  const data = subjectProp ? null : usingTest ? fleet.sats : satellites;
   const texKey = JSON.stringify([textureUrls || null, assetBase, textureTier, detailedModels, modelUrls || null]);
   const effectiveSel = selectedId !== undefined ? selectedId : internalSel;
 
@@ -2492,9 +1968,9 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
           detailedModels: detailedModels === 'auto' ? undefined : detailedModels,
           normalScale,
           callbacks: {
-            onSelect: sat => {
-              setInternalSel(sat ? sat.id : null);
-              if (onSelectRef.current) onSelectRef.current(sat);
+            onSelect: entity => {
+              setInternalSel(entity ? entity.id : null);
+              if (onSelectRef.current) onSelectRef.current(entity);
             },
             onFollowChange: setFollowing,
             onStats: setStats,
@@ -2549,16 +2025,17 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [engineKey, quality, texKey]);
 
-  // Content: a feature subject (or the generated test fleet, itself a subject) or a legacy `satellites` array.
+  // Content: a feature subject (built by an adapter) or a plain `entities` array.
   useEffect(() => {
     if (!engine) return undefined;
     if (subject) {
       engine.attachSubject(subject);
-      return () => engine.detachSubject();
+      return () => engine.detachSubject(true); // keeps the types on screen if another subject follows
     }
-    engine.setEntities(data);
+    engine.detachSubject(); // back to the default type system
+    engine.setEntities(Array.isArray(entities) ? entities : []);
     return undefined;
-  }, [engine, subject, data]);
+  }, [engine, subject, entities]);
 
   useEffect(() => {
     if (engine) engine.setAutoRotate(rotate);
@@ -2572,21 +2049,21 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
   useEffect(() => {
     if (!engine) return;
     if (effectiveSel === null || effectiveSel === undefined) {
-      if (engine.selected) engine.setSelected(null, true);
+      if (engine.selected) engine.setSelectedEntity(null, true);
     } else if (!engine.selected || String(engine.selected.id) !== String(effectiveSel)) {
-      engine.setSelected(effectiveSel, true);
+      engine.setSelectedEntity(effectiveSel, true);
     }
-  }, [engine, effectiveSel, data, subject]);
+  }, [engine, effectiveSel, entities, subject]);
 
-  // Orbit path for the selected satellite.
+  // Path for the selected entity: a static `path` prop, or the subject's getPath().
   useEffect(() => {
     if (!engine) return undefined;
-    if (!showOrbit || effectiveSel === null || effectiveSel === undefined) {
+    if (!showPath || effectiveSel === null || effectiveSel === undefined) {
       engine.setPath(null);
       return undefined;
     }
-    if (Array.isArray(orbitPath)) {
-      engine.setPath(orbitPath);
+    if (Array.isArray(path)) {
+      engine.setPath(path);
       return undefined;
     }
     if (subject && typeof subject.getPath === 'function') {
@@ -2597,7 +2074,7 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
     }
     engine.setPath(null);
     return undefined;
-  }, [engine, effectiveSel, showOrbit, orbitPath, subject]);
+  }, [engine, effectiveSel, showPath, path, subject]);
 
   useImperativeHandle(
     ref,
@@ -2605,9 +2082,7 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
       reset: () => engine && engine.resetView(),
       flyTo: (lat, lng, distance) => engine && engine.flyTo(lat, lng, distance),
       setFollow: on => engine && engine.setFollow(on),
-      focusSatellite: id => engine && engine.focusSatellite(id),
       focusEntity: id => engine && engine.focusEntity(id),
-      followSelected: on => engine && engine.followSelected(on),
     }),
     [engine]
   );
@@ -2615,11 +2090,13 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
   const clearSelection = useCallback(() => {
     if (engine) {
       engine.setFollow(false);
-      engine.setSelected(null, false);
+      engine.setSelectedEntity(null, false);
     }
   }, [engine]);
 
   const sel = stats && stats.selected;
+  const labels = (subject && subject.labels) || {};
+  const card = sel ? describeSelected(subject, sel) : null;
   const overlay = {
     waiting: 'Preparing the globe...',
     nosize: 'The globe container has no height. Give its parent an explicit height.',
@@ -2654,15 +2131,15 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
             >
               Follow
             </button>
-            <button type="button" className={`stge-btn ${showOrbit ? 'is-on' : ''}`} aria-pressed={showOrbit} onClick={() => setShowOrbit(v => !v)}>
-              Orbit path
+            <button type="button" className={`stge-btn ${showPath ? 'is-on' : ''}`} aria-pressed={showPath} onClick={() => setShowPath(v => !v)}>
+              {labels.path || 'Path'}
             </button>
             <button type="button" className={`stge-btn ${rotate ? 'is-on' : ''}`} aria-pressed={rotate} onClick={() => setRotate(v => !v)}>
               Auto-rotate
             </button>
           </div>
 
-          <div className="stge-legend" aria-label="Satellite categories">
+          <div className="stge-legend" aria-label={labels.legend || 'Object types'}>
             <div className="stge-legend-total">
               {stats ? stats.total.toLocaleString() : 0} objects
               {stats ? <span className="stge-fps"> {stats.fps} fps</span> : null}
@@ -2674,46 +2151,36 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
                   : 'Earth: procedural placeholder (add textures to /public/globe-lab/earth)'}
               </div>
             ) : null}
-            {KIND_KEYS.map(k => (
-              <div key={k} className="stge-legend-row">
-                <i style={{ background: KINDS[k].color }} />
-                <span>{KINDS[k].label}</span>
-                <b>{stats ? (stats.counts[k] || 0).toLocaleString() : 0}</b>
-              </div>
-            ))}
-            {usingTest && showTestControls && (
-              <label className="stge-count">
-                Test objects
-                <select value={count} onChange={e => setCount(Number(e.target.value))}>
-                  {TEST_COUNTS.map(c => (
-                    <option key={c} value={c}>
-                      {c.toLocaleString()}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
+            {stats && stats.types
+              ? stats.typeKeys.map(k => (
+                  <div key={k} className="stge-legend-row">
+                    <i style={{ background: stats.types[k].color }} />
+                    <span>{stats.types[k].label}</span>
+                    <b>{(stats.counts[k] || 0).toLocaleString()}</b>
+                  </div>
+                ))
+              : null}
+            {legendExtras || null}
           </div>
 
-          {sel && (
-            <div className="stge-card" role="region" aria-label="Selected satellite">
+          {card && (
+            <div className="stge-card" role="region" aria-label={labels.selected || 'Selected object'}>
               <div className="stge-card-head">
                 <div>
-                  <strong>{sel.name || sel.id}</strong>
-                  <span>{sel.id}</span>
+                  <strong>{card.title}</strong>
+                  <span>{card.subtitle}</span>
                 </div>
                 <button type="button" className="stge-btn" onClick={clearSelection} aria-label="Clear selection">
                   Close
                 </button>
               </div>
               <dl>
-                <div><dt>Orbit class</dt><dd>{(CATEGORIES[sel.category] || CATEGORIES.other).label}</dd></div>
-                <div><dt>Model</dt><dd>Representative {KINDS[resolveKind(sel)].label.toLowerCase()}</dd></div>
-                <div><dt>Altitude</dt><dd>{Number(sel.altitudeKm).toFixed(0)} km</dd></div>
-                <div><dt>Latitude</dt><dd>{Number(sel.lat).toFixed(2)}°</dd></div>
-                <div><dt>Longitude</dt><dd>{Number(sel.lng).toFixed(2)}°</dd></div>
-                {Number.isFinite(Number(sel.velocityKmS)) && <div><dt>Speed</dt><dd>{Number(sel.velocityKmS).toFixed(2)} km/s</dd></div>}
-                {sel.isTest && <div><dt>Source</dt><dd>Generated test data</dd></div>}
+                {card.rows.map(r => (
+                  <div key={r.label}>
+                    <dt>{r.label}</dt>
+                    <dd>{r.value}</dd>
+                  </div>
+                ))}
               </dl>
             </div>
           )}
