@@ -10,7 +10,8 @@
  * and changed later through setFilter / setLimit / resetView. They only re-slice the records that are already
  * downloaded and prepared: changing them never calls Supabase and never re-runs SGP4 preparation.
  * `count` is the number of objects currently shown, `total` the prepared catalogue size and `filterCounts` the
- * number of objects per filter key (for chip labels).
+ * number of objects per filter key (for chip labels). `database` is { total, active, inactive } counted over every
+ * downloaded row (null until loaded).
  *
  * Data flow: Supabase public.satellites (1,000-row batches) -> prepareOrbitalRecords (OMM/TLE -> satrec, SGP4,
  * chunked so the page stays responsive) -> createRealOrbitalSubject -> generic globe engine.
@@ -23,13 +24,14 @@ import {
   createRealOrbitalSubject,
   isValidOrbitalFilter,
   prepareOrbitalRecords,
+  summarizeSatelliteRows,
 } from './OrbitalTrackingAdapter';
 import { isAbortError, loadSatelliteRows } from './orbitalSatelliteSource';
 
 // A missing or invalid filter option means 'all'.
 const initialFilter = f => (f !== undefined && f !== null && isValidOrbitalFilter(f) ? f : DEFAULT_ORBITAL_FILTER);
 
-const IDLE = { status: 'idle', message: '', count: 0, total: 0, filterCounts: null, error: null, subject: null };
+const IDLE = { status: 'idle', message: '', count: 0, total: 0, filterCounts: null, database: null, error: null, subject: null };
 
 export function useRealOrbitalTracking({ client = sharedSupabase, limit, filter, onSelect, enabled = true } = {}) {
   const [state, setState] = useState(IDLE);
@@ -90,7 +92,7 @@ export function useRealOrbitalTracking({ client = sharedSupabase, limit, filter,
           },
         });
         const info = subject.getView();
-        setState({ status: 'ready', message: '', count: info.visible, total: info.total, filterCounts: subject.getFilterCounts(), error: null, subject });
+        setState({ status: 'ready', message: '', count: info.visible, total: info.total, filterCounts: subject.getFilterCounts(), database: summarizeSatelliteRows(rows), error: null, subject });
       } catch (error) {
         if (isAbortError(error) || signal.aborted) return; // unmounted or superseded: nothing to report
         console.error('[useRealOrbitalTracking] satellite load failed', error);
