@@ -100,11 +100,11 @@ const OG_CSS = `/* ===== Orbital Globe – all rules scoped to .og-* or the orig
 .og-v { font-size: 0.78rem; color: #fff; margin-top: 0.15rem !important; overflow-wrap: anywhere; }
 .og-foot { margin-top: 0.7rem; padding-top: 0.5rem; border-top: 1px solid #18181b; font-family: monospace; font-size: 0.54rem; color: #71717a; }
 
-/* ===== Desktop expanded orbital operations console (graphite / charcoal, restrained cyan) ===== */
+/* ===== Desktop expanded orbital operations console (black & white, matching the site; LIVE stays green) ===== */
 .og-root.og-fs {
-  --fs-bg: #0a0c0f; --fs-panel: #101318; --fs-surface: #161a20; --fs-surface-2: #1c2128;
-  --fs-border: #252b34; --fs-border-2: #333b47; --fs-text: #e6e8ec; --fs-muted: #9099a8; --fs-dim: #626b7a;
-  --fs-accent: #22d3ee; --fs-accent-soft: rgba(34,211,238,0.12); --fs-accent-line: rgba(34,211,238,0.45);
+  --fs-bg: #000; --fs-panel: #000; --fs-surface: #050505; --fs-surface-2: #000;
+  --fs-border: #262626; --fs-border-2: #3a3a3a; --fs-text: #fff; --fs-muted: #a3a3a3; --fs-dim: #737373;
+  --fs-accent: #fff; --fs-accent-soft: rgba(255,255,255,0.1); --fs-accent-line: rgba(255,255,255,0.55);
   position: fixed; left: 0; right: 0; bottom: 0; top: 81px; /* top is set from the real header height at runtime */
   z-index: 1000000; max-width: none; margin: 0; gap: 0;
   background: var(--fs-bg); color: var(--fs-text);
@@ -118,7 +118,7 @@ const OG_CSS = `/* ===== Orbital Globe – all rules scoped to .og-* or the orig
 .og-fs .og-title small { display: block; font-size: 0.62rem; font-weight: 500; letter-spacing: 1.2px; color: var(--fs-dim); margin-top: 2px; }
 .og-fs .og-topstats { margin-left: auto; display: flex; gap: 1.4rem; font-size: 0.72rem; color: var(--fs-muted); align-items: center; font-variant-numeric: tabular-nums; }
 .og-fs .og-topstats b { color: var(--fs-text); font-weight: 600; }
-.og-live-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--fs-accent, #22d3ee); box-shadow: 0 0 0 3px rgba(34,211,238,0.16); margin-right: 7px; }
+.og-live-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.2); margin-right: 7px; }
 .og-fs .og-body { flex: 1 1 auto; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr); grid-template-columns: 300px minmax(0, 1fr) 320px; }
 @media (min-width: 1280px) { .og-fs .og-body { grid-template-columns: 320px minmax(0, 1fr) 344px; } }
 .og-fs .og-stage {
@@ -143,47 +143,46 @@ const OG_CSS = `/* ===== Orbital Globe – all rules scoped to .og-* or the orig
 /* buttons: secondary (default), chip/selected, primary, icon */
 .og-fs .og-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; min-height: 34px; padding: 0.4rem 0.75rem;
-  background: var(--fs-surface-2); border: 1px solid var(--fs-border-2); border-radius: 8px; color: #c9ced8;
+  background: var(--fs-surface-2); border: 1px solid var(--fs-border-2); border-radius: 8px; color: #e5e5e5;
   font-family: inherit; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.2px; text-transform: none; cursor: pointer;
   transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.06s;
 }
-.og-fs .og-btn:hover:not([disabled]) { background: #242a33; border-color: #444e5d; color: #fff; }
-.og-fs .og-btn:active:not([disabled]) { background: #14181e; transform: translateY(1px); }
+.og-fs .og-btn:hover:not([disabled]) { background: #1a1a1a; border-color: #6b6b6b; color: #fff; }
+.og-fs .og-btn:active:not([disabled]) { background: #0f0f0f; transform: translateY(1px); }
 .og-fs .og-btn:focus-visible, .og-fs .og-switch:focus-visible, .og-fs .og-li:focus-visible, .og-fs .og-search:focus-visible, .og-fs .og-range:focus-visible { outline: 2px solid var(--fs-accent); outline-offset: 2px; }
-.og-fs .og-btn.on { background: var(--fs-accent-soft); border-color: var(--fs-accent-line); color: #b6f3fc; }
+.og-fs .og-btn.on { background: #fff; border-color: #fff; color: #000; }
+.og-fs .og-btn.on:hover:not([disabled]) { background: #e5e5e5; border-color: #e5e5e5; color: #000; }
 .og-fs .og-btn[disabled] { opacity: 0.42; cursor: not-allowed; }
-.og-fs .og-btn-primary {
-  min-height: 42px; width: 100%; font-size: 0.8rem; font-weight: 700; color: #03232a; border-color: transparent;
-  background: linear-gradient(180deg, #38dcf3, #1bbad3);
-}
-.og-fs .og-btn-primary:hover:not([disabled]) { background: linear-gradient(180deg, #5ce4f7, #2ac6de); color: #03232a; border-color: transparent; }
-.og-fs .og-btn-primary:active:not([disabled]) { background: #17a5bb; transform: translateY(1px); }
-.og-fs .og-btn-primary.on { background: #e8fbff; color: #04323b; border-color: var(--fs-accent); box-shadow: 0 0 0 2px var(--fs-accent-soft); }
-.og-fs .og-btn-primary[disabled] { background: var(--fs-surface-2); color: var(--fs-dim); border-color: var(--fs-border); opacity: 1; }
+.og-fs .og-btn-primary { min-height: 42px; width: 100%; font-size: 0.8rem; font-weight: 700; color: #fff; background: #000; border: 1px solid #fff; }
+.og-fs .og-btn-primary:hover:not([disabled]) { background: #1f1f1f; border-color: #fff; color: #fff; }
+.og-fs .og-btn-primary:active:not([disabled]) { background: #0f0f0f; transform: translateY(1px); }
+.og-fs .og-btn-primary.on { background: #fff; color: #000; border-color: #fff; }
+.og-fs .og-btn-primary.on:hover:not([disabled]) { background: #e5e5e5; color: #000; }
+.og-fs .og-btn-primary[disabled] { background: #000; color: var(--fs-dim); border-color: var(--fs-border); opacity: 1; }
 .og-fs .og-btn-wide { width: 100%; }
 .og-fs .og-close { width: 36px; min-height: 36px; padding: 0; font-size: 1.05rem; line-height: 1; }
 /* compact ON/OFF switches */
 .og-switch { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; width: 100%; min-height: 38px; padding: 0.35rem 0.1rem; background: none; border: 0; border-radius: 8px; color: var(--fs-text); font-family: inherit; font-size: 0.78rem; font-weight: 500; text-align: left; cursor: pointer; }
 .og-switch + .og-switch { border-top: 1px solid var(--fs-border); border-radius: 0; }
-.og-switch:hover .og-track { border-color: #4a5566; }
+.og-switch:hover .og-track { border-color: #8a8a8a; }
 .og-switch:active .og-knob { width: 16px; }
 .og-switch[disabled] { opacity: 0.45; cursor: not-allowed; }
 .og-switch-label small { display: block; font-size: 0.64rem; font-weight: 400; color: var(--fs-dim); margin-top: 1px; }
 .og-switch-end { display: inline-flex; align-items: center; gap: 0.5rem; flex: 0 0 auto; }
 .og-onoff { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.8px; color: var(--fs-dim); min-width: 22px; text-align: right; }
-.og-switch[aria-checked="true"] .og-onoff { color: var(--fs-accent); }
-.og-track { position: relative; width: 36px; height: 20px; border-radius: 10px; background: #0d1014; border: 1px solid var(--fs-border-2); transition: background 0.15s, border-color 0.15s; flex: 0 0 auto; }
-.og-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 7px; background: #7d8696; transition: transform 0.15s, background 0.15s, width 0.08s; }
-.og-switch[aria-checked="true"] .og-track { background: var(--fs-accent-soft); border-color: var(--fs-accent-line); }
-.og-switch[aria-checked="true"] .og-knob { transform: translateX(16px); background: var(--fs-accent); }
+.og-switch[aria-checked="true"] .og-onoff { color: #fff; }
+.og-track { position: relative; width: 36px; height: 20px; border-radius: 10px; background: #000; border: 1px solid var(--fs-border-2); transition: background 0.15s, border-color 0.15s; flex: 0 0 auto; }
+.og-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 7px; background: #8a8a8a; transition: transform 0.15s, background 0.15s, width 0.08s; }
+.og-switch[aria-checked="true"] .og-track { background: #fff; border-color: #fff; }
+.og-switch[aria-checked="true"] .og-knob { transform: translateX(16px); background: #000; }
 .og-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
-.og-range { width: 100%; accent-color: #22d3ee; margin: 0.2rem 0 0.55rem; }
+.og-range { width: 100%; accent-color: #fff; margin: 0.2rem 0 0.55rem; }
 .og-presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.35rem; }
 .og-note { font-size: 0.68rem; line-height: 1.5; color: var(--fs-dim); margin: 0.55rem 0 0; }
 /* network overview */
 .og-stat-main { font-size: 2.3rem; line-height: 1; font-weight: 700; color: var(--fs-text); font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
 .og-stat-cap { font-size: 0.66rem; letter-spacing: 1.2px; color: var(--fs-muted); margin-top: 0.4rem; text-transform: uppercase; }
-.og-stat-cap b { color: var(--fs-accent); font-weight: 600; }
+.og-stat-cap b { color: #fff; font-weight: 600; }
 .og-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin-top: 0.8rem; padding-top: 0.75rem; border-top: 1px solid var(--fs-border); }
 .og-stat-grid div { min-width: 0; }
 .og-stat-grid b { display: block; font-size: 0.95rem; font-weight: 600; color: var(--fs-text); font-variant-numeric: tabular-nums; }
@@ -192,19 +191,22 @@ const OG_CSS = `/* ===== Orbital Globe – all rules scoped to .og-* or the orig
 .og-search { width: 100%; box-sizing: border-box; min-height: 36px; padding: 0.45rem 0.7rem; margin-bottom: 0.6rem; background: var(--fs-bg); border: 1px solid var(--fs-border-2); border-radius: 8px; color: var(--fs-text); font-family: inherit; font-size: 0.78rem; }
 .og-search::placeholder { color: var(--fs-dim); }
 .og-search:focus { border-color: var(--fs-accent-line); outline: none; }
-.og-sec-list { flex: 1 1 260px; min-height: 260px; display: flex; flex-direction: column; }
-.og-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 0 -0.35rem; padding: 0 0.35rem; scrollbar-width: thin; scrollbar-color: var(--fs-border-2) transparent; }
+.og-results { margin: -0.1rem 0 0.8rem; border: 1px solid var(--fs-border); border-radius: 8px; background: #000; }
+.og-results-h { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--fs-border); font-size: 0.64rem; letter-spacing: 1.2px; color: var(--fs-muted); text-transform: uppercase; }
+.og-results-h b { color: #fff; font-weight: 600; font-variant-numeric: tabular-nums; }
+.og-list { max-height: 248px; overflow-y: auto; padding: 0.3rem; scrollbar-width: thin; scrollbar-color: var(--fs-border-2) transparent; }
 .og-list::-webkit-scrollbar { width: 5px; }
 .og-list::-webkit-scrollbar-thumb { background: var(--fs-border-2); border-radius: 3px; }
+.og-results .og-list-foot { padding: 0 0.6rem 0.5rem; margin-top: 0; }
 .og-li { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 0.6rem; width: 100%; padding: 0.45rem 0.5rem; margin-bottom: 2px; background: transparent; border: 1px solid transparent; border-radius: 8px; color: var(--fs-text); font-family: inherit; text-align: left; cursor: pointer; transition: background 0.1s, border-color 0.1s; }
-.og-li:hover { background: var(--fs-surface-2); }
-.og-li:active { background: #14181e; }
+.og-li:hover { background: #141414; }
+.og-li:active { background: #0f0f0f; }
 .og-li.sel { background: var(--fs-accent-soft); border-color: var(--fs-accent-line); }
 .og-li-name { display: block; font-size: 0.76rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .og-li-type { display: block; font-size: 0.64rem; color: var(--fs-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
 .og-li-id { font-size: 0.64rem; color: var(--fs-dim); font-variant-numeric: tabular-nums; }
 .og-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fs-dim); }
-.og-dot.live { background: var(--fs-accent); }
+.og-dot.live { background: #fff; }
 .og-list-foot { font-size: 0.64rem; color: var(--fs-dim); margin-top: 0.5rem; }
 .og-empty { padding: 1.2rem 0.5rem; text-align: center; color: var(--fs-dim); font-size: 0.72rem; }
 /* telemetry */
@@ -516,6 +518,7 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
   const listEntities = useMemo(() => (realSubject ? realSubject.getEntities() : []), [realSubject, viewRev]);
   const searchResult = useMemo(() => searchEntities(listEntities, search), [listEntities, search]);
   const overview = buildNetworkOverview(database, count);
+  const isSearching = search.trim() !== '';
   const filterLabel = (SAT_FILTERS.find(f => f.key === satFilter) || SAT_FILTERS[0]).label;
 
   const padsView = useMemo(() => ({ mode: 'pads', requestId: padsEntry }), [padsEntry]);
@@ -583,6 +586,7 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
           onStatusChange={onEngineStatus}
           interactive={interactive}
           isolateSelected={isolate}
+          adaptiveMarkers
           autoRotate={autoRotate}
           showControls={false}
           style={{ width: '100%', height: '100%' }}
@@ -688,6 +692,43 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
           className="og-search" type="search" value={search} placeholder="Search name or NORAD ID"
           aria-label="Search satellites" onChange={e => setSearch(e.target.value)}
         />
+        {isSearching && (
+          <div className="og-results" role="region" aria-label="Search results">
+            <div className="og-results-h">
+              <span><b>{searchResult.matches.toLocaleString()}</b> {searchResult.matches === 1 ? 'result' : 'results'}</span>
+              <button className="og-btn" onClick={() => setSearch('')} aria-label="Clear search" style={{ minHeight: '24px', padding: '0.1rem 0.5rem', fontSize: '0.64rem' }}>
+                Clear
+              </button>
+            </div>
+            <div className="og-list" role="listbox" aria-label="Search results">
+              {searchResult.shown.map(sat => {
+                const picked = selectedId !== null && selectedId !== undefined && String(selectedId) === String(sat.id);
+                return (
+                  <button
+                    key={sat.id} type="button" role="option" aria-selected={picked}
+                    className={`og-li ${picked ? 'sel' : ''}`} onClick={() => selectFromList(sat)}
+                  >
+                    <span className={`og-dot ${sat.trackable ? 'live' : ''}`} title={sat.trackable ? 'Live SGP4 tracking' : 'Static database position'} />
+                    <span>
+                      <span className="og-li-name">{sat.name || 'UNKNOWN OBJECT'}</span>
+                      <span className="og-li-type">{typeLabelFor(sat)} · {sat.trackable ? 'Tracking' : 'Static'}</span>
+                    </span>
+                    <span className="og-li-id">{sat.id}</span>
+                  </button>
+                );
+              })}
+              {searchResult.matches === 0 && (
+                <div className="og-empty">
+                  No satellites match “{search.trim()}” among the {listEntities.length.toLocaleString()} displayed.
+                  {satFilter !== 'active' ? ' Try ALL ACTIVE.' : ''}
+                </div>
+              )}
+            </div>
+            {searchResult.matches > searchResult.shown.length && (
+              <div className="og-list-foot">Showing first {searchResult.shown.length.toLocaleString()} of {searchResult.matches.toLocaleString()} — refine the search to narrow down.</div>
+            )}
+          </div>
+        )}
         <div className="og-grid2">
           {SAT_FILTERS.map(f => (
             <button key={f.key} className={`og-btn ${satFilter === f.key ? 'on' : ''}`} aria-pressed={satFilter === f.key} onClick={() => pickFilter(f.key)}>
@@ -695,58 +736,28 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
             </button>
           ))}
         </div>
-        <div className="og-sec-h" style={{ marginTop: '0.9rem' }}>
-          <span>SATELLITE COUNT</span>
-          <b>{satLimit.toLocaleString()}</b>
-        </div>
-        <input
-          className="og-range" type="range" min="500" max="16000" step="500" value={satLimit}
-          disabled={satFilter !== 'active'} onChange={e => setSatLimit(Number(e.target.value))} aria-label="Satellite count"
-        />
-        <div className="og-presets">
-          {[500, 1000, 2500, 5000, 10000, 16000].map(val => (
-            <button key={val} className={`og-btn ${satLimit === val ? 'on' : ''}`} disabled={satFilter !== 'active'} onClick={() => setSatLimit(val)}>
-              {val >= 1000 ? `${val / 1000}K` : val}
-            </button>
-          ))}
-        </div>
-        <p className="og-note">
-          {satFilter === 'active'
-            ? 'Number of ALL ACTIVE objects drawn (default 1,000, up to 16,000).'
-            : 'Count applies to the ALL ACTIVE filter. Other filters show every matching object.'}
-        </p>
       </div>
 
-      <div className="og-sec og-sec-list">
-        <div className="og-sec-h">
-          <span>SATELLITES</span>
-          <b>{searchResult.matches.toLocaleString()}</b>
-        </div>
-        <div className="og-list" role="listbox" aria-label="Visible satellites">
-          {searchResult.shown.map(sat => {
-            const picked = selectedId !== null && selectedId !== undefined && String(selectedId) === String(sat.id);
-            return (
-              <button
-                key={sat.id} type="button" role="option" aria-selected={picked}
-                className={`og-li ${picked ? 'sel' : ''}`} onClick={() => selectFromList(sat)}
-              >
-                <span className={`og-dot ${sat.trackable ? 'live' : ''}`} title={sat.trackable ? 'Live SGP4 tracking' : 'Static database position'} />
-                <span>
-                  <span className="og-li-name">{sat.name || 'UNKNOWN OBJECT'}</span>
-                  <span className="og-li-type">{typeLabelFor(sat)} · {sat.trackable ? 'Tracking' : 'Static'}</span>
-                </span>
-                <span className="og-li-id">{sat.id}</span>
+      {satFilter === 'active' && (
+        <div className="og-sec">
+          <div className="og-sec-h">
+            <span>SATELLITE COUNT</span>
+            <b>{satLimit.toLocaleString()}</b>
+          </div>
+          <input
+            className="og-range" type="range" min="500" max="16000" step="500" value={satLimit}
+            onChange={e => setSatLimit(Number(e.target.value))} aria-label="Satellite count"
+          />
+          <div className="og-presets">
+            {[500, 1000, 2500, 5000, 10000, 16000].map(val => (
+              <button key={val} className={`og-btn ${satLimit === val ? 'on' : ''}`} onClick={() => setSatLimit(val)}>
+                {val >= 1000 ? `${val / 1000}K` : val}
               </button>
-            );
-          })}
-          {searchResult.shown.length === 0 && (
-            <div className="og-empty">{listEntities.length === 0 ? 'No satellites in this view.' : 'No satellites match your search.'}</div>
-          )}
+            ))}
+          </div>
+          <p className="og-note">Number of ALL ACTIVE objects drawn (default 1,000, up to 16,000).</p>
         </div>
-        {searchResult.matches > searchResult.shown.length && (
-          <div className="og-list-foot">Showing first {searchResult.shown.length.toLocaleString()} of {searchResult.matches.toLocaleString()} — refine the search to narrow down.</div>
-        )}
-      </div>
+      )}
     </aside>
   );
 
@@ -923,4 +934,4 @@ export default function OrbitalGlobeV2({ requestedView, launchpads }) {
       <EngineOrbitalGlobe requestedView={requestedView} launchpads={launchpads} onFallback={handleFallback} />
     </EngineBoundary>
   );
-}
+            }
