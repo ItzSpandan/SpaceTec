@@ -225,6 +225,62 @@ const OG_CSS = `/* ===== Orbital Globe – all rules scoped to .og-* or the orig
 .og2-tip { position: absolute; z-index: 16; pointer-events: none; background: rgba(0,0,0,0.88); border: 1px solid #3f3f46; padding: 0.4rem 0.55rem; font-family: monospace; font-size: 0.6rem; line-height: 1.45; color: #e4e4e7; white-space: nowrap; }
 .og2-tip b { color: #ffffff; font-size: 0.66rem; }
 .og2-retry { pointer-events: auto; margin-left: 0.6rem; }
+
+/* ===== Mobile expanded orbital tracking (phones / narrow tablets only; desktop console rules above are untouched) ===== */
+.og-root.og-mx { --mx-bar: 56px; }
+.og-mx .og-mx-top { gap: 0.6rem; padding: 0 0.5rem 0 0.9rem; min-height: 48px; padding-left: max(0.9rem, env(safe-area-inset-left)); padding-right: max(0.5rem, env(safe-area-inset-right)); }
+.og-mx .og-mx-stats { margin-left: auto; display: flex; align-items: center; gap: 0.7rem; font-size: 0.66rem; letter-spacing: 0.6px; color: var(--fs-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.og-mx .og-mx-live { color: #22c55e; font-weight: 700; }
+.og-mx .og-mx-top .og-close { min-width: 44px; min-height: 44px; }
+.og-mx .og-body { display: flex; flex-direction: column; position: relative; grid-template-columns: none; }
+.og-mx .og-stage { flex: 1 1 0; min-height: 0; width: 100%; }
+.og-mx .og-mx-over { position: absolute; left: 0; right: 0; top: 0; bottom: 0; pointer-events: none; z-index: 20; }
+.og-mx .og-mx-over > * { pointer-events: auto; }
+.og-mx .og-mx-scrim { position: absolute; inset: 0; background: rgba(0,0,0,0.35); }
+.og-mx .og-mx-drawer {
+  position: absolute; left: 0; top: 0; bottom: 0; width: min(86vw, 340px); box-sizing: border-box;
+  background: #000; border-right: 1px solid var(--fs-border); display: flex; flex-direction: column;
+  animation: og-mx-in 0.18s ease-out; padding-left: env(safe-area-inset-left);
+}
+.og-mx .og-mx-sheet {
+  flex: 0 0 auto; max-height: 50%; display: flex; flex-direction: column; box-sizing: border-box;
+  background: #000; border-top: 1px solid var(--fs-border); animation: og-mx-up 0.18s ease-out;
+  padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);
+}
+.og-mx .og-mx-head { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 0 0.5rem 0 0.9rem; min-height: 44px; border-bottom: 1px solid var(--fs-border); font-size: 0.68rem; font-weight: 700; letter-spacing: 1.4px; }
+.og-mx .og-mx-x { min-width: 44px; min-height: 44px; padding: 0; }
+.og-mx .og-mx-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; padding: 0.75rem 0.9rem; display: flex; flex-direction: column; gap: 0.75rem; }
+.og-mx .og-mx-scroll .og-results, .og-mx .og-mx-scroll .og-list { max-height: 38vh; overscroll-behavior: contain; }
+.og-mx .og-mx-pill {
+  position: absolute; left: 0.6rem; right: 0.6rem; bottom: 0.6rem; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
+  background: #000; color: #fff; border: 1px solid var(--fs-border-2); border-radius: 4px; padding: 0 0.8rem; font: inherit; font-size: 0.7rem; letter-spacing: 0.6px; cursor: pointer;
+}
+.og-mx .og-mx-pill span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.og-mx .og-mx-pill span:last-child { color: var(--fs-muted); flex: 0 0 auto; }
+.og-mx .og-mx-bar {
+  flex: 0 0 auto; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: #000; border-top: 1px solid var(--fs-border);
+  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); position: relative; z-index: 30;
+}
+.og-mx .og-mx-btn {
+  min-height: var(--mx-bar); min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 4px 2px;
+  background: #000; color: #a3a3a3; border: 0; border-left: 1px solid var(--fs-border); font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.og-mx .og-mx-btn:first-child { border-left: 0; }
+.og-mx .og-mx-btn i { font-style: normal; font-size: 1.05rem; line-height: 1; }
+.og-mx .og-mx-btn span { font-size: 0.56rem; letter-spacing: 0.4px; font-weight: 600; text-transform: uppercase; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.og-mx .og-mx-btn.on { background: #fff; color: #000; }
+.og-mx .og-mx-btn:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
+.og-mx .og-btn { min-height: 44px; }
+@keyframes og-mx-in { from { transform: translateX(-12px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes og-mx-up { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (max-width: 350px) { .og-mx .og-mx-btn span { font-size: 0.5rem; letter-spacing: 0; } }
+/* short landscape screens: the telemetry / layers sheet becomes a right-hand panel so the globe keeps its height */
+@media (max-height: 520px) {
+  .og-mx .og-mx-sheet { position: absolute; right: 0; top: 0; bottom: calc(var(--mx-bar) + 1px + env(safe-area-inset-bottom)); width: min(50vw, 380px); max-height: none; border-top: 0; border-left: 1px solid var(--fs-border); animation: none; z-index: 25; }
+}
+@media (prefers-reduced-motion: reduce) { .og-mx .og-mx-drawer, .og-mx .og-mx-sheet { animation: none; } }
+/* the site's floating bottom nav would sit on top of the toolbar */
+html.og-expanded-open .st-bottom-nav { display: none !important; }
 `;
 
 function useMediaQuery(query) {
@@ -358,11 +414,18 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
   const [search, setSearch] = useState('');
   const [viewRev, setViewRev] = useState(0);
   const [following, setFollowing] = useState(false);
+  const [mobileExpanded, setMobileExpanded] = useState(false); // phone / narrow-tablet expanded view
+  const [panel, setPanel] = useState(null); // mobile: 'network' | 'telemetry' | 'layers' | null - one at a time
   const [stageSize, setStageSize] = useState({ w: 0, h: 0 });
   const [, setSecond] = useState(0);
 
   const canFullscreen = useMediaQuery('(min-width: 900px)');
   const fullscreen = viewMode === 'satellites' && consoleRequested && canFullscreen;
+  // Mobile expanded view: same engine instance, same state; only the chrome around the globe differs.
+  const mx = viewMode === 'satellites' && mobileExpanded && !canFullscreen;
+  const mxRef = useRef(false);
+  mxRef.current = mx;
+  const locked = fullscreen || mx; // page scroll locked, globe fully interactive
 
   const real = useRealOrbitalTracking({
     enabled: satsRequested,
@@ -370,7 +433,7 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
     limit: limitFor(satFilter, satLimit),
   });
   const { subject: realSubject, status, message, count, database, reload } = real;
-  const headerTop = useHeaderOffset(fullscreen);
+  const headerTop = useHeaderOffset(locked);
 
   // Request from the hub (telemetry menu, mobile nav, sidebar): same contract as OrbitalGlobe.
   useEffect(() => {
@@ -379,7 +442,11 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
     setViewMode(mode);
     setConsoleRequested(mode === 'satellites');
     if (mode === 'satellites') setSatsRequested(true);
-    else setPadsEntry(n => n + 1);
+    else {
+      setPadsEntry(n => n + 1);
+      setMobileExpanded(false);
+    }
+    setPanel(null);
     setSelectedId(null);
     setHover(null);
   }, [requestedView]);
@@ -396,7 +463,7 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
 
   // Lock page scroll while the console is open; put the scroll position back on exit. Esc leaves.
   useEffect(() => {
-    if (!fullscreen) return undefined;
+    if (!locked) return undefined;
     const scrollY = window.scrollY;
     const html = document.documentElement;
     const body = document.body;
@@ -404,18 +471,21 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
     const prevBody = body.style.overflow;
     html.style.overflow = 'hidden';
     body.style.overflow = 'hidden';
+    html.classList.add('og-expanded-open'); // lets the stylesheet step the site's floating bottom nav aside
     if (exitButtonRef.current) exitButtonRef.current.focus();
     return () => {
       html.style.overflow = prevHtml;
       body.style.overflow = prevBody;
+      html.classList.remove('og-expanded-open');
       window.scrollTo({ top: scrollY, left: 0, behavior: 'instant' });
     };
-  }, [fullscreen]);
+  }, [locked]);
 
   useEffect(() => {
     const onKey = e => {
       if (e.key !== 'Escape') return;
       if (fullscreen) setConsoleRequested(false);
+      else if (mxRef.current) setPanel(p => { if (p) return null; setMobileExpanded(false); return null; });
       else if (exploreRef.current) setExplore(false);
     };
     window.addEventListener('keydown', onKey);
@@ -424,12 +494,12 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
 
   // Explore: the console is interactive; the embedded globe is not, so the page scrolls over it.
   useEffect(() => {
-    setExplore(fullscreen);
-  }, [fullscreen]);
+    setExplore(locked);
+  }, [locked]);
   exploreRef.current = explore;
 
   useEffect(() => {
-    if (fullscreen || !explore || typeof IntersectionObserver === 'undefined' || !stageRef.current) return undefined;
+    if (locked || !explore || typeof IntersectionObserver === 'undefined' || !stageRef.current) return undefined;
     const io = new IntersectionObserver(
       entries => {
         if (entries[0] && entries[0].intersectionRatio < 0.25) setExplore(false);
@@ -438,7 +508,7 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
     );
     io.observe(stageRef.current);
     return () => io.disconnect();
-  }, [explore, fullscreen]);
+  }, [explore, locked]);
 
   // stage size for tooltip placement
   useEffect(() => {
@@ -453,7 +523,15 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [viewMode, fullscreen]);
+  }, [viewMode, fullscreen, mx]);
+
+  // The mobile view only exists on narrow screens: rotating / resizing to a wide screen drops it.
+  useEffect(() => {
+    if (canFullscreen) {
+      setMobileExpanded(false);
+      setPanel(null);
+    }
+  }, [canFullscreen]);
 
   // Live telemetry in the panel: entity objects are updated in place once per second by the subject.
   useEffect(() => {
@@ -470,18 +548,22 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
     setSelectedId(entity ? entity.id : null);
     setHover(null);
     if (!entity) setFollowing(false);
+    if (mxRef.current) setPanel(entity ? 'telemetry' : p => (p === 'telemetry' ? null : p));
   }, []);
   const onHover = useCallback((entity, pos) => setHover(entity && pos ? { entity, pos } : null), []);
   const clearSelection = useCallback(() => {
     setSelectedId(null);
     setHover(null);
     setFollowing(false);
+    setPanel(p => (p === 'telemetry' ? null : p));
   }, []);
   const toggleFollow = useCallback(() => {
     if (globeRef.current) globeRef.current.setFollow(!following);
   }, [following]);
 
   const switchMode = key => {
+    if (key !== 'satellites') setMobileExpanded(false);
+    setPanel(null);
     setViewMode(key);
     setConsoleRequested(key === 'satellites');
     if (key === 'satellites') setSatsRequested(true);
@@ -507,6 +589,7 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
   const selectFromList = useCallback(entity => {
     setSelectedId(entity.id);
     setHover(null);
+    if (mxRef.current) setPanel('telemetry'); // a result opens its telemetry (replaces the Network panel)
     if (globeRef.current) globeRef.current.focusEntity(entity.id);
   }, []);
 
@@ -552,6 +635,9 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
       {viewMode === 'satellites' && canFullscreen && (
         <button className="og-btn" onClick={() => setConsoleRequested(true)}>⛶ Fullscreen</button>
       )}
+      {viewMode === 'satellites' && !canFullscreen && (
+        <button className="og-btn" onClick={() => setMobileExpanded(true)}>⛶ Expand</button>
+      )}
     </div>
   );
 
@@ -593,7 +679,7 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
         />
       </div>
 
-      {!fullscreen && satFilter === 'active' && !selectedId && (
+      {!fullscreen && !mx && satFilter === 'active' && !selectedId && (
         <div
           style={{
             position: 'absolute', left: '1rem', top: '4.5rem', background: '#000000', border: '1px solid #27272a',
@@ -619,10 +705,12 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
         </div>
       )}
 
-      <div className="og-chip" style={{ left: '0.75rem', bottom: '0.75rem', zIndex: 10 }}>
-        <b style={{ fontSize: '0.58rem', letterSpacing: '0.5px' }}>● REAL-TIME SGP4 ORBITAL PHYSICS</b>
-        <small>1000ms Live Clock • NORAD Coordinate Frame</small>
-      </div>
+      {!mx && (
+        <div className="og-chip" style={{ left: '0.75rem', bottom: '0.75rem', zIndex: 10 }}>
+          <b style={{ fontSize: '0.58rem', letterSpacing: '0.5px' }}>● REAL-TIME SGP4 ORBITAL PHYSICS</b>
+          <small>1000ms Live Clock • NORAD Coordinate Frame</small>
+        </div>
+      )}
 
       {loading && (
         <div className="og-chip og-loading">{message || 'INITIALIZING FEED...'}</div>
@@ -637,10 +725,12 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
         <div className="og-chip og-loading">NO OBJECTS MATCH THIS FILTER</div>
       )}
 
-      <div className="og-chip" style={{ top: '0.75rem', left: '0.75rem' }}>
-        <small>TRACKED OBJECTS</small>
-        <b>{trackedCount.toLocaleString()}</b>
-      </div>
+      {!mx && (
+        <div className="og-chip" style={{ top: '0.75rem', left: '0.75rem' }}>
+          <small>TRACKED OBJECTS</small>
+          <b>{trackedCount.toLocaleString()}</b>
+        </div>
+      )}
 
       {hover && (
         <div className="og2-tip" style={placeTooltip(hover.pos, stageSize)}>
@@ -648,7 +738,7 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
         </div>
       )}
 
-      {!fullscreen && (
+      {!fullscreen && !mx && (
         <div className="og-explore">
           <button className={`og-btn ${explore ? 'on' : ''}`} onClick={() => setExplore(v => !v)} aria-pressed={explore}>
             {explore ? 'Exit Explore ✕' : 'Explore globe'}
@@ -659,7 +749,7 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
         </div>
       )}
 
-      {!fullscreen && panelRows && (
+      {!fullscreen && !mx && panelRows && (
         <div className="og-sheet" role="region" aria-label="Selected satellite">
           <SatelliteInfo
             rows={panelRows}
@@ -673,8 +763,9 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
     </div>
   );
 
-  const leftPanel = (
-    <aside className="og-panel og-panel-left" aria-label="Satellite network">
+  // Shared by the desktop sidebar and the mobile Network panel.
+  const networkSections = (
+    <>
       <div className="og-sec">
         <div className="og-sec-h"><span>NETWORK OVERVIEW</span></div>
         <div className="og-stat-main">{formatCount(overview.visible)}</div>
@@ -758,12 +849,16 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
           <p className="og-note">Number of ALL ACTIVE objects drawn (default 1,000, up to 16,000).</p>
         </div>
       )}
+    </>
+  );
+  const leftPanel = (
+    <aside className="og-panel og-panel-left" aria-label="Satellite network">
+      {networkSections}
     </aside>
   );
 
   const hasSelection = selectedId !== null && selectedId !== undefined && !!selectedEntity;
-  const rightPanel = (
-    <aside className="og-panel og-panel-right" aria-label="Telemetry and globe controls">
+  const telemetrySection = (
       <div className="og-sec">
         <div className="og-sec-h">
           <span>{panelRows ? 'REAL-TIME ORBITAL TELEMETRY' : 'OBJECT TELEMETRY'}</span>
@@ -789,7 +884,9 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
           </div>
         )}
       </div>
+  );
 
+  const cameraSection = (
       <div className="og-sec">
         <div className="og-sec-h"><span>CAMERA</span></div>
         <div style={{ display: 'grid', gap: '0.5rem' }}>
@@ -805,19 +902,25 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
           {hasSelection ? (following ? 'The camera is tracking the selected satellite.' : 'Keeps the selected satellite centred.') : 'Select a satellite to enable Follow.'}
         </p>
       </div>
+  );
 
+  const vizSection = (
       <div className="og-sec">
         <div className="og-sec-h"><span>ORBIT VISUALISATION</span></div>
         <Switch label="Orbit paths" hint="Path of the selected satellite" checked={showOrbit} onChange={setShowOrbit} />
         <Switch label="Isolate selected" hint="Dim all other satellites" checked={isolate} onChange={setIsolate} />
       </div>
+  );
 
+  const displaySection = (
       <div className="og-sec">
         <div className="og-sec-h"><span>DISPLAY</span></div>
         <Switch label="Auto rotation" hint="Slowly spin the globe" checked={autoRotate} onChange={setAutoRotate} />
         <Switch label="Free camera" hint="Drag to rotate, wheel to zoom" checked={explore} onChange={setExplore} />
       </div>
+  );
 
+  const systemSection = (
       <div className="og-sec">
         <div className="og-sec-h"><span>SYSTEM</span></div>
         <p className="og-note" style={{ marginTop: 0 }}>
@@ -827,18 +930,110 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
           Esc closes the expanded view.
         </p>
       </div>
+  );
+
+  const rightPanel = (
+    <aside className="og-panel og-panel-right" aria-label="Telemetry and globe controls">
+      {telemetrySection}
+      {cameraSection}
+      {vizSection}
+      {displaySection}
+      {systemSection}
     </aside>
+  );
+
+
+  // ----- Mobile expanded view chrome: reuses the same sections, state and handlers as the desktop console -----
+  const toggleMxPanel = key => setPanel(p => (p === key ? null : key));
+  const mobileFollow = () => {
+    if (hasSelection) toggleFollow();
+    else setPanel('telemetry'); // nothing selected: show the empty state instead of a dead button
+  };
+  const mobileChrome = (
+    <>
+      <div className="og-mx-over">
+        {panel === 'network' && (
+          <>
+            <div className="og-mx-scrim" onClick={() => setPanel(null)} aria-hidden="true" />
+            <aside className="og-mx-drawer" aria-label="Satellite network">
+              <div className="og-mx-head">
+                <span>NETWORK</span>
+                <button className="og-btn og-mx-x" onClick={() => setPanel(null)} aria-label="Close network panel">✕</button>
+              </div>
+              <div className="og-mx-scroll">{networkSections}</div>
+            </aside>
+          </>
+        )}
+        {!panel && hasSelection && panelRows && (
+          <button className="og-mx-pill" onClick={() => setPanel('telemetry')} aria-label="Open telemetry">
+            <span>{selectedEntity.name || 'Selected object'}</span><span>TELEMETRY ▴</span>
+          </button>
+        )}
+      </div>
+      {(panel === 'telemetry' || panel === 'layers') && (
+        <section className="og-mx-sheet" aria-label={panel === 'telemetry' ? 'Object telemetry' : 'Layers and controls'}>
+          <div className="og-mx-head">
+            <span>{panel === 'telemetry' ? 'TELEMETRY' : 'LAYERS & CONTROLS'}</span>
+            <button className="og-btn og-mx-x" onClick={() => setPanel(null)} aria-label={panel === 'telemetry' ? 'Close telemetry' : 'Close layers'}>✕</button>
+          </div>
+          <div className="og-mx-scroll">
+            {panel === 'telemetry' ? (
+              <>
+                {telemetrySection}
+                {cameraSection}
+              </>
+            ) : (
+              <>
+                {vizSection}
+                {displaySection}
+              </>
+            )}
+          </div>
+        </section>
+      )}
+      <nav className="og-mx-bar" aria-label="Globe controls">
+        <button className={`og-mx-btn ${panel === 'network' ? 'on' : ''}`} aria-pressed={panel === 'network'} onClick={() => toggleMxPanel('network')}>
+          <i aria-hidden="true">☰</i><span>Network</span>
+        </button>
+        <button className={`og-mx-btn ${following ? 'on' : ''}`} aria-pressed={following} onClick={mobileFollow}>
+          <i aria-hidden="true">◎</i><span>Follow {following ? 'ON' : 'OFF'}</span>
+        </button>
+        <button className="og-mx-btn" onClick={resetView}>
+          <i aria-hidden="true">⟲</i><span>Reset</span>
+        </button>
+        <button className={`og-mx-btn ${showOrbit ? 'on' : ''}`} aria-pressed={showOrbit} onClick={() => setShowOrbit(v => !v)}>
+          <i aria-hidden="true">◌</i><span>Orbits {showOrbit ? 'ON' : 'OFF'}</span>
+        </button>
+        <button className={`og-mx-btn ${panel === 'layers' ? 'on' : ''}`} aria-pressed={panel === 'layers'} onClick={() => toggleMxPanel('layers')}>
+          <i aria-hidden="true">≡</i><span>Layers</span>
+        </button>
+      </nav>
+    </>
   );
 
   return (
     <div
-      className={`og-root ${fullscreen ? 'og-fs' : ''}`}
-      style={fullscreen ? { top: headerTop } : undefined}
-      {...(fullscreen ? { role: 'dialog', 'aria-label': 'Orbital operations console' } : {})}
+      className={`og-root ${locked ? 'og-fs' : ''}${mx ? ' og-mx' : ''}`}
+      style={locked ? { top: headerTop } : undefined}
+      {...(locked ? { role: 'dialog', 'aria-label': mx ? 'Orbital tracking' : 'Orbital operations console' } : {})}
     >
       <style>{OG_CSS}</style>
 
-      {fullscreen ? (
+      {mx ? (
+        <div className="og-topbar og-mx-top">
+          <div className="og-title">ORBITAL TRACKING</div>
+          <div className="og-mx-stats">
+            <span className="og-mx-live"><span className="og-live-dot" />LIVE</span>
+            <span>{trackedCount.toLocaleString()} {trackedCount === 1 ? 'SAT' : 'SATS'}</span>
+          </div>
+          <button
+            ref={exitButtonRef} className="og-btn og-close" onClick={() => { setPanel(null); setMobileExpanded(false); }}
+            aria-label="Close expanded view"
+          >
+            ✕
+          </button>
+        </div>
+      ) : fullscreen ? (
         <div className="og-topbar">
           <button className="og-btn" onClick={() => setConsoleRequested(false)}>
             ← Exit fullscreen
@@ -886,7 +1081,7 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
       <div className="og-body">
         {fullscreen ? leftPanel : null}
         {stage}
-        {fullscreen ? rightPanel : null}
+        {fullscreen ? rightPanel : mx ? mobileChrome : null}
       </div>
     </div>
   );
@@ -934,4 +1129,4 @@ export default function OrbitalGlobeV2({ requestedView, launchpads }) {
       <EngineOrbitalGlobe requestedView={requestedView} launchpads={launchpads} onFallback={handleFallback} />
     </EngineBoundary>
   );
-            }
+      }
