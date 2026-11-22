@@ -106,3 +106,36 @@ export function placeTooltip(pos, stage, box = { w: 190, h: 120 }) {
   if (top + box.h > stage.h) top = Math.max(0, pos.y - gap - box.h);
   return { left, top };
 }
+
+// ----- expanded console: Network overview and satellite list helpers -----
+export function typeLabelFor(entity) {
+  const t = normalizeSatelliteType(entity && entity.satellite_type);
+  return t ? SATELLITE_TYPE_LABELS[t] : 'Unclassified';
+}
+
+// Counts for the Network overview. `database` = { total, active, inactive } from the downloaded rows (or null while
+// loading); `visible` = objects currently drawn (filter + limit). Database figures and visible figures stay separate.
+export function buildNetworkOverview(database, visible) {
+  const n = v => (Number.isFinite(Number(v)) ? Number(v) : null);
+  return {
+    visible: n(visible),
+    total: database ? n(database.total) : null,
+    active: database ? n(database.active) : null,
+    inactive: database ? n(database.inactive) : null,
+  };
+}
+
+export function formatCount(v) {
+  return v === null || v === undefined ? '—' : Number(v).toLocaleString('en-US');
+}
+
+// Search over the already-loaded visible objects (name, NORAD id, organisation). Returns the first `max` matches
+// and the total number of matches, so a 16,000-object list never renders 16,000 rows.
+export function searchEntities(entities, query, max = 150) {
+  const list = Array.isArray(entities) ? entities : [];
+  const q = String(query || '').trim().toLowerCase();
+  const hits = q
+    ? list.filter(e => String(e.name || '').toLowerCase().includes(q) || String(e.id).toLowerCase().includes(q) || String(e.organization || '').toLowerCase().includes(q))
+    : list;
+  return { shown: hits.slice(0, max), matches: hits.length };
+}
