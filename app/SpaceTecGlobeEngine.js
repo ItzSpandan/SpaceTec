@@ -43,9 +43,11 @@
  * Interaction (all generic; none of it knows what an entity is):
  *   onHover(entity|null, { x, y })   mouse/pen pointer over an entity (x, y: pixels inside the globe); null when it
  *                                    leaves. Coalesced to one pick per ~60 ms inside the render loop.
- *   interactive (default true)       false = no drag/zoom/pan, no tap selection, no hover; touch-action is released
- *                                    so the page scrolls over the globe. Programmatic control (selectedId,
- *                                    focusEntity, follow, flyTo) keeps working.
+ *   interactive (default true)       true  = everything on.
+ *                                    'pick' = camera locked (no drag/zoom/pan; touch-action pan-y so the page still
+ *                                             scrolls) but tap selection and hover keep working.
+ *                                    false = nothing: no camera, no tap selection, no hover; touch-action released.
+ *                                    Programmatic control (selectedId, focusEntity, follow, flyTo) always works.
  *   isolateSelected (default false)  while an entity is selected the other entities are drawn faint (picking is
  *                                    unchanged); the selected entity, its model, ring and path stay fully visible.
  *
@@ -591,7 +593,8 @@ class GlobeEngine {
     this.idMap = new Map();
     this.selected = null; // { k, idx }
     this.selectionLost = false; // set by rebuildSlots when the selected entity left the list
-    this.interactive = opts.interactive !== false;
+    this.interactive = true; // any user interaction (picking / hover) enabled
+    this.interactiveMode = 'full'; // 'full' | 'pick' | 'off'
     this.isolate = opts.isolateSelected === true;
     this.isolated = false; // dimming currently applied (isolate && something selected)
     this.hovered = null; // { id } of the entity under the pointer
@@ -697,7 +700,7 @@ class GlobeEngine {
     this.canvas.addEventListener('pointermove', this.onPointerMove);
     this.canvas.addEventListener('pointerleave', this.onPointerLeave);
     document.addEventListener('visibilitychange', this.onVisibility);
-    this.setInteractive(this.interactive, true);
+    this.setInteractive(opts.interactive === undefined ? true : opts.interactive, true);
 
     this.refreshSun();
     this.requestRun();
@@ -1749,16 +1752,18 @@ class GlobeEngine {
     return hit ? this.groups[hit.k].entities[hit.idx] || null : null;
   }
 
-  // Enables / disables user interaction. Disabled: the camera ignores drag / zoom / pan, taps do not select,
-  // hover is off, and touch-action is released so the page can scroll over the globe. Programmatic control
-  // (selectedId, focusEntity, follow, flyTo, autoRotate) is unaffected.
+  // Sets the user-interaction level: true / 'full' (camera + picking + hover), 'pick' (camera locked, picking and
+  // hover only) or false (none). In 'pick' and false the OrbitControls are disabled; touch-action is 'pan-y' for
+  // 'pick' and 'auto' for false so the page scrolls over the globe. Programmatic control (selectedId, focusEntity,
+  // follow, flyTo, autoRotate) is unaffected.
   setInteractive(on, quiet) {
-    const next = Boolean(on);
-    if (next === this.interactive && !quiet) return;
-    this.interactive = next;
-    this.controls.enabled = next;
-    if (this.canvas.style) this.canvas.style.touchAction = next ? this.baseTouchAction : 'auto';
-    if (!next) {
+    const mode = on === 'pick' ? 'pick' : on ? 'full' : 'off';
+    if (mode === this.interactiveMode && !quiet) return;
+    this.interactiveMode = mode;
+    this.interactive = mode !== 'off';
+    this.controls.enabled = mode === 'full';
+    if (this.canvas.style) this.canvas.style.touchAction = mode === 'full' ? this.baseTouchAction : mode === 'pick' ? 'pan-y' : 'auto';
+    if (mode === 'off') {
       this.pointers.clear();
       this.gesture = null;
       this.lastTap = null;
@@ -2076,6 +2081,8 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
     selectedId,
     onSelect,
     onHover,
+    onFollowChange,
+    onStatusChange,
     interactive = true,
     isolateSelected = false,
     path,
@@ -2108,11 +2115,20 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
   onSelectRef.current = onSelect;
   const onHoverRef = useRef(onHover);
   onHoverRef.current = onHover;
+  const onFollowRef = useRef(onFollowChange);
+  onFollowRef.current = onFollowChange;
+  const onStatusRef = useRef(onStatusChange);
+  onStatusRef.current = onStatusChange;
 
   const texKey = JSON.stringify([textureUrls || null, assetBase, textureTier, detailedModels, modelUrls || null]);
   const effectiveSel = selectedId !== undefined ? selectedId : internalSel;
 
   useEffect(() => setRotate(autoRotate), [autoRotate]);
+
+  // Lets the owner react to engine lifecycle changes (waiting | nosize | loading | ready | unavailable | lost | error).
+  useEffect(() => {
+    if (onStatusRef.current) onStatusRef.current(status);
+  }, [status]);
 
   // Engine lifecycle: created once a real size exists, disposed on cleanup.
   useEffect(() => {
@@ -2146,7 +2162,10 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
             onHover: (entity, pos) => {
               if (onHoverRef.current) onHoverRef.current(entity, pos);
             },
-            onFollowChange: setFollowing,
+            onFollowChange: on => {
+              setFollowing(on);
+              if (onFollowRef.current) onFollowRef.current(on);
+            },
             onStats: setStats,
             onContextLost: () => setStatus('lost'),
             onContextRestored: () => setEngineKey(k => k + 1),
