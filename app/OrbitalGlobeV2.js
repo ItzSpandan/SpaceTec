@@ -29,6 +29,10 @@ import {
   buildPanelRows,
   buildHoverLines,
   placeTooltip,
+  typeLabelFor,
+  buildNetworkOverview,
+  formatCount,
+  searchEntities,
 } from './globe/orbitalGlobeV2Logic';
 
 // Same UI styles as the production globe (copied, because OrbitalGlobe.js does not export them), plus the rule
@@ -96,24 +100,27 @@ const OG_CSS = `/* ===== Orbital Globe – all rules scoped to .og-* or the orig
 .og-v { font-size: 0.78rem; color: #fff; margin-top: 0.15rem !important; overflow-wrap: anywhere; }
 .og-foot { margin-top: 0.7rem; padding-top: 0.5rem; border-top: 1px solid #18181b; font-family: monospace; font-size: 0.54rem; color: #71717a; }
 
-/* ===== Desktop fullscreen orbital operations console ===== */
+/* ===== Desktop expanded orbital operations console (graphite / charcoal, restrained cyan) ===== */
 .og-root.og-fs {
-  position: fixed; inset: 0; z-index: 1000000; max-width: none; margin: 0; gap: 0;
-  background: #02050c; color: #dbe6f5; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --fs-bg: #0a0c0f; --fs-panel: #101318; --fs-surface: #161a20; --fs-surface-2: #1c2128;
+  --fs-border: #252b34; --fs-border-2: #333b47; --fs-text: #e6e8ec; --fs-muted: #9099a8; --fs-dim: #626b7a;
+  --fs-accent: #22d3ee; --fs-accent-soft: rgba(34,211,238,0.12); --fs-accent-line: rgba(34,211,238,0.45);
+  position: fixed; left: 0; right: 0; bottom: 0; top: 81px; /* top is set from the real header height at runtime */
+  z-index: 1000000; max-width: none; margin: 0; gap: 0;
+  background: var(--fs-bg); color: var(--fs-text);
+  font-family: "Space Grotesk", -apple-system, "Segoe UI", sans-serif;
 }
 .og-fs .og-topbar {
-  flex: 0 0 auto; display: flex; align-items: center; gap: 1rem; padding: 0.55rem 1rem;
-  background: linear-gradient(180deg, #06101f, #040a14); border-bottom: 1px solid rgba(56,189,248,0.18);
+  flex: 0 0 auto; display: flex; align-items: center; gap: 1rem; padding: 0.6rem 1rem;
+  background: var(--fs-panel); border-bottom: 1px solid var(--fs-border);
 }
-.og-fs .og-exit { border-color: rgba(56,189,248,0.5); color: #7dd3fc; background: rgba(56,189,248,0.08); font-weight: 700; }
-.og-fs .og-exit:hover { background: rgba(56,189,248,0.2); color: #fff; }
-.og-fs .og-title { font-size: 0.72rem; font-weight: 700; letter-spacing: 2px; color: #e6f1ff; }
-.og-fs .og-title small { display: block; font-size: 0.52rem; font-weight: 400; letter-spacing: 1.5px; color: #5f7a99; margin-top: 2px; }
-.og-fs .og-topstats { margin-left: auto; display: flex; gap: 1.4rem; font-size: 0.6rem; color: #8ba3c0; align-items: center; }
-.og-fs .og-topstats b { color: #7dd3fc; font-weight: 600; }
-.og-live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #22d3ee; box-shadow: 0 0 6px #22d3ee; margin-right: 6px; }
-.og-fs .og-body { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 264px minmax(0, 1fr) 304px; }
-@media (min-width: 1280px) { .og-fs .og-body { grid-template-columns: 288px minmax(0, 1fr) 332px; } }
+.og-fs .og-title { font-size: 0.8rem; font-weight: 700; letter-spacing: 1.6px; color: var(--fs-text); }
+.og-fs .og-title small { display: block; font-size: 0.62rem; font-weight: 500; letter-spacing: 1.2px; color: var(--fs-dim); margin-top: 2px; }
+.og-fs .og-topstats { margin-left: auto; display: flex; gap: 1.4rem; font-size: 0.72rem; color: var(--fs-muted); align-items: center; font-variant-numeric: tabular-nums; }
+.og-fs .og-topstats b { color: var(--fs-text); font-weight: 600; }
+.og-live-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--fs-accent, #22d3ee); box-shadow: 0 0 0 3px rgba(34,211,238,0.16); margin-right: 7px; }
+.og-fs .og-body { flex: 1 1 auto; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr); grid-template-columns: 300px minmax(0, 1fr) 320px; }
+@media (min-width: 1280px) { .og-fs .og-body { grid-template-columns: 320px minmax(0, 1fr) 344px; } }
 .og-fs .og-stage {
   height: auto; min-height: 0; border: 0; border-radius: 0;
   background:
@@ -124,31 +131,91 @@ const OG_CSS = `/* ===== Orbital Globe – all rules scoped to .og-* or the orig
     #02050c;
   background-size: auto, 700px 400px, 700px 400px, 700px 400px, auto;
 }
-.og-panel { min-height: 0; overflow-y: auto; background: #050b16; padding: 0.85rem; box-sizing: border-box; }
-.og-panel-left { border-right: 1px solid rgba(56,189,248,0.14); }
-.og-panel-right { border-left: 1px solid rgba(56,189,248,0.14); }
-.og-panel::-webkit-scrollbar { width: 5px; }
-.og-panel::-webkit-scrollbar-thumb { background: #16263d; border-radius: 2px; }
-.og-sec { margin-bottom: 1rem; padding-bottom: 0.9rem; border-bottom: 1px solid rgba(56,189,248,0.1); }
-.og-sec:last-child { border-bottom: 0; }
-.og-sec-h { font-size: 0.56rem; letter-spacing: 1.6px; color: #5f7a99; margin-bottom: 0.55rem; display: flex; justify-content: space-between; align-items: baseline; }
-.og-sec-h b { color: #7dd3fc; font-weight: 600; font-size: 0.7rem; letter-spacing: 0.5px; }
-.og-fs .og-btn { background: #07101e; border-color: #15263d; color: #8ba3c0; }
-.og-fs .og-btn:hover { background: #0d1d33; color: #fff; }
-.og-fs .og-btn.on { background: rgba(56,189,248,0.16); border-color: rgba(56,189,248,0.6); color: #e6f6ff; }
-.og-fs .og-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
-.og-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; }
-.og-range { width: 100%; accent-color: #38bdf8; margin: 0.2rem 0 0.5rem; }
-.og-presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.3rem; }
-.og-note { font-size: 0.54rem; line-height: 1.5; color: #5f7a99; margin-top: 0.45rem; }
-.og-fs .og-info-grid { grid-template-columns: 1fr 1fr; }
+/* sidebars: independent scroll containers */
+.og-panel { min-height: 0; overflow-y: auto; overflow-x: hidden; background: var(--fs-panel); padding: 0.9rem; box-sizing: border-box; display: flex; flex-direction: column; gap: 0.75rem; scrollbar-width: thin; scrollbar-color: var(--fs-border-2) transparent; }
+.og-panel-left { border-right: 1px solid var(--fs-border); }
+.og-panel-right { border-left: 1px solid var(--fs-border); }
+.og-panel::-webkit-scrollbar { width: 6px; }
+.og-panel::-webkit-scrollbar-thumb { background: var(--fs-border-2); border-radius: 3px; }
+.og-sec { background: var(--fs-surface); border: 1px solid var(--fs-border); border-radius: 10px; padding: 0.8rem 0.85rem; flex: 0 0 auto; }
+.og-sec-h { font-size: 0.64rem; font-weight: 700; letter-spacing: 1.4px; color: var(--fs-muted); margin-bottom: 0.65rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; text-transform: uppercase; }
+.og-sec-h b { color: var(--fs-text); font-weight: 600; font-size: 0.72rem; letter-spacing: 0.3px; font-variant-numeric: tabular-nums; }
+/* buttons: secondary (default), chip/selected, primary, icon */
+.og-fs .og-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; min-height: 34px; padding: 0.4rem 0.75rem;
+  background: var(--fs-surface-2); border: 1px solid var(--fs-border-2); border-radius: 8px; color: #c9ced8;
+  font-family: inherit; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.2px; text-transform: none; cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.06s;
+}
+.og-fs .og-btn:hover:not([disabled]) { background: #242a33; border-color: #444e5d; color: #fff; }
+.og-fs .og-btn:active:not([disabled]) { background: #14181e; transform: translateY(1px); }
+.og-fs .og-btn:focus-visible, .og-fs .og-switch:focus-visible, .og-fs .og-li:focus-visible, .og-fs .og-search:focus-visible, .og-fs .og-range:focus-visible { outline: 2px solid var(--fs-accent); outline-offset: 2px; }
+.og-fs .og-btn.on { background: var(--fs-accent-soft); border-color: var(--fs-accent-line); color: #b6f3fc; }
+.og-fs .og-btn[disabled] { opacity: 0.42; cursor: not-allowed; }
+.og-fs .og-btn-primary {
+  min-height: 42px; width: 100%; font-size: 0.8rem; font-weight: 700; color: #03232a; border-color: transparent;
+  background: linear-gradient(180deg, #38dcf3, #1bbad3);
+}
+.og-fs .og-btn-primary:hover:not([disabled]) { background: linear-gradient(180deg, #5ce4f7, #2ac6de); color: #03232a; border-color: transparent; }
+.og-fs .og-btn-primary:active:not([disabled]) { background: #17a5bb; transform: translateY(1px); }
+.og-fs .og-btn-primary.on { background: #e8fbff; color: #04323b; border-color: var(--fs-accent); box-shadow: 0 0 0 2px var(--fs-accent-soft); }
+.og-fs .og-btn-primary[disabled] { background: var(--fs-surface-2); color: var(--fs-dim); border-color: var(--fs-border); opacity: 1; }
+.og-fs .og-btn-wide { width: 100%; }
+.og-fs .og-close { width: 36px; min-height: 36px; padding: 0; font-size: 1.05rem; line-height: 1; }
+/* compact ON/OFF switches */
+.og-switch { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; width: 100%; min-height: 38px; padding: 0.35rem 0.1rem; background: none; border: 0; border-radius: 8px; color: var(--fs-text); font-family: inherit; font-size: 0.78rem; font-weight: 500; text-align: left; cursor: pointer; }
+.og-switch + .og-switch { border-top: 1px solid var(--fs-border); border-radius: 0; }
+.og-switch:hover .og-track { border-color: #4a5566; }
+.og-switch:active .og-knob { width: 16px; }
+.og-switch[disabled] { opacity: 0.45; cursor: not-allowed; }
+.og-switch-label small { display: block; font-size: 0.64rem; font-weight: 400; color: var(--fs-dim); margin-top: 1px; }
+.og-switch-end { display: inline-flex; align-items: center; gap: 0.5rem; flex: 0 0 auto; }
+.og-onoff { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.8px; color: var(--fs-dim); min-width: 22px; text-align: right; }
+.og-switch[aria-checked="true"] .og-onoff { color: var(--fs-accent); }
+.og-track { position: relative; width: 36px; height: 20px; border-radius: 10px; background: #0d1014; border: 1px solid var(--fs-border-2); transition: background 0.15s, border-color 0.15s; flex: 0 0 auto; }
+.og-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 7px; background: #7d8696; transition: transform 0.15s, background 0.15s, width 0.08s; }
+.og-switch[aria-checked="true"] .og-track { background: var(--fs-accent-soft); border-color: var(--fs-accent-line); }
+.og-switch[aria-checked="true"] .og-knob { transform: translateX(16px); background: var(--fs-accent); }
+.og-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+.og-range { width: 100%; accent-color: #22d3ee; margin: 0.2rem 0 0.55rem; }
+.og-presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.35rem; }
+.og-note { font-size: 0.68rem; line-height: 1.5; color: var(--fs-dim); margin: 0.55rem 0 0; }
+/* network overview */
+.og-stat-main { font-size: 2.3rem; line-height: 1; font-weight: 700; color: var(--fs-text); font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
+.og-stat-cap { font-size: 0.66rem; letter-spacing: 1.2px; color: var(--fs-muted); margin-top: 0.4rem; text-transform: uppercase; }
+.og-stat-cap b { color: var(--fs-accent); font-weight: 600; }
+.og-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin-top: 0.8rem; padding-top: 0.75rem; border-top: 1px solid var(--fs-border); }
+.og-stat-grid div { min-width: 0; }
+.og-stat-grid b { display: block; font-size: 0.95rem; font-weight: 600; color: var(--fs-text); font-variant-numeric: tabular-nums; }
+.og-stat-grid span { display: block; font-size: 0.6rem; letter-spacing: 0.8px; color: var(--fs-dim); text-transform: uppercase; margin-top: 2px; }
+/* search + list */
+.og-search { width: 100%; box-sizing: border-box; min-height: 36px; padding: 0.45rem 0.7rem; margin-bottom: 0.6rem; background: var(--fs-bg); border: 1px solid var(--fs-border-2); border-radius: 8px; color: var(--fs-text); font-family: inherit; font-size: 0.78rem; }
+.og-search::placeholder { color: var(--fs-dim); }
+.og-search:focus { border-color: var(--fs-accent-line); outline: none; }
+.og-sec-list { flex: 1 1 260px; min-height: 260px; display: flex; flex-direction: column; }
+.og-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 0 -0.35rem; padding: 0 0.35rem; scrollbar-width: thin; scrollbar-color: var(--fs-border-2) transparent; }
+.og-list::-webkit-scrollbar { width: 5px; }
+.og-list::-webkit-scrollbar-thumb { background: var(--fs-border-2); border-radius: 3px; }
+.og-li { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 0.6rem; width: 100%; padding: 0.45rem 0.5rem; margin-bottom: 2px; background: transparent; border: 1px solid transparent; border-radius: 8px; color: var(--fs-text); font-family: inherit; text-align: left; cursor: pointer; transition: background 0.1s, border-color 0.1s; }
+.og-li:hover { background: var(--fs-surface-2); }
+.og-li:active { background: #14181e; }
+.og-li.sel { background: var(--fs-accent-soft); border-color: var(--fs-accent-line); }
+.og-li-name { display: block; font-size: 0.76rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.og-li-type { display: block; font-size: 0.64rem; color: var(--fs-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
+.og-li-id { font-size: 0.64rem; color: var(--fs-dim); font-variant-numeric: tabular-nums; }
+.og-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fs-dim); }
+.og-dot.live { background: var(--fs-accent); }
+.og-list-foot { font-size: 0.64rem; color: var(--fs-dim); margin-top: 0.5rem; }
+.og-empty { padding: 1.2rem 0.5rem; text-align: center; color: var(--fs-dim); font-size: 0.72rem; }
+/* telemetry */
+.og-fs .og-info-grid { grid-template-columns: 1fr 1fr; margin-top: 0; gap: 0.7rem 0.9rem; }
 .og-fs .og-info-grid .og-span { grid-column: 1 / -1; }
-.og-fs .og-k { color: #5f7a99; }
-.og-fs .og-v { color: #e6f1ff; font-size: 0.8rem; }
-.og-fs .og-foot { border-top-color: rgba(56,189,248,0.12); color: #5f7a99; }
-.og-placeholder { border: 1px dashed rgba(56,189,248,0.25); padding: 1.4rem 1rem; text-align: center; color: #7b92ae; font-size: 0.66rem; line-height: 1.6; }
-.og-placeholder b { display: block; color: #bcd6f2; letter-spacing: 1.5px; margin-bottom: 0.5rem; font-size: 0.62rem; }
-.og-fs .og-chip { background: rgba(2,8,18,0.8); border-color: rgba(56,189,248,0.2); }
+.og-fs .og-k { font-size: 0.6rem; letter-spacing: 0.8px; color: var(--fs-dim); }
+.og-fs .og-v { color: var(--fs-text); font-size: 0.82rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.og-fs .og-foot { border-top: 1px solid var(--fs-border); color: var(--fs-dim); font-size: 0.62rem; margin-top: 0.8rem; padding-top: 0.6rem; }
+.og-placeholder { border: 1px dashed var(--fs-border-2); border-radius: 8px; padding: 1.4rem 1rem; text-align: center; color: var(--fs-muted); font-size: 0.76rem; line-height: 1.6; }
+.og-placeholder b { display: block; color: var(--fs-text); letter-spacing: 1.2px; margin-bottom: 0.5rem; font-size: 0.7rem; }
+.og-fs .og-chip { background: rgba(8,10,13,0.82); border-color: var(--fs-border); border-radius: 8px; }
 .og-fs .og-loading { top: 0.75rem; left: 50%; right: auto; transform: translateX(-50%); }
 .og-fs .og-explore { display: none; }
 .og2-pads .og-toolbar > .og-row:first-child { display: none; }
@@ -192,6 +259,49 @@ function InfoRow({ label, value, span }) {
       <p className="og-v">{value}</p>
     </div>
   );
+}
+
+// Compact ON/OFF switch (role=switch) used by the console's toggle settings.
+function Switch({ label, hint, checked, onChange, disabled }) {
+  return (
+    <button type="button" role="switch" aria-checked={checked} disabled={disabled} className="og-switch" onClick={() => onChange(!checked)}>
+      <span className="og-switch-label">
+        {label}
+        {hint ? <small>{hint}</small> : null}
+      </span>
+      <span className="og-switch-end">
+        <span className="og-onoff">{checked ? 'ON' : 'OFF'}</span>
+        <span className="og-track"><span className="og-knob" /></span>
+      </span>
+    </button>
+  );
+}
+
+// Height of the website's fixed top bar, measured, so the expanded console sits below it instead of under it.
+const FALLBACK_HEADER_PX = 81; // 5rem bar + 1px border
+function useHeaderOffset(active) {
+  const [top, setTop] = useState(FALLBACK_HEADER_PX);
+  useEffect(() => {
+    if (!active || typeof document === 'undefined' || typeof document.querySelector !== 'function') return undefined;
+    const bar = document.querySelector('.st-hdr-bar');
+    const header = (bar && bar.closest && bar.closest('header')) || document.querySelector('header');
+    const measure = () => {
+      const bottom = header ? Math.round(header.getBoundingClientRect().bottom) : 0;
+      setTop(bottom > 0 ? bottom : FALLBACK_HEADER_PX);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    let ro = null;
+    if (header && typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(measure);
+      ro.observe(header);
+    }
+    return () => {
+      window.removeEventListener('resize', measure);
+      if (ro) ro.disconnect();
+    };
+  }, [active]);
+  return top;
 }
 
 function SatelliteInfo({ rows, onClose, footer, following, onToggleFollow }) {
@@ -241,6 +351,10 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
   const [showOrbit, setShowOrbit] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
   const [hover, setHover] = useState(null);
+  const [isolate, setIsolate] = useState(true); // dim everything except the selected satellite
+  const [autoRotate, setAutoRotate] = useState(false);
+  const [search, setSearch] = useState('');
+  const [viewRev, setViewRev] = useState(0);
   const [following, setFollowing] = useState(false);
   const [stageSize, setStageSize] = useState({ w: 0, h: 0 });
   const [, setSecond] = useState(0);
@@ -253,7 +367,8 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
     filter: engineFilterFor(satFilter),
     limit: limitFor(satFilter, satLimit),
   });
-  const { subject: realSubject, status, message, count, reload } = real;
+  const { subject: realSubject, status, message, count, database, reload } = real;
+  const headerTop = useHeaderOffset(fullscreen);
 
   // Request from the hub (telemetry menu, mobile nav, sidebar): same contract as OrbitalGlobe.
   useEffect(() => {
@@ -383,6 +498,26 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
     [onFallback]
   );
 
+  const resetView = useCallback(() => {
+    if (globeRef.current) globeRef.current.reset(); // flies back to the default view; the selection is kept
+  }, []);
+  // Pick from the satellite list: select and fly to it (same engine call the marker tap path uses).
+  const selectFromList = useCallback(entity => {
+    setSelectedId(entity.id);
+    setHover(null);
+    if (globeRef.current) globeRef.current.focusEntity(entity.id);
+  }, []);
+
+  // The visible objects, for the satellite list. The hook applies filter / limit changes in an effect, so a tick
+  // after it re-reads the subject (an effect declared later runs after the hook's).
+  useEffect(() => {
+    setViewRev(n => n + 1);
+  }, [realSubject, satFilter, satLimit, count]);
+  const listEntities = useMemo(() => (realSubject ? realSubject.getEntities() : []), [realSubject, viewRev]);
+  const searchResult = useMemo(() => searchEntities(listEntities, search), [listEntities, search]);
+  const overview = buildNetworkOverview(database, count);
+  const filterLabel = (SAT_FILTERS.find(f => f.key === satFilter) || SAT_FILTERS[0]).label;
+
   const padsView = useMemo(() => ({ mode: 'pads', requestId: padsEntry }), [padsEntry]);
   const trackedCount = count || 0;
 
@@ -432,7 +567,8 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
 
   // ----- satellites: in-house engine -----
   const loading = satsRequested && (status === 'idle' || status === 'loading');
-  const interactive = fullscreen || explore ? true : 'pick'; // embedded: camera locked (page scrolls) but tap + hover still work
+  // explore turns on automatically when the console opens (see above); the console's Free camera switch can turn it off.
+  const interactive = explore ? true : 'pick'; // camera locked (page scrolls) but tap + hover still work
 
   const stage = (
     <div ref={stageRef} className="cosmos-viewport og-stage">
@@ -446,7 +582,8 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
           onFollowChange={setFollowing}
           onStatusChange={onEngineStatus}
           interactive={interactive}
-          isolateSelected
+          isolateSelected={isolate}
+          autoRotate={autoRotate}
           showControls={false}
           style={{ width: '100%', height: '100%' }}
         />
@@ -533,9 +670,32 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
   );
 
   const leftPanel = (
-    <aside className="og-panel og-panel-left" aria-label="Controls">
+    <aside className="og-panel og-panel-left" aria-label="Satellite network">
       <div className="og-sec">
-        <div className="og-sec-h">
+        <div className="og-sec-h"><span>NETWORK OVERVIEW</span></div>
+        <div className="og-stat-main">{formatCount(overview.visible)}</div>
+        <div className="og-stat-cap">VISIBLE ON GLOBE · <b>{filterLabel}</b></div>
+        <div className="og-stat-grid">
+          <div><b>{formatCount(overview.total)}</b><span>In database</span></div>
+          <div><b>{formatCount(overview.active)}</b><span>Active</span></div>
+          <div><b>{formatCount(overview.inactive)}</b><span>Inactive</span></div>
+        </div>
+      </div>
+
+      <div className="og-sec">
+        <div className="og-sec-h"><span>SEARCH &amp; FILTERS</span></div>
+        <input
+          className="og-search" type="search" value={search} placeholder="Search name or NORAD ID"
+          aria-label="Search satellites" onChange={e => setSearch(e.target.value)}
+        />
+        <div className="og-grid2">
+          {SAT_FILTERS.map(f => (
+            <button key={f.key} className={`og-btn ${satFilter === f.key ? 'on' : ''}`} aria-pressed={satFilter === f.key} onClick={() => pickFilter(f.key)}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <div className="og-sec-h" style={{ marginTop: '0.9rem' }}>
           <span>SATELLITE COUNT</span>
           <b>{satLimit.toLocaleString()}</b>
         </div>
@@ -557,33 +717,94 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
         </p>
       </div>
 
-      <div className="og-sec">
-        <div className="og-sec-h"><span>FILTER</span></div>
-        <div className="og-grid2">
-          {SAT_FILTERS.map(f => (
-            <button key={f.key} className={`og-btn ${satFilter === f.key ? 'on' : ''}`} onClick={() => pickFilter(f.key)}>
-              {f.label}
-            </button>
-          ))}
+      <div className="og-sec og-sec-list">
+        <div className="og-sec-h">
+          <span>SATELLITES</span>
+          <b>{searchResult.matches.toLocaleString()}</b>
         </div>
+        <div className="og-list" role="listbox" aria-label="Visible satellites">
+          {searchResult.shown.map(sat => {
+            const picked = selectedId !== null && selectedId !== undefined && String(selectedId) === String(sat.id);
+            return (
+              <button
+                key={sat.id} type="button" role="option" aria-selected={picked}
+                className={`og-li ${picked ? 'sel' : ''}`} onClick={() => selectFromList(sat)}
+              >
+                <span className={`og-dot ${sat.trackable ? 'live' : ''}`} title={sat.trackable ? 'Live SGP4 tracking' : 'Static database position'} />
+                <span>
+                  <span className="og-li-name">{sat.name || 'UNKNOWN OBJECT'}</span>
+                  <span className="og-li-type">{typeLabelFor(sat)} · {sat.trackable ? 'Tracking' : 'Static'}</span>
+                </span>
+                <span className="og-li-id">{sat.id}</span>
+              </button>
+            );
+          })}
+          {searchResult.shown.length === 0 && (
+            <div className="og-empty">{listEntities.length === 0 ? 'No satellites in this view.' : 'No satellites match your search.'}</div>
+          )}
+        </div>
+        {searchResult.matches > searchResult.shown.length && (
+          <div className="og-list-foot">Showing first {searchResult.shown.length.toLocaleString()} of {searchResult.matches.toLocaleString()} — refine the search to narrow down.</div>
+        )}
+      </div>
+    </aside>
+  );
+
+  const hasSelection = selectedId !== null && selectedId !== undefined && !!selectedEntity;
+  const rightPanel = (
+    <aside className="og-panel og-panel-right" aria-label="Telemetry and globe controls">
+      <div className="og-sec">
+        <div className="og-sec-h">
+          <span>{panelRows ? 'REAL-TIME ORBITAL TELEMETRY' : 'OBJECT TELEMETRY'}</span>
+          {panelRows && (
+            <button className="og-btn" onClick={clearSelection} aria-label="Clear selection" style={{ minHeight: '28px', padding: '0.2rem 0.6rem', fontSize: '0.68rem' }}>
+              Clear
+            </button>
+          )}
+        </div>
+        {panelRows ? (
+          <>
+            <div className="og-info-grid">
+              {panelRows.map(row => (
+                <InfoRow key={row.label} label={row.label} value={row.value} span={row.span} />
+              ))}
+            </div>
+            <div className="og-foot">● PROPAGATING AT 1 SECOND INTERVALS</div>
+          </>
+        ) : (
+          <div className="og-placeholder">
+            <b>NO OBJECT SELECTED</b>
+            Select a satellite on the globe or from the list to view its live telemetry.
+          </div>
+        )}
+      </div>
+
+      <div className="og-sec">
+        <div className="og-sec-h"><span>CAMERA</span></div>
+        <div style={{ display: 'grid', gap: '0.5rem' }}>
+          <button
+            className={`og-btn og-btn-primary ${following ? 'on' : ''}`} aria-pressed={following}
+            disabled={!hasSelection} onClick={toggleFollow}
+          >
+            {following ? '● Following satellite' : 'Follow satellite'}
+          </button>
+          <button className="og-btn og-btn-wide" onClick={resetView}>Reset view</button>
+        </div>
+        <p className="og-note">
+          {hasSelection ? (following ? 'The camera is tracking the selected satellite.' : 'Keeps the selected satellite centred.') : 'Select a satellite to enable Follow.'}
+        </p>
       </div>
 
       <div className="og-sec">
         <div className="og-sec-h"><span>ORBIT VISUALISATION</span></div>
-        <div className="og-grid2">
-          <button className={`og-btn ${showOrbit ? 'on' : ''}`} aria-pressed={showOrbit} onClick={() => setShowOrbit(v => !v)}>
-            Orbit path
-          </button>
-        </div>
-        <p className="og-note">Orbit path is drawn for the selected satellite.</p>
+        <Switch label="Orbit paths" hint="Path of the selected satellite" checked={showOrbit} onChange={setShowOrbit} />
+        <Switch label="Isolate selected" hint="Dim all other satellites" checked={isolate} onChange={setIsolate} />
       </div>
 
       <div className="og-sec">
-        <div className="og-sec-h"><span>INTERACTION</span></div>
-        <button className={`og-btn ${explore ? 'on' : ''}`} style={{ width: '100%' }} aria-pressed={explore} onClick={() => setExplore(v => !v)}>
-          Explore mode: {explore ? 'ON' : 'OFF'}
-        </button>
-        <p className="og-note">Drag to rotate, wheel / pinch to zoom, click a marker to select. Esc exits the console.</p>
+        <div className="og-sec-h"><span>DISPLAY</span></div>
+        <Switch label="Auto rotation" hint="Slowly spin the globe" checked={autoRotate} onChange={setAutoRotate} />
+        <Switch label="Free camera" hint="Drag to rotate, wheel to zoom" checked={explore} onChange={setExplore} />
       </div>
 
       <div className="og-sec">
@@ -591,44 +812,24 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
         <p className="og-note" style={{ marginTop: 0 }}>
           PROPAGATOR: SGP4 (satellite.js)<br />
           UPDATE: 1 s live clock<br />
-          SOURCE: NORAD orbital elements
+          SOURCE: NORAD orbital elements<br />
+          Esc closes the expanded view.
         </p>
       </div>
-    </aside>
-  );
-
-  const rightPanel = (
-    <aside className="og-panel og-panel-right" aria-label="Satellite information">
-      {panelRows ? (
-        <SatelliteInfo
-          rows={panelRows}
-          onClose={clearSelection}
-          following={following}
-          onToggleFollow={toggleFollow}
-          footer="● PROPAGATING AT 1 SECOND INTERVALS"
-        />
-      ) : (
-        <>
-          <div className="og-info-head"><span className="og-info-title">OBJECT TELEMETRY</span></div>
-          <div className="og-placeholder" style={{ marginTop: '0.8rem' }}>
-            <b>NO OBJECT SELECTED</b>
-            Select a satellite marker on the globe to view its live telemetry here.
-          </div>
-        </>
-      )}
     </aside>
   );
 
   return (
     <div
       className={`og-root ${fullscreen ? 'og-fs' : ''}`}
+      style={fullscreen ? { top: headerTop } : undefined}
       {...(fullscreen ? { role: 'dialog', 'aria-label': 'Orbital operations console' } : {})}
     >
       <style>{OG_CSS}</style>
 
       {fullscreen ? (
         <div className="og-topbar">
-          <button ref={exitButtonRef} className="og-btn og-exit" onClick={() => setConsoleRequested(false)}>
+          <button className="og-btn" onClick={() => setConsoleRequested(false)}>
             ← Exit fullscreen
           </button>
           <div className="og-title">
@@ -640,6 +841,12 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
             <span>OBJECTS <b>{trackedCount.toLocaleString()}</b></span>
             <UtcClock />
           </div>
+          <button
+            ref={exitButtonRef} className="og-btn og-close" onClick={() => setConsoleRequested(false)}
+            aria-label="Close expanded view" title="Close (Esc)"
+          >
+            ✕
+          </button>
         </div>
       ) : (
         <div className="og-toolbar">
@@ -716,4 +923,4 @@ export default function OrbitalGlobeV2({ requestedView, launchpads }) {
       <EngineOrbitalGlobe requestedView={requestedView} launchpads={launchpads} onFallback={handleFallback} />
     </EngineBoundary>
   );
-            }
+}
