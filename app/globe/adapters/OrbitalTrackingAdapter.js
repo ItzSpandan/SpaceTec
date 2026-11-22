@@ -309,6 +309,16 @@ function isInactiveRow(row) {
   return status.includes('decay') || status.includes('dead') || status.includes('inactive');
 }
 
+// Counts for the Network overview, straight from the downloaded rows (read-only; nothing is fetched or changed):
+// total = every row of public.satellites, inactive = rows whose status marks them decayed / dead / inactive,
+// active = the rest. (If the table has no status column, inactive is simply 0.)
+export function summarizeSatelliteRows(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  let inactive = 0;
+  for (let i = 0; i < list.length; i += 1) if (isInactiveRow(list[i])) inactive += 1;
+  return { total: list.length, active: list.length - inactive, inactive };
+}
+
 // Turns one database row into { entity, satrec, pathInput } or null. The entity is a PERSISTENT object that
 // the live updater mutates in place, so ids and array order never change between updates.
 export function buildOrbitalRecord(row, nowMs = Date.now()) {
@@ -690,4 +700,4 @@ export function useOrbitalTestFleet({ initialCount = 3000, timeScale = 60 } = {}
   const onChange = useCallback(c => setCount(c), []);
   const controls = useMemo(() => createElement(OrbitalTestControls, { count, onChange }), [count, onChange]);
   return { subject, controls };
-              }
+}
