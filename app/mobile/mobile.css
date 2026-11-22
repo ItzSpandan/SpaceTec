@@ -841,7 +841,6 @@
      rewriting every inline style. */
   .st-hub #hero,
   .st-hub #telemetry,
-  .st-hub #orbital-map,
   .st-hub #launches,
   .st-hub #past-launches {
     filter: grayscale(1);
@@ -1313,4 +1312,4 @@
     font-size: 0.9rem !important;
     overflow-wrap: anywhere;
   }
-}
+     }
