@@ -1,0 +1,108 @@
+/**
+ * Pure helpers for OrbitalGlobeV2.js (no React, no three.js, no DOM), kept separate so they can be unit-tested.
+ */
+import { SATELLITE_TYPE_LABELS, normalizeSatelliteType } from './adapters/OrbitalTrackingAdapter';
+
+// The production globe's satellite filter chips, mapped onto the adapter's satellite_type filters (Step 4A).
+// NOTE: the old globe matched satellite NAMES; these use the database satellite_type, so counts can differ.
+export const SAT_FILTERS = [
+  { key: 'stations', label: 'SPACE STATIONS', engine: 'stations' },
+  { key: 'starlink', label: 'STARLINK', engine: 'starlink' },
+  { key: 'weather', label: 'WEATHER', engine: 'weather' },
+  { key: 'active', label: 'ALL ACTIVE', engine: 'all' },
+];
+
+export const DEFAULT_SAT_FILTER = 'stations';
+export const DEFAULT_SAT_LIMIT = 1000;
+
+export function engineFilterFor(key) {
+  const f = SAT_FILTERS.find(x => x.key === key);
+  return f ? f.engine : 'all';
+}
+
+// The production count slider only applied to ALL ACTIVE; the other filters show every matching object.
+export function limitFor(key, satLimit) {
+  return key === 'active' && Number(satLimit) > 0 ? Number(satLimit) : undefined;
+}
+
+// Which implementation renders the Orbital Tracking globe.
+//   'legacy' (default): the original react-globe.gl component, exactly as before.
+//   'engine': the in-house SpaceTecGlobeEngine for the satellite view (launch pads stay on the legacy globe).
+// Sources, strongest first: URL ?orbitGlobe=engine|legacy, then the NEXT_PUBLIC_ORBITAL_GLOBE build setting.
+export function resolveGlobeImplementation(search, envValue) {
+  const norm = v => {
+    const s = String(v == null ? '' : v).trim().toLowerCase();
+    if (s === 'engine' || s === 'v2' || s === 'new') return 'engine';
+    if (s === 'legacy' || s === 'old' || s === 'v1') return 'legacy';
+    return null;
+  };
+  let fromUrl = null;
+  try {
+    fromUrl = norm(new URLSearchParams(search || '').get('orbitGlobe'));
+  } catch (error) {
+    fromUrl = null;
+  }
+  return fromUrl || norm(envValue) || 'legacy';
+}
+
+export function numOrNull(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function fmt(value, digits, suffix = '') {
+  const n = numOrNull(value);
+  return n === null ? 'N/A' : `${n.toFixed(digits)}${suffix}`;
+}
+
+// Rows of the satellite details panel (same fields and formats as the production panel's SatelliteInfo).
+export function buildPanelRows(entity, telemetry) {
+  const t = telemetry || {};
+  const orbit =
+    numOrNull(t.apogeeKm) !== null && numOrNull(t.perigeeKm) !== null
+      ? `${t.perigeeKm.toFixed(0)} × ${t.apogeeKm.toFixed(0)} km`
+      : 'N/A';
+  const type = normalizeSatelliteType(entity.satellite_type);
+  const rows = [
+    { label: 'Object name', value: entity.name || 'N/A', span: true },
+    { label: 'NORAD ID', value: entity.id ?? 'N/A' },
+    { label: 'Organization', value: entity.organization || 'N/A' },
+    { label: 'Mission type', value: type ? SATELLITE_TYPE_LABELS[type] : 'Unclassified' },
+    { label: 'Altitude (live)', value: fmt(entity.altitudeKm, 2, ' km') },
+    { label: 'Velocity (live)', value: fmt(entity.velocityKmS, 3, ' km/s') },
+    { label: 'Latitude (live)', value: fmt(entity.lat, 4, '°') },
+    { label: 'Longitude (live)', value: fmt(entity.lng, 4, '°') },
+    { label: 'Inclination', value: fmt(t.inclination, 3, '°') },
+    { label: 'Orbital period', value: fmt(t.periodMin, 2, ' min') },
+    { label: 'Eccentricity', value: fmt(t.eccentricity, 6) },
+    { label: 'Perigee × apogee', value: orbit },
+  ];
+  if (t.epoch) rows.push({ label: 'Element epoch', value: t.epoch, span: true });
+  rows.push({ label: 'Solver', value: entity.trackable ? 'SGP4 PROPAGATOR' : 'STATIC DATABASE' });
+  const ts = numOrNull(entity.timestamp);
+  rows.push({ label: 'UTC tick', value: ts === null ? 'N/A' : `${new Date(ts).toISOString().slice(11, 19)} UTC` });
+  return rows;
+}
+
+// Hover tooltip lines (same fields as the production globe's point label).
+export function buildHoverLines(entity) {
+  return [
+    entity.name || 'UNKNOWN OBJECT',
+    `NORAD: ${entity.id ?? 'N/A'}`,
+    `LAT: ${numOrNull(entity.lat) === null ? 'N/A' : `${Number(entity.lat).toFixed(4)}°`}`,
+    `LNG: ${numOrNull(entity.lng) === null ? 'N/A' : `${Number(entity.lng).toFixed(4)}°`}`,
+    `ALT: ${numOrNull(entity.altitudeKm) === null ? 'N/A' : `${Number(entity.altitudeKm).toFixed(1)} km`}`,
+    `VEL: ${numOrNull(entity.velocityKmS) === null ? 'N/A' : `${Number(entity.velocityKmS).toFixed(2)} km/s`}`,
+  ];
+}
+
+// Keeps the tooltip inside the stage: returns { left, top } in pixels.
+export function placeTooltip(pos, stage, box = { w: 190, h: 120 }) {
+  const gap = 14;
+  let left = pos.x + gap;
+  let top = pos.y + gap;
+  if (left + box.w > stage.w) left = Math.max(0, pos.x - gap - box.w);
+  if (top + box.h > stage.h) top = Math.max(0, pos.y - gap - box.h);
+  return { left, top };
+}
