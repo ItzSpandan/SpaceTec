@@ -7,7 +7,7 @@ import { SATELLITE_TYPE_LABELS, normalizeSatelliteType } from './adapters/Orbita
 // NOTE: the old globe matched satellite NAMES; these use the database satellite_type, so counts can differ.
 export const SAT_FILTERS = [
   { key: 'stations', label: 'SPACE STATIONS', engine: 'stations' },
-  { key: 'starlink', label: 'STARLINK', engine: 'starlink' },
+  { key: 'broadband', label: 'BROADBAND', engine: 'starlink' },
   { key: 'weather', label: 'WEATHER', engine: 'weather' },
   { key: 'active', label: 'ALL ACTIVE', engine: 'all' },
 ];
