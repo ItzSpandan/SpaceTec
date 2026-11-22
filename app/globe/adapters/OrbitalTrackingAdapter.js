@@ -356,7 +356,48 @@ export function buildOrbitalRecord(row, nowMs = Date.now()) {
     timestamp: nowMs,
     trackable: Boolean(state),
   };
-  return { entity, satrec: usable, pathInput };
+  // Raw orbital elements kept for the details panel (same fields the production panel reads).
+  const elements = {
+    mean_motion: row.mean_motion,
+    inclination: row.inclination,
+    eccentricity: row.eccentricity,
+    epoch: row.epoch,
+  };
+  return { entity, satrec: usable, pathInput, elements };
+}
+
+const WGS72_EARTH_RADIUS_KM = 6378.135; // satrec.alta / altp are in WGS-72 Earth radii
+
+function finiteOrNull(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+// Orbital elements for the details panel: { periodMin, inclination, eccentricity, apogeeKm, perigeeKm, epoch }.
+// Same derivations as the production Orbital Globe's getSatelliteTelemetry (database value first, satrec second).
+export function describeOrbitalElements(record) {
+  if (!record) return null;
+  const satrec = record.satrec || null;
+  const el = record.elements || {};
+  const meanMotion = finiteOrNull(el.mean_motion);
+  let periodMin = null;
+  if (meanMotion && meanMotion > 0) periodMin = 1440 / meanMotion;
+  else if (satrec && finiteOrNull(satrec.no) && satrec.no > 0) periodMin = (2 * Math.PI) / satrec.no;
+  let inclination = finiteOrNull(el.inclination);
+  if (inclination === null && satrec && finiteOrNull(satrec.inclo) !== null) inclination = (satrec.inclo * 180) / Math.PI;
+  let eccentricity = finiteOrNull(el.eccentricity);
+  if (eccentricity === null && satrec) eccentricity = finiteOrNull(satrec.ecco);
+  let apogeeKm = null;
+  let perigeeKm = null;
+  if (satrec) {
+    const alta = finiteOrNull(satrec.alta);
+    const altp = finiteOrNull(satrec.altp);
+    if (alta !== null) apogeeKm = alta * WGS72_EARTH_RADIUS_KM;
+    if (altp !== null) perigeeKm = altp * WGS72_EARTH_RADIUS_KM;
+  }
+  const epoch = typeof el.epoch === 'string' ? `${el.epoch.replace('T', ' ').slice(0, 19)} UTC` : null;
+  return { periodMin, inclination, eccentricity, apogeeKm, perigeeKm, epoch };
 }
 
 // Builds records for many rows without blocking the UI: yields to the event loop every `chunk` rows.
@@ -595,6 +636,13 @@ export function createRealOrbitalSubject(records, options = {}) {
     }
   };
 
+  // Lookups for the details panel: the live entity object (any prepared record) and its orbital elements.
+  subject.getEntity = id => {
+    const rec = byId.get(String(id));
+    return rec ? rec.entity : null;
+  };
+  subject.getTelemetry = id => describeOrbitalElements(byId.get(String(id)));
+
   subject.getView = () => ({ filter: filter.key, limit, visible: current.length, total: all.length });
 
   // Counts over the prepared catalogue, ignoring the limit: preset keys, every satellite_type, and 'unclassified'.
@@ -642,4 +690,4 @@ export function useOrbitalTestFleet({ initialCount = 3000, timeScale = 60 } = {}
   const onChange = useCallback(c => setCount(c), []);
   const controls = useMemo(() => createElement(OrbitalTestControls, { count, onChange }), [count, onChange]);
   return { subject, controls };
-}
+              }
