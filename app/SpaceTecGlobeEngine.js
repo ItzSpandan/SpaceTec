@@ -48,6 +48,9 @@
  *                                             scrolls) but tap selection and hover keep working.
  *                                    false = nothing: no camera, no tap selection, no hover; touch-action released.
  *                                    Programmatic control (selectedId, focusEntity, follow, flyTo) always works.
+ *   adaptiveMarkers (default false)  scale all markers smoothly with how many entities are shown: larger for small
+ *                                    sets (easy to spot), normal around 10k, slightly compact above that. Uses the
+ *                                    displayed entity count only; see markerDensityScale().
  *   isolateSelected (default false)  while an entity is selected the other entities are drawn faint (picking is
  *                                    unchanged); the selected entity, its model, ring and path stay fully visible.
  *
@@ -80,6 +83,22 @@ import { EARTH_KM, DEG, mulberry32, bakeParts, UNIT_OCTA } from './globe/globeSh
 const FALLBACK_TYPE = 'generic';
 const HOVER_INTERVAL_MS = 60; // at most one hover pick per this many ms (picking is O(entities))
 const HOVER_RADIUS_PX = 10; // pick radius for hover (taps use 12 / 24)
+// Adaptive marker size: log-interpolated between anchors so the size never jumps as the count changes.
+const DENSITY_ANCHORS = [[100, 2.3], [500, 1.75], [2500, 1.3], [10000, 1.0], [16000, 0.85]]; // [object count, scale]
+export function markerDensityScale(count) {
+  const n = Number(count);
+  if (!Number.isFinite(n) || n <= 0) return 1;
+  const A = DENSITY_ANCHORS;
+  if (n <= A[0][0]) return A[0][1];
+  if (n >= A[A.length - 1][0]) return A[A.length - 1][1];
+  for (let i = 1; i < A.length; i += 1) {
+    if (n <= A[i][0]) {
+      const t = (Math.log10(n) - Math.log10(A[i - 1][0])) / (Math.log10(A[i][0]) - Math.log10(A[i - 1][0]));
+      return A[i - 1][1] + (A[i][1] - A[i - 1][1]) * t;
+    }
+  }
+  return 1;
+}
 const ISOLATE_OPACITY = 0.14; // opacity of de-emphasised entities while `isolateSelected` is active
 const DEFAULT_TYPES = {
   generic: { label: 'Objects', color: '#b9c2d0', size: 0.0055 },
@@ -352,10 +371,13 @@ void main(){
 }`;
 
 const CLOUD_FRAG = `
-uniform sampler2D cloudMap; uniform vec3 sunDir; uniform float cloudU;
+uniform sampler2D cloudMap; uniform vec3 sunDir; uniform float cloudU; uniform float cloudContrast;
 varying vec2 vUv; varying vec3 vN; varying vec3 vView;
 void main(){
-  float a = texture2D(cloudMap, vec2(vUv.x + cloudU, vUv.y)).r;
+  float raw = texture2D(cloudMap, vec2(vUv.x + cloudU, vUv.y)).r;
+  // The cloud map is faint (mean ~0.28, max ~0.83). cloudContrast stretches it so dense decks read as cloud and thin
+  // wisps stay subtle; 0 = original look (used on the low / mobile tier).
+  float a = mix(raw, smoothstep(0.08, 0.72, raw) * 0.94, cloudContrast);
   vec3 n = normalize(vN);
   float l = dot(n, normalize(sunDir));
   float lit = 0.05 + 0.95 * smoothstep(-0.1, 0.3, l);
@@ -602,6 +624,8 @@ class GlobeEngine {
     this.hoverAt = -1e9;
     this.markerScale = 1;
     this.appliedScale = 1;
+    this.adaptive = opts.adaptiveMarkers === true; // size markers by the displayed count
+    this.densityScale = 1;
     this.pointers = new Set();
     this.gesture = null;
     this.lastTap = null;
@@ -813,7 +837,7 @@ class GlobeEngine {
         new THREE.ShaderMaterial({
           vertexShader: SURFACE_VERT,
           fragmentShader: CLOUD_FRAG,
-          uniforms: { cloudMap: { value: tex.clouds }, sunDir: { value: this.sun }, cloudU: this.cloudUniform },
+          uniforms: { cloudMap: { value: tex.clouds }, sunDir: { value: this.sun }, cloudU: this.cloudUniform, cloudContrast: { value: this.lowTier ? 0 : 1 } },
           transparent: true,
           depthWrite: false,
         })
@@ -1042,8 +1066,9 @@ class GlobeEngine {
     const selK = this.selected ? this.selected.k : null;
     const selIdx = this.selected ? this.selected.idx : -1;
     const scales = {};
+    this.densityScale = this.adaptive ? markerDensityScale(src.length) : 1;
     this.typeKeys.forEach(k => {
-      scales[k] = this.types[k].size * this.markerScale;
+      scales[k] = this.types[k].size * this.markerScale * this.densityScale;
     });
     for (let i = 0; i < src.length; i += 1) {
       const sat = src[i];
@@ -1141,11 +1166,19 @@ class GlobeEngine {
     });
   }
 
+  setAdaptiveMarkers(on) {
+    const next = on === true;
+    if (next === this.adaptive) return;
+    this.adaptive = next;
+    this.densityScale = next ? markerDensityScale(this.order.length) : 1;
+    this.rescaleMarkers();
+  }
+
   rescaleMarkers() {
     this.typeKeys.forEach(k => {
       const g = this.groups[k];
       if (!g.mesh) return;
-      const s = this.types[k].size * this.markerScale;
+      const s = this.types[k].size * this.markerScale * this.densityScale;
       const a = g.mesh.instanceMatrix.array;
       const bs = g.basis;
       for (let i = 0; i < g.count; i += 1) {
@@ -1303,7 +1336,7 @@ class GlobeEngine {
       s = Math.max(0.02, dist * 0.028); // exaggerated so the silhouette is readable
       this.selMarker.visible = false;
     } else {
-      s = this.types[this.selected.k].size * this.markerScale * 1.5;
+      s = this.types[this.selected.k].size * this.markerScale * this.densityScale * 1.5;
       this.selMarker.visible = true;
     }
     this._bx.set(m.bx[0] * s, m.bx[1] * s, m.bx[2] * s);
@@ -2085,6 +2118,7 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
     onStatusChange,
     interactive = true,
     isolateSelected = false,
+    adaptiveMarkers = false,
     path,
     legendExtras,
     textureUrls,
@@ -2154,6 +2188,7 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
           normalScale,
           interactive,
           isolateSelected,
+          adaptiveMarkers,
           callbacks: {
             onSelect: entity => {
               setInternalSel(entity ? entity.id : null);
@@ -2245,6 +2280,9 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
   useEffect(() => {
     if (engine) engine.setIsolateSelected(isolateSelected);
   }, [engine, isolateSelected]);
+  useEffect(() => {
+    if (engine) engine.setAdaptiveMarkers(adaptiveMarkers);
+  }, [engine, adaptiveMarkers]);
 
   // Selection from props / internal state.
   useEffect(() => {
