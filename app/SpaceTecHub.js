@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
-import OrbitalGlobe from './OrbitalGlobe';
+import OrbitalGlobe from './OrbitalGlobeV2'; // wrapper: legacy globe by default, in-house engine for satellites behind a flag
 import GlobalSearch from './GlobalSearch';
 import { supabase } from './supabase';
 import { useAuth } from './lib/AuthContext';
