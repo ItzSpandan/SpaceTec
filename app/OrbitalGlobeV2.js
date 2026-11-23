@@ -9,15 +9,20 @@
  *      default                       -> the legacy OrbitalGlobe, exactly as before
  *      ?orbitGlobe=engine            -> new engine for satellites (URL wins)
  *      NEXT_PUBLIC_ORBITAL_GLOBE=engine (build setting) -> new engine for satellites
- *  - Launch pads always render on the legacy globe (which then hides its own mode buttons, because this wrapper
- *    owns them). Exactly ONE WebGL globe is mounted at any time: switching view unmounts one before mounting
- *    the other.
+ *  - Launch pads: with the engine enabled (and a launchpads dataset) they render on the same in-house engine through
+ *    LaunchpadLocatorAdapter (LaunchpadGlobeView). Without the flag, without a dataset, or if that engine cannot
+ *    start, they render on the legacy globe (which then hides its own mode buttons, because this wrapper owns
+ *    them). Exactly ONE WebGL globe is mounted at any time: switching view unmounts one before mounting the other.
  *  - If the new engine cannot start (no WebGL, init error) or its UI throws, the wrapper falls back to the
  *    legacy globe in satellite view.
  */
-import { Component, useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { Component, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
+
+// useLayoutEffect warns during server rendering, so use a plain effect there (it never runs on the server anyway).
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 import OrbitalGlobe from './OrbitalGlobe';
 import SpaceTecGlobeEngine from './SpaceTecGlobeEngine';
+import LaunchpadGlobeView from './LaunchpadGlobeView';
 import { useRealOrbitalTracking } from './globe/adapters/useRealOrbitalTracking';
 import {
   SAT_FILTERS,
@@ -222,6 +227,7 @@ const OG_CSS = `/* ===== Orbital Globe – all rules scoped to .og-* or the orig
 .og-fs .og-explore { display: none; }
 .og2-pads .og-toolbar > .og-row:first-child { display: none; }
 .og2-pads .og-root { gap: 0.75rem; }
+.og2-padsx { display: flex; flex-direction: column; gap: 0.75rem; width: 100%; min-width: 0; }
 .og2-tip { position: absolute; z-index: 16; pointer-events: none; background: rgba(0,0,0,0.88); border: 1px solid #3f3f46; padding: 0.4rem 0.55rem; font-family: monospace; font-size: 0.6rem; line-height: 1.45; color: #e4e4e7; white-space: nowrap; }
 .og2-tip b { color: #ffffff; font-size: 0.66rem; }
 .og2-retry { pointer-events: auto; margin-left: 0.6rem; }
@@ -403,6 +409,7 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
   const [consoleRequested, setConsoleRequested] = useState(startSats);
   const [satsRequested, setSatsRequested] = useState(startSats); // once true the catalogue stays loaded
   const [padsEntry, setPadsEntry] = useState(0);
+  const [padsEngineFailed, setPadsEngineFailed] = useState(false); // launch-pad engine view failed -> legacy pads
   const [satFilter, setSatFilter] = useState(DEFAULT_SAT_FILTER);
   const [satLimit, setSatLimit] = useState(DEFAULT_SAT_LIMIT);
   const [explore, setExplore] = useState(false);
@@ -641,15 +648,23 @@ function EngineOrbitalGlobe({ requestedView, launchpads, onFallback }) {
     </div>
   );
 
-  // ----- launch pads: legacy globe (the only WebGL globe mounted in this mode) -----
+  // ----- launch pads: the in-house engine when a dataset is given, otherwise the legacy globe -----
+  // Either way exactly one WebGL globe is mounted in this mode.
   if (viewMode === 'pads') {
+    const padsOnEngine = Array.isArray(launchpads) && launchpads.length > 0 && !padsEngineFailed;
     return (
       <div className="og-root">
         <style>{OG_CSS}</style>
         <div className="og-toolbar">{modeButtons}</div>
-        <div className="og2-pads">
-          <OrbitalGlobe requestedView={padsView} launchpads={launchpads} />
-        </div>
+        {padsOnEngine ? (
+          <EngineBoundary onError={() => setPadsEngineFailed(true)}>
+            <LaunchpadGlobeView launchpads={launchpads} onUnavailable={() => setPadsEngineFailed(true)} />
+          </EngineBoundary>
+        ) : (
+          <div className="og2-pads">
+            <OrbitalGlobe requestedView={padsView} launchpads={launchpads} />
+          </div>
+        )}
       </div>
     );
   }
@@ -1108,7 +1123,10 @@ export default function OrbitalGlobeV2({ requestedView, launchpads }) {
   const [impl, setImpl] = useState(() => resolveGlobeImplementation('', process.env.NEXT_PUBLIC_ORBITAL_GLOBE));
   const [fallback, setFallback] = useState(null); // { view, from }
 
-  useEffect(() => {
+  // The server and the hydrating first render use the build setting only (no window). The URL override is then read
+  // in a layout effect: it runs in the same commit, before paint and before the legacy globe's async react-globe.gl
+  // import can resolve, so ?orbitGlobe=engine never lets the legacy globe create a WebGL context first.
+  useIsoLayoutEffect(() => {
     setImpl(resolveGlobeImplementation(window.location.search, process.env.NEXT_PUBLIC_ORBITAL_GLOBE));
   }, []);
 
@@ -1129,4 +1147,4 @@ export default function OrbitalGlobeV2({ requestedView, launchpads }) {
       <EngineOrbitalGlobe requestedView={requestedView} launchpads={launchpads} onFallback={handleFallback} />
     </EngineBoundary>
   );
-      }
+        }
