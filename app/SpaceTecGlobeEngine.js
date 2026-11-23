@@ -2325,6 +2325,8 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
       flyTo: (lat, lng, distance) => engine && engine.flyTo(lat, lng, distance),
       setFollow: on => engine && engine.setFollow(on),
       focusEntity: id => engine && engine.focusEntity(id),
+      // Programmatic selection without moving the camera or notifying the owner (the engine's own setSelectedEntity).
+      select: id => engine && engine.setSelectedEntity(id, true),
     }),
     [engine]
   );
