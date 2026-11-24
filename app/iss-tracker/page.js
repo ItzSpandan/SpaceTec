@@ -1,17 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  eciToGeodetic,
   gstime,
   propagate,
   ecfToLookAngles,
-  degreesLat,
-  degreesLong,
 } from 'satellite.js';
+import { calculateOrbit } from '../globe/adapters/issTracking';
+import { useISSTracking } from '../globe/adapters/useISSTracking';
+import { resolveGlobeImplementation } from '../globe/globeImplementation';
 
 // Same "big centered SPACETEC, holds, then docks into the header" entry
 // transition used by the other dedicated SpaceTec pages (astronomy-tonight,
@@ -28,10 +28,21 @@ const ReactGlobe = dynamic(() => import('react-globe.gl'), {
   ),
 });
 
+// The in-house globe (opt-in with ?orbitGlobe=engine). Loaded on demand, so the default (legacy) page never loads it.
+const ISSEngineGlobe = dynamic(() => import('./ISSEngineGlobe'), {
+  ssr: false,
+  loading: () => (
+    <div className="iss-loading">
+      <span>INITIALIZING ORBITAL VISUALIZATION...</span>
+    </div>
+  ),
+});
+
+// Layout effect on the client (runs before paint), plain effect on the server (no warning, never runs there).
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
 const EARTH_RADIUS_KM = 6378.137;
 const MIN_PASS_ELEVATION_DEG = 10;
-const SAMPLE_SECONDS = 30;
-const ORBIT_MINUTES = 96;
 
 function fmt(value, digits = 2) {
   if (value == null || Number.isNaN(value)) return '--';
@@ -53,80 +64,6 @@ function latLngLabel(lat, lon) {
   }  /  ${Math.abs(lon).toFixed(2)}° ${
     lon >= 0 ? 'E' : 'W'
   }`;
-}
-
-function calculateState(satrec, date) {
-  const pv = propagate(satrec, date);
-
-  if (!pv.position) return null;
-
-  const gmst = gstime(date);
-  const geo = eciToGeodetic(pv.position, gmst);
-
-  const lat = degreesLat(geo.latitude);
-  const lon = degreesLong(geo.longitude);
-  const altitude = geo.height;
-
-  let velocity = null;
-
-  if (pv.velocity) {
-    velocity =
-      Math.sqrt(
-        pv.velocity.x ** 2 +
-          pv.velocity.y ** 2 +
-          pv.velocity.z ** 2
-      ) * 3600;
-  }
-
-  return {
-    lat,
-    lon,
-    altitude,
-    velocity,
-    date,
-  };
-}
-
-function calculateOrbit(satrec, centerDate) {
-  const points = [];
-
-  const start = new Date(
-    centerDate.getTime() -
-      (ORBIT_MINUTES / 2) * 60000
-  );
-
-  for (
-    let i = 0;
-    i <= (ORBIT_MINUTES * 60) / SAMPLE_SECONDS;
-    i++
-  ) {
-    const date = new Date(
-      start.getTime() +
-        i * SAMPLE_SECONDS * 1000
-    );
-
-    const state = calculateState(satrec, date);
-
-    if (!state) continue;
-
-    const previous =
-      points[points.length - 1];
-
-    if (
-      previous &&
-      Math.abs(state.lon - previous[1]) > 180
-    ) {
-      points.push([null, null, null]);
-    }
-
-    points.push([
-      state.lat,
-      state.lon,
-      Math.max(0.1, state.altitude),
-    ]);
-  }
-
-  return points;
 }
 
 function eciToEcf(position, gmst) {
@@ -226,6 +163,24 @@ function getPass(satrec, lat, lon, now) {
   return null;
 }
 
+// If the in-house globe throws while rendering, fall back to the legacy globe instead of a blank page.
+class EngineBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { failed: false };
+  }
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(error) {
+    console.error('[ISS tracker] new globe crashed, falling back to the legacy globe', error);
+    if (this.props.onError) this.props.onError();
+  }
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
 export default function ISSTrackerPage() {
   const router = useRouter();
   const globeRef = useRef(null);
@@ -246,14 +201,47 @@ export default function ISSTrackerPage() {
     };
   }, []);
 
-  const [satrec, setSatrec] = useState(null);
-  const [state, setState] = useState(null);
-  const [orbit, setOrbit] = useState([]);
-  const [status, setStatus] =
-    useState('ACQUIRING');
+  /*
+   * ONE tracker per page: a single TLE poll (every 2 hours, backed off after a failure) and a single 1 s SGP4 loop,
+   * started on mount and cancelled on unmount, whichever globe (or the 2D map) is showing. Status is one of
+   * ACQUIRING / LIVE / DELAYED / UNAVAILABLE; on a failed refresh the last valid state is kept.
+   */
+  const {
+    tracker,
+    satrec,
+    state,
+    status,
+    lastUpdate,
+    tleAgeMs,
+  } = useISSTracking();
 
-  const [lastUpdate, setLastUpdate] =
-    useState(null);
+  // Ground track for the 2D map and the legacy globe: computed once per set of orbital elements (as before).
+  const orbit = useMemo(
+    () => (satrec ? calculateOrbit(satrec, new Date()) : []),
+    [satrec]
+  );
+
+  // Globe implementation: legacy react-globe.gl by default; the in-house engine with ?orbitGlobe=engine (or the
+  // NEXT_PUBLIC_ORBITAL_GLOBE build setting). The server and the hydrating render use the build setting only; the URL
+  // override is read in a layout effect, before paint and before the legacy globe's async import can create a context.
+  const [impl, setImpl] = useState(() =>
+    resolveGlobeImplementation('', process.env.NEXT_PUBLIC_ORBITAL_GLOBE)
+  );
+  // Until it has run, neither globe is mounted (the placeholder below is exactly what the server renders), so a
+  // globe the flag then rejects never gets to create a WebGL context, even when its module is already cached.
+  const [implReady, setImplReady] = useState(false);
+  useIsoLayoutEffect(() => {
+    setImpl(
+      resolveGlobeImplementation(
+        window.location.search,
+        process.env.NEXT_PUBLIC_ORBITAL_GLOBE
+      )
+    );
+    setImplReady(true);
+  }, []);
+  const [engineFailed, setEngineFailed] = useState(false);
+  const useEngine = impl === 'engine' && !engineFailed;
+  const engineRef = useRef(null);
 
   const [follow, setFollow] =
     useState(false);
@@ -274,101 +262,6 @@ export default function ISSTrackerPage() {
 
   const [passLoading, setPassLoading] =
     useState(false);
-
-  const acquire = useCallback(async () => {
-    try {
-      setStatus('ACQUIRING');
-
-      const res = await fetch(
-        '/api/iss-tle',
-        {
-          cache: 'no-store',
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(
-          'ISS orbital feed unavailable'
-        );
-      }
-
-      const data = await res.json();
-
-      const {
-        twoline2satrec,
-      } = await import(
-        'satellite.js'
-      );
-
-      const nextSatrec =
-        twoline2satrec(
-          data.line1,
-          data.line2
-        );
-
-      setSatrec(nextSatrec);
-      setStatus('LIVE');
-    } catch (error) {
-      console.error(error);
-      setStatus('DELAYED');
-    }
-  }, []);
-
-  useEffect(() => {
-    acquire();
-
-    const refresh = setInterval(
-      acquire,
-      2 * 60 * 60 * 1000
-    );
-
-    return () =>
-      clearInterval(refresh);
-  }, [acquire]);
-
-  useEffect(() => {
-    if (!satrec) return;
-
-    setOrbit(
-      calculateOrbit(
-        satrec,
-        new Date()
-      )
-    );
-  }, [satrec]);
-
-  useEffect(() => {
-    if (!satrec) return;
-
-    const update = () => {
-      const now = new Date();
-
-      const next =
-        calculateState(
-          satrec,
-          now
-        );
-
-      if (!next) {
-        setStatus('DELAYED');
-        return;
-      }
-
-      setState(next);
-      setLastUpdate(now);
-      setStatus('LIVE');
-    };
-
-    update();
-
-    const timer = setInterval(
-      update,
-      1000
-    );
-
-    return () =>
-      clearInterval(timer);
-  }, [satrec]);
 
   /*
    * Safely move the camera. Guards against
@@ -436,7 +329,7 @@ export default function ISSTrackerPage() {
    * camera centered on the ISS.
    */
   useEffect(() => {
-    if (!follow || !state || view !== '3d') {
+    if (useEngine || !follow || !state || view !== '3d') {
       return;
     }
 
@@ -446,7 +339,7 @@ export default function ISSTrackerPage() {
       0.75,
       700
     );
-  }, [follow, state, view, moveCamera]);
+  }, [useEngine, follow, state, view, moveCamera]);
 
   useEffect(() => {
     if (view !== '3d') {
@@ -512,6 +405,11 @@ export default function ISSTrackerPage() {
    */
   const resetView = () => {
     setFollow(false);
+
+    if (useEngine) {
+      if (engineRef.current) engineRef.current.reset();
+      return;
+    }
 
     if (!globeRef.current) {
       return;
@@ -639,6 +537,8 @@ export default function ISSTrackerPage() {
             ? 'LIVE ORBITAL TELEMETRY'
             : status === 'ACQUIRING'
             ? 'ACQUIRING ORBITAL DATA'
+            : status === 'UNAVAILABLE'
+            ? 'ORBITAL DATA UNAVAILABLE'
             : 'DATA DELAYED'}
         </div>
 
@@ -678,7 +578,40 @@ export default function ISSTrackerPage() {
             SWITCH TO {view === '3d' ? '2D' : '3D'}
           </button>
 
-          {view === '3d' && (
+          {view === '3d' && !implReady && (
+            <div className="globe-shell">
+              <div className="iss-loading">
+                <span>INITIALIZING ORBITAL VISUALIZATION...</span>
+              </div>
+            </div>
+          )}
+
+          {view === '3d' && implReady && useEngine && (
+            <div className="globe-shell">
+              <EngineBoundary onError={() => setEngineFailed(true)}>
+                <ISSEngineGlobe
+                  ref={engineRef}
+                  tracker={tracker}
+                  follow={follow}
+                  showOrbit={showOrbit}
+                  onReadyChange={setGlobeReady}
+                  onFollowChange={setFollow}
+                  onUnavailable={() => setEngineFailed(true)}
+                />
+              </EngineBoundary>
+              {status !== 'LIVE' && (
+                <div className="iss-globe-chip" role="status">
+                  {status === 'ACQUIRING'
+                    ? 'ACQUIRING ORBITAL DATA...'
+                    : status === 'UNAVAILABLE'
+                    ? 'ORBITAL DATA UNAVAILABLE - RETRYING'
+                    : 'DATA DELAYED - USING LAST ORBITAL ELEMENTS'}
+                </div>
+              )}
+            </div>
+          )}
+
+          {view === '3d' && implReady && !useEngine && (
           <div className="globe-shell">
             <ReactGlobe
               ref={globeRef}
@@ -947,6 +880,15 @@ export default function ISSTrackerPage() {
               {formatTime(
                 lastUpdate
               )}
+            </small>
+
+            <small>
+              TLE age:{' '}
+              {tleAgeMs == null
+                ? '--'
+                : tleAgeMs < 48 * 3600000
+                ? `${(tleAgeMs / 3600000).toFixed(1)} h`
+                : `${(tleAgeMs / 86400000).toFixed(1)} days`}
             </small>
           </div>
 
@@ -1278,6 +1220,30 @@ export default function ISSTrackerPage() {
           box-shadow:
             0 0 8px
             rgba(234, 179, 8, 0.6);
+        }
+
+        .status-dot.unavailable {
+          background: #ef4444;
+          box-shadow:
+            0 0 8px
+            rgba(239, 68, 68, 0.6);
+        }
+
+        .iss-globe-chip {
+          position: absolute;
+          left: 50%;
+          bottom: 64px;
+          transform: translateX(-50%);
+          z-index: 6;
+          padding: 6px 12px;
+          border: 1px solid #27272a;
+          background: rgba(0, 0, 0, 0.78);
+          color: #cbd5e1;
+          font: 700 0.62rem/1.2 monospace;
+          letter-spacing: 1.5px;
+          pointer-events: none;
+          text-align: center;
+          max-width: calc(100% - 32px);
         }
 
         .status-dot.acquiring {
