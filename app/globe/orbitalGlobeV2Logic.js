@@ -25,25 +25,8 @@ export function limitFor(key, satLimit) {
   return key === 'active' && Number(satLimit) > 0 ? Number(satLimit) : undefined;
 }
 
-// Which implementation renders the Orbital Tracking globe.
-//   'legacy' (default): the original react-globe.gl component, exactly as before.
-//   'engine': the in-house SpaceTecGlobeEngine for the satellite view (launch pads stay on the legacy globe).
-// Sources, strongest first: URL ?orbitGlobe=engine|legacy, then the NEXT_PUBLIC_ORBITAL_GLOBE build setting.
-export function resolveGlobeImplementation(search, envValue) {
-  const norm = v => {
-    const s = String(v == null ? '' : v).trim().toLowerCase();
-    if (s === 'engine' || s === 'v2' || s === 'new') return 'engine';
-    if (s === 'legacy' || s === 'old' || s === 'v1') return 'legacy';
-    return null;
-  };
-  let fromUrl = null;
-  try {
-    fromUrl = norm(new URLSearchParams(search || '').get('orbitGlobe'));
-  } catch (error) {
-    fromUrl = null;
-  }
-  return fromUrl || norm(envValue) || 'legacy';
-}
+// Which implementation renders the Orbital Tracking globe ('legacy' default, 'engine' opt-in): see globeImplementation.js.
+export { resolveGlobeImplementation } from './globeImplementation';
 
 export function numOrNull(v) {
   if (v === null || v === undefined || v === '') return null;
