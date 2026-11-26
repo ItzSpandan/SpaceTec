@@ -172,9 +172,8 @@ class EngineBoundary extends Component {
   static getDerivedStateFromError() {
     return { failed: true };
   }
-  componentDidCatch(error) {
-    console.error('[ISS tracker] new globe crashed, falling back to the legacy globe', error);
-    if (this.props.onError) this.props.onError();
+  componentDidCatch(error, info) {
+    if (this.props.onError) this.props.onError(error, info);
   }
   render() {
     return this.state.failed ? null : this.props.children;
@@ -239,8 +238,26 @@ export default function ISSTrackerPage() {
     );
     setImplReady(true);
   }, []);
-  const [engineFailed, setEngineFailed] = useState(false);
+  // Why the in-house globe was given up (null while it is in use). The fallback to the legacy globe is permanent for
+  // the page session, so the reason is logged with the real exception and kept visible: window.__issGlobeFallback and
+  // the data-iss-globe / data-iss-globe-reason attributes on the globe shell.
+  const [engineFailure, setEngineFailure] = useState(null);
+  const engineFailed = engineFailure !== null;
   const useEngine = impl === 'engine' && !engineFailed;
+  const failEngine = useCallback((reason, phase, error) => {
+    const message = error && error.message ? error.message : error ? String(error) : '';
+    console.error(
+      `[ISS tracker] in-house globe failed (${reason}, phase: ${phase}); falling back to the legacy globe for this page session`,
+      error || ''
+    );
+    const failure = { reason, phase, message, stack: error && error.stack ? String(error.stack) : '', at: new Date().toISOString() };
+    try {
+      window.__issGlobeFallback = failure;
+    } catch (e) {
+      /* diagnostics only */
+    }
+    setEngineFailure(prev => prev || failure);
+  }, []);
   const engineRef = useRef(null);
 
   const [follow, setFollow] =
@@ -587,8 +604,8 @@ export default function ISSTrackerPage() {
           )}
 
           {view === '3d' && implReady && useEngine && (
-            <div className="globe-shell">
-              <EngineBoundary onError={() => setEngineFailed(true)}>
+            <div className="globe-shell" data-iss-globe="engine">
+              <EngineBoundary onError={error => failEngine('react-render-error', 'react-render', error)}>
                 <ISSEngineGlobe
                   ref={engineRef}
                   tracker={tracker}
@@ -596,7 +613,9 @@ export default function ISSTrackerPage() {
                   showOrbit={showOrbit}
                   onReadyChange={setGlobeReady}
                   onFollowChange={setFollow}
-                  onUnavailable={() => setEngineFailed(true)}
+                  onUnavailable={(status, detail) =>
+                    failEngine(status, detail && detail.phase ? detail.phase : 'unknown', detail && detail.error)
+                  }
                 />
               </EngineBoundary>
               {status !== 'LIVE' && (
@@ -612,7 +631,11 @@ export default function ISSTrackerPage() {
           )}
 
           {view === '3d' && implReady && !useEngine && (
-          <div className="globe-shell">
+          <div
+            className="globe-shell"
+            data-iss-globe={engineFailed ? 'legacy-fallback' : 'legacy'}
+            data-iss-globe-reason={engineFailed ? `${engineFailure.reason}:${engineFailure.phase}` : undefined}
+          >
             <ReactGlobe
               ref={globeRef}
               width={
