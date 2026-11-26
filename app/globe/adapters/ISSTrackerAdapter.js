@@ -13,7 +13,7 @@
  * The marker reuses the existing representative station model of the Orbital Tracking adapter (orbitalModels.js).
  */
 import { ORBITAL_MODELS } from './orbitalModels';
-import { ISS_ID, ISS_NAME, ISS_NORAD_ID, ISS_STATUS, createISSTracker } from './issTracking';
+import { ISS_ID, ISS_NAME, ISS_NORAD_ID, ISS_STATUS, TRAJECTORY_REFRESH_MS, createISSTracker } from './issTracking';
 import { normalizeLongitude } from './orbitalPropagation';
 
 export { ISS_ID };
@@ -108,6 +108,9 @@ export function createISSTrackerSubject(trackerOrOptions) {
         }
       };
     },
+    // The engine asks for the path this often (default 250 ms). The trajectory only changes every 30 s (cached by the
+    // tracker) and is returned as the same array in between, so the engine neither recomputes nor rebuilds anything.
+    pathRefreshMs: TRAJECTORY_REFRESH_MS,
     getPath(id) {
       if (String(id) !== ISS_ID) return null;
       return tracker.getTrajectory(Date.now());
