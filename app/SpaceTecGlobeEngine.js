@@ -23,6 +23,9 @@
  *     subscribe?(push): unsubscribe,                     // push-style updates: push(entities?)
  *     tickMs?: number, tick?(nowMs): GlobeEntity[]|void, // pull-style updates (returning a list pushes it)
  *     getPath?(entityId, nowMs): GlobePathPoint[]|null,  // optional path/trajectory for the selected entity
+ *     pathRefreshMs?: number,                            // how often getPath is asked again (default 250, min 100).
+ *                                                        //   Return the SAME array while the path is unchanged: the
+ *                                                        //   engine then skips the geometry update.
  *     onSelect?(entity|null),                            // selection callback
  *     // rendering configuration (all optional; defaults draw every entity as a plain marker):
  *     types?: { [typeKey]: { label, color, size } },     // render types; one instanced mesh each. A 'generic'
@@ -1921,7 +1924,7 @@ class GlobeEngine {
       this.update(dt, now);
       this.renderer.render(this.scene, this.camera);
     } catch (error) {
-      console.error('[SpaceTecGlobeEngine] render error', error);
+      console.error('[SpaceTecGlobeEngine] render error (render loop stopped)', error);
       this.stop();
       if (this.cb.onError) this.cb.onError(error);
     }
@@ -2160,8 +2163,11 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
   useEffect(() => setRotate(autoRotate), [autoRotate]);
 
   // Lets the owner react to engine lifecycle changes (waiting | nosize | loading | ready | unavailable | lost | error).
+  // The second argument describes failures: { phase: 'webgl-create' | 'init' | 'render-loop', error } so the owner can
+  // log the real exception and tell an initialisation failure from a render-loop failure.
+  const statusDetailRef = useRef(null);
   useEffect(() => {
-    if (onStatusRef.current) onStatusRef.current(status);
+    if (onStatusRef.current) onStatusRef.current(status, status === 'error' || status === 'unavailable' ? statusDetailRef.current : null);
   }, [status]);
 
   // Engine lifecycle: created once a real size exists, disposed on cleanup.
@@ -2204,12 +2210,16 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
             onStats: setStats,
             onContextLost: () => setStatus('lost'),
             onContextRestored: () => setEngineKey(k => k + 1),
-            onError: () => setStatus('error'),
+            onError: error => {
+              statusDetailRef.current = { phase: 'render-loop', error };
+              setStatus('error');
+            },
           },
         });
       } catch (error) {
         console.error('[SpaceTecGlobeEngine] WebGL unavailable', error);
         eng = null;
+        statusDetailRef.current = { phase: 'webgl-create', error };
         setStatus('unavailable');
         return;
       }
@@ -2221,6 +2231,7 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
         },
         error => {
           console.error('[SpaceTecGlobeEngine] init failed', error);
+          statusDetailRef.current = { phase: 'init', error };
           if (!disposed) setStatus('error');
         }
       );
@@ -2309,9 +2320,24 @@ const SpaceTecGlobeEngine = forwardRef(function SpaceTecGlobeEngine(
       return undefined;
     }
     if (subject && typeof subject.getPath === 'function') {
-      const draw = () => engine.setPath(subject.getPath(String(effectiveSel), Date.now()));
+      let last = null; // the array drawn last: an unchanged (same reference) path is not rebuilt
+      let lastError = '';
+      const draw = () => {
+        try {
+          const next = subject.getPath(String(effectiveSel), Date.now());
+          if (next && next === last) return;
+          last = next;
+          engine.setPath(next);
+        } catch (error) {
+          // A failing path must never take the globe down; report it (once per distinct message) and keep running.
+          const message = error && error.message ? error.message : String(error);
+          if (message !== lastError) console.error('[SpaceTecGlobeEngine] path refresh failed', error);
+          lastError = message;
+        }
+      };
       draw();
-      const id = setInterval(draw, 250); // keeps the path under the object as the Earth turns
+      const every = Number(subject.pathRefreshMs);
+      const id = setInterval(draw, Number.isFinite(every) && every > 0 ? Math.max(100, every) : 250); // default 250 ms
       return () => clearInterval(id);
     }
     engine.setPath(null);
