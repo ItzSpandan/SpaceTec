@@ -33,6 +33,7 @@ export const RETRY_MAX_MS = 10 * 60 * 1000;
 export const STALE_AFTER_MS = 2 * TLE_REFRESH_MS + 5 * 60 * 1000; // two refreshes missed in a row
 export const MAX_ELEMENT_AGE_MS = 14 * 24 * 60 * 60 * 1000; // SGP4 on older elements is meaningless
 export const FETCH_TIMEOUT_MS = 15 * 1000;
+export const TRAJECTORY_REFRESH_MS = 30 * 1000; // a computed trajectory is reused for this long
 
 export const ORBIT_MINUTES = 96; // +-48 minutes around "now" (unchanged)
 export const SAMPLE_SECONDS = 30; // unchanged
@@ -203,6 +204,8 @@ export function createISSTracker(options = {}) {
   let refreshes = 0;
   let requests = 0;
   let snapshot = null;
+  let trajectoryCache = null; // { satrec, centerMs, points }
+  let trajectoryComputations = 0;
 
   const computeStatus = nowMs => {
     if (!satrec) return failures > 0 ? ISS_STATUS.UNAVAILABLE : ISS_STATUS.ACQUIRING;
@@ -363,10 +366,17 @@ export function createISSTracker(options = {}) {
     /** Trajectory (engine format) around nowMs from the last valid elements, or null. */
     getTrajectory(nowMs = now()) {
       if (!satrec || (snapshot && snapshot.status === ISS_STATUS.UNAVAILABLE)) return null;
+      // 193 SGP4 samples are not recomputed on every call: the cached array (same reference, so callers can tell it is
+      // unchanged) is reused for TRAJECTORY_REFRESH_MS and dropped as soon as the orbital elements change. The track is
+      // exact for any instant in that window: each sample already carries its own time, only the +-48 min ends shift.
+      const c = trajectoryCache;
+      if (c && c.satrec === satrec && Math.abs(nowMs - c.centerMs) < TRAJECTORY_REFRESH_MS) return c.points;
+      trajectoryComputations += 1;
       const points = buildTrajectory(satrec, nowMs);
-      return points.length > 1 ? points : null;
+      trajectoryCache = { satrec, centerMs: nowMs, points: points.length > 1 ? points : null };
+      return trajectoryCache.points;
     },
     /** Diagnostics for tests / debugging. */
-    getStats: () => ({ retained, requests, refreshes, failures, polling: pollTimer !== null || inflight, ticking: tickTimer !== null }),
+    getStats: () => ({ retained, requests, refreshes, failures, trajectoryComputations, polling: pollTimer !== null || inflight, ticking: tickTimer !== null }),
   };
 }
