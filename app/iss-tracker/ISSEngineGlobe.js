@@ -82,7 +82,7 @@ const ISSEngineGlobe = forwardRef(function ISSEngineGlobe(
   );
 
   const onStatus = useCallback(
-    status => {
+    (status, detail) => {
       const ready = status === 'ready';
       readyRef.current = ready;
       if (onReadyChange) onReadyChange(ready);
@@ -93,7 +93,8 @@ const ISSEngineGlobe = forwardRef(function ISSEngineGlobe(
         }
         applyFollow();
       }
-      if ((status === 'unavailable' || status === 'error') && onUnavailable) onUnavailable();
+      // detail = { phase, error } from the engine: handed on so the page can log the real exception.
+      if ((status === 'unavailable' || status === 'error') && onUnavailable) onUnavailable(status, detail);
     },
     [applyFollow, onReadyChange, onUnavailable]
   );
