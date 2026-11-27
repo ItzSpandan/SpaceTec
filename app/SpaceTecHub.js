@@ -17,6 +17,7 @@ import MobileBottomNav from './components/MobileBottomNav';
 import useIsMobile from './lib/useIsMobile';
 import MobileSearchScreen from './mobile/MobileSearchScreen';
 import { MobileAgenciesSection, MobileLaunchpadsSection } from './mobile/MobileExploreSections';
+import { HomeAgencyCarousel, HomeLaunchpadCarousel, HomeLaunchCarousel, HOME_CARDS_CSS } from './home/HomeCards';
 
 // --- LAUNCH STATUS HELPERS (shared by the homepage, the explore pages, and the launch modal) ---
 
@@ -101,59 +102,6 @@ function formatLaunchSchedule(dateStr, precision, isPast = false) {
   if (precision === 'Year') return `${year}`;
 
   return 'SCHEDULE UNCONFIRMED';
-}
-
-// Editorial-style content for the small homepage launch tiles (upcoming +
-// past). Structure only — no boxed field labels, hierarchy comes from
-// spacing/size/weight/dividers instead. Every field the old card showed
-// (provider, status, NET/LAUNCHED date, pad) is still here, just laid out
-// differently; nothing is calculated here that wasn't already on `launch`.
-function LaunchTileBody({ launch, isPast }) {
-  const dateLabel = isPast ? 'LAUNCHED' : 'NET';
-
-  return (
-    <>
-      <div>
-        <span style={{ fontSize: '0.62rem', letterSpacing: '2.5px', textTransform: 'uppercase', color: '#71717a', fontWeight: '700' }}>
-          {`// ${isPast ? 'COMPLETED' : 'SCHEDULED'}`}{launch.provider ? ` · ${launch.provider}` : ''}
-        </span>
-        <h3 style={{ fontSize: '1.05rem', margin: '0.9rem 0 1.4rem 0', fontWeight: '700', lineHeight: '1.4', letterSpacing: '0.5px', textTransform: 'uppercase', color: '#ffffff' }}>
-          {launch.name}
-        </h3>
-      </div>
-
-      <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        <div>
-          <span style={{ display: 'block', fontSize: '0.6rem', letterSpacing: '2px', color: '#52525b', fontWeight: '700', marginBottom: '0.25rem' }}>
-            {dateLabel}
-          </span>
-          <span style={{ fontSize: '0.8rem', color: '#d4d4d8', letterSpacing: '0.3px' }}>
-            {formatLaunchSchedule(launch.net, launch.net_precision, isPast)}
-          </span>
-          {isPast && (
-            <span style={{ marginLeft: '0.6rem', fontSize: '0.68rem', color: '#71717a' }}>
-              ({formatTimeAgo(launch.net)})
-            </span>
-          )}
-        </div>
-
-        <div>
-          <span style={{ display: 'block', fontSize: '0.6rem', letterSpacing: '2px', color: '#52525b', fontWeight: '700', marginBottom: '0.25rem' }}>
-            {isPast ? 'STATUS' : 'PAD'}
-          </span>
-          {isPast ? (
-            <span style={{ fontSize: '0.8rem', fontWeight: '700', letterSpacing: '1px', color: getLaunchStatusColor(launch.status) }}>
-              {(launch.status || 'STATUS UNKNOWN').toUpperCase()}
-            </span>
-          ) : (
-            <span style={{ fontSize: '0.8rem', color: '#d4d4d8', letterSpacing: '0.3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
-              {launch.pad_location || 'Vandenberg Space Force Base'}
-            </span>
-          )}
-        </div>
-      </div>
-    </>
-  );
 }
 
 // Phone-only layout for the homepage Upcoming / Past launch sections. It reads
@@ -385,8 +333,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
   }, []);
 
   const [bgIndex, setBgIndex] = useState(0);
-  const [activeAgency, setActiveAgency] = useState(null);
-  const [agencyBatchIndex, setAgencyBatchIndex] = useState(0);
   const [expandedLaunch, setExpandedLaunch] = useState(null); 
   const [showAllLaunchesPage, setShowAllLaunchesPage] = useState(false);
   const [isTransitioningExplore, setIsTransitioningExplore] = useState(false);
@@ -400,8 +346,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
   const [globeViewMode, setGlobeViewMode] = useState({ mode: 'pads', requestId: 0 });
 
   // New States for Explore Launchpads Section
-  const [activePad, setActivePad] = useState(null);
-  const [padBatchIndex, setPadBatchIndex] = useState(0);
   const [showAllLaunchpadsPage, setShowAllLaunchpadsPage] = useState(false);
   const [isTransitioningLaunchpads, setIsTransitioningLaunchpads] = useState(false);
   // Set when Global Search opens a specific launchpad, so AllLaunchpadsPage
@@ -492,7 +436,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
   ];
 
   const majorLaunchpads = allLaunchpads.filter(p => p.isMajor);
-  const currentBatchLaunchpads = majorLaunchpads.filter(p => p.batch === padBatchIndex);
 
   const padWeatherById = (padWeather || []).reduce((acc, w) => {
     acc[w.id] = w;
@@ -688,24 +631,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
   }, []);
 
   useEffect(() => {
-    const batchTimer = setInterval(() => {
-      if (!activeAgency) {
-        setAgencyBatchIndex((prev) => (prev === 0 ? 1 : 0));
-      }
-    }, 12000);
-    return () => clearInterval(batchTimer);
-  }, [activeAgency]);
-
-  useEffect(() => {
-    const padBatchTimer = setInterval(() => {
-      if (!activePad) {
-        setPadBatchIndex((prev) => (prev === 0 ? 1 : 0));
-      }
-    }, 12000);
-    return () => clearInterval(padBatchTimer);
-  }, [activePad]);
-
-  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -773,7 +698,6 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
     visible: { opacity: 1, y: 0, transition: { duration: 0.85, ease: [0.16, 1, 0.3, 1] } }
   };
 
-  const currentBatchAgencies = allAgencies.filter(a => a.batch === agencyBatchIndex);
 
   // Split the single `launches` table feed into two buckets: launches that
   // haven't happened yet, and launches that have already flown (regardless
@@ -1057,6 +981,8 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
           transition: all 0.3s ease;
           backdrop-filter: blur(10px);
         }
+
+        ${HOME_CARDS_CSS}
 
         .explore-btn:hover {
           background: rgba(255, 255, 255, 0.15);
@@ -1901,142 +1827,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
               onExploreMore={() => handleOpenAllAgencies()}
             />
           ) : (
-          <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.0rem' }}>
-            <div>
-              <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
-                // GLOBAL AEROSPACE ARCHITECTURE
-              </span>
-              <h2 style={{ fontSize: '2rem', textTransform: 'uppercase', margin: '0.5rem 0 0 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
-                EXPLORE SPACE AGENCIES ACROSS THE GLOBE
-              </h2>
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.65rem', letterSpacing: '2px', color: '#a1a1aa', textTransform: 'uppercase' }}>
-                {activeAgency ? 'ROTATION PAUSED' : `BATCH ${agencyBatchIndex + 1} / 2`}
-              </span>
-            </div>
-          </div>
-
-          <AnimatePresence mode="wait">
-            <motion.div 
-              key={agencyBatchIndex}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.5 }}
-              className="glass-card" 
-              style={{ display: 'flex', borderRadius: '2px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)' }}
-            >
-              {currentBatchAgencies.map((agency, index) => {
-                const isHovered = activeAgency === agency.id;
-                let flexValue = 1;
-                if (activeAgency !== null) {
-                  flexValue = isHovered ? 12 : 0;
-                }
-
-                return (
-                  <div
-                    key={agency.id}
-                    className="agency-column"
-                    style={{ 
-                      flex: flexValue, 
-                      padding: isHovered ? '3rem 3.5rem' : '2.5rem 2rem'
-                    }}
-                    onMouseEnter={() => setActiveAgency(agency.id)}
-                    onMouseLeave={() => setActiveAgency(null)}
-                  >
-                    {!isHovered && (
-                      <video
-                        className="agency-video-bg"
-                        src={agency.videoUrl}
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                      />
-                    )}
-
-                    {isHovered && (
-                      <div 
-                        style={{
-                          position: 'absolute',
-                          inset: 0,
-                          zIndex: 1,
-                          width: '100%',
-                          height: '100%'
-                        }}
-                      >
-                        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                          <Image
-                            src={agency.hqImage}
-                            alt={agency.name}
-                            fill
-                            style={{ objectFit: 'cover', opacity: 0.85 }}
-                            unoptimized
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="agency-text-shield" />
-
-                    <div className="agency-content-layer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.65rem', letterSpacing: '3px', textTransform: 'uppercase', color: isHovered ? agency.accentColor : '#a1a1aa', fontWeight: '800', transition: 'color 0.3s ease' }}>
-                        // 0{agencyBatchIndex * 3 + index + 1}
-                      </span>
-                      {isHovered && (
-                        <motion.span 
-                          initial={{ opacity: 0, x: 10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          style={{ fontSize: '0.65rem', letterSpacing: '2px', color: '#ffffff', background: 'rgba(0,0,0,0.6)', padding: '0.3rem 0.8rem', border: `1px solid ${agency.accentColor}`, fontWeight: '700' }}
-                        >
-                          {agency.logoText}
-                        </motion.span>
-                      )}
-                    </div>
-
-                    <div className="agency-content-layer" style={{ 
-                      transform: isHovered ? 'translateY(-14px)' : 'translateY(0px)', 
-                      transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' 
-                    }}>
-                      <h3 style={{ fontSize: '1.8rem', fontWeight: '900', letterSpacing: '3px', margin: '0 0 0.5rem 0', color: '#ffffff', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {agency.name}
-                      </h3>
-                      
-                      <p style={{ fontSize: '0.7rem', letterSpacing: '2px', color: agency.accentColor, textTransform: 'uppercase', margin: '0 0 1rem 0', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {agency.tagline}
-                      </p>
-
-                      <p style={{ fontSize: '0.85rem', color: '#d4d4d8', lineHeight: '1.6', margin: 0, opacity: isHovered ? 1 : 0.6, transition: 'opacity 0.3s ease', display: isHovered || activeAgency === null ? 'block' : 'none' }}>
-                        {agency.specialty}
-                      </p>
-
-                      {isHovered && (
-                        <motion.p 
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.4, delay: 0.1 }}
-                          style={{ fontSize: '0.8rem', color: '#a1a1aa', lineHeight: '1.6', margin: '1rem 0 0 0', maxWidth: '540px', borderLeft: `2px solid ${agency.accentColor}`, paddingLeft: '1rem' }}
-                        >
-                          {agency.brief}
-                        </motion.p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </motion.div>
-          </AnimatePresence>
-
-          <button 
-            className="explore-btn"
-            onClick={handleOpenAllAgencies}
-          >
-            <span>Explore More Space Agencies</span>
-            <span>→</span>
-          </button>
-          </>
+          <HomeAgencyCarousel agencies={allAgencies} onExplore={handleOpenAllAgencies} />
           )}
         </section>
 
@@ -2050,118 +1841,7 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
               onExploreMore={() => handleOpenAllLaunchpads()}
             />
           ) : (
-          <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.0rem' }}>
-            <div>
-              <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
-                // GLOBAL GROUND INFRASTRUCTURE
-              </span>
-              <h2 style={{ fontSize: '2rem', textTransform: 'uppercase', margin: '0.5rem 0 0 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
-                EXPLORE LAUNCHPADS ACROSS THE GLOBE
-              </h2>
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.65rem', letterSpacing: '2px', color: '#a1a1aa', textTransform: 'uppercase' }}>
-                {activePad ? 'ROTATION PAUSED' : `BATCH ${padBatchIndex + 1} / 2`}
-              </span>
-            </div>
-          </div>
-
-          <AnimatePresence mode="wait">
-            <motion.div 
-              key={padBatchIndex}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.5 }}
-              className="glass-card" 
-              style={{ display: 'flex', borderRadius: '2px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)' }}
-            >
-              {currentBatchLaunchpads.map((pad, index) => {
-                const isHovered = activePad === pad.id;
-                let flexValue = 1;
-                if (activePad !== null) {
-                  flexValue = isHovered ? 12 : 0;
-                }
-                const liveWeather = padWeatherById[pad.id];
-
-                return (
-                  <div
-                    key={pad.id}
-                    className="agency-column"
-                    style={{ 
-                      flex: flexValue, 
-                      padding: isHovered ? '3rem 3.5rem' : '2.5rem 2rem',
-                      background: `linear-gradient(160deg, ${pad.accentColor}22 0%, #0b0b0b 70%)`
-                    }}
-                    onMouseEnter={() => setActivePad(pad.id)}
-                    onMouseLeave={() => setActivePad(null)}
-                  >
-                    <div className="agency-text-shield" />
-
-                    <div className="agency-content-layer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.65rem', letterSpacing: '3px', textTransform: 'uppercase', color: isHovered ? pad.accentColor : '#a1a1aa', fontWeight: '800', transition: 'color 0.3s ease' }}>
-                        // 0{padBatchIndex * 3 + index + 1}
-                      </span>
-                      <span 
-                        style={{ fontSize: '0.65rem', letterSpacing: '2px', color: getStatusColor(pad.status), background: 'rgba(0,0,0,0.6)', padding: '0.3rem 0.8rem', border: `1px solid ${getStatusColor(pad.status)}`, fontWeight: '700' }}
-                      >
-                        {pad.status}
-                      </span>
-                    </div>
-
-                    <div className="agency-content-layer" style={{ 
-                      transform: isHovered ? 'translateY(-14px)' : 'translateY(0px)', 
-                      transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)' 
-                    }}>
-                      <h3 style={{ fontSize: '1.6rem', fontWeight: '900', letterSpacing: '2px', margin: '0 0 0.5rem 0', color: '#ffffff', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {pad.name}
-                      </h3>
-                      
-                      <p style={{ fontSize: '0.7rem', letterSpacing: '2px', color: pad.accentColor, textTransform: 'uppercase', margin: '0 0 1rem 0', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {pad.tagline}
-                      </p>
-
-                      <p style={{ fontSize: '0.85rem', color: '#d4d4d8', lineHeight: '1.6', margin: 0, opacity: isHovered ? 1 : 0.6, transition: 'opacity 0.3s ease', display: isHovered || activePad === null ? 'block' : 'none' }}>
-                        {pad.country} // {pad.lat.toFixed(2)}, {pad.lon.toFixed(2)}
-                      </p>
-
-                      {isHovered && (
-                        <motion.div 
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.4, delay: 0.1 }}
-                          style={{ marginTop: '1rem', maxWidth: '540px', borderLeft: `2px solid ${pad.accentColor}`, paddingLeft: '1rem' }}
-                        >
-                          <p style={{ fontSize: '0.8rem', color: '#a1a1aa', lineHeight: '1.6', margin: '0 0 0.8rem 0' }}>
-                            {pad.history}
-                          </p>
-                          {liveWeather ? (
-                            <p style={{ fontSize: '0.7rem', color: '#e2e8f0', letterSpacing: '1px', margin: 0, fontWeight: '700' }}>
-                              🌡 {liveWeather.temperature} &nbsp; 💧 {liveWeather.humidity} &nbsp; 💨 {liveWeather.wind_speed}
-                            </p>
-                          ) : (
-                            <p style={{ fontSize: '0.7rem', color: '#71717a', letterSpacing: '1px', margin: 0, fontWeight: '700', textTransform: 'uppercase' }}>
-                              Awaiting live telemetry sync...
-                            </p>
-                          )}
-                        </motion.div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </motion.div>
-          </AnimatePresence>
-
-          <button 
-            className="explore-btn"
-            onClick={handleOpenAllLaunchpads}
-          >
-            <span>Explore More Launchpads</span>
-            <span>→</span>
-          </button>
-          </>
+          <HomeLaunchpadCarousel pads={majorLaunchpads} weatherById={padWeatherById} onExplore={handleOpenAllLaunchpads} />
           )}
         </section>
 
@@ -2195,30 +1875,16 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
             />
           ) : (
           <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
-            <div>
-              <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
-                // ORBITAL MANIFEST
-              </span>
-              <h2 style={{ fontSize: '1.8rem', textTransform: 'uppercase', margin: '0.5rem 0 0 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
-                UPCOMING GLOBAL LAUNCHES
-              </h2>
-            </div>
-          </div>
-
-          <div className="st-desk-only" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-            {latestLaunches.map((launch) => (
-              <motion.div 
-                key={launch.id} 
-                whileHover={{ y: -6, borderColor: '#ffffff' }}
-                onClick={() => setExpandedLaunch(launch)}
-                className="glass-card launch-tile" 
-                style={{ padding: '2rem', borderRadius: '2px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '220px', transition: 'border-color 0.3s ease', cursor: 'pointer' }}
-              >
-                <LaunchTileBody launch={launch} isPast={false} />
-              </motion.div>
-            ))}
-          </div>
+          <HomeLaunchCarousel
+            launches={latestLaunches}
+            isPast={false}
+            eyebrow="// ORBITAL MANIFEST"
+            heading="UPCOMING GLOBAL LAUNCHES"
+            navLabel="Upcoming launches"
+            onSelect={(launch) => setExpandedLaunch(launch)}
+            formatSchedule={(l) => formatLaunchSchedule(l.net, l.net_precision, false)}
+            formatElapsed={(l) => formatTimeAgo(l.net)}
+          />
 
           {remainingLaunches.length > 0 && (
             <div style={{ marginTop: '3rem', textAlign: 'center' }}>
@@ -2251,35 +1917,17 @@ export default function SpaceTecHub({ apodData, upcomingLaunches, padWeather }) 
             />
           ) : (
           <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem' }}>
-            <div>
-              <span style={{ fontSize: '0.7rem', color: '#a1a1aa', letterSpacing: '4px', textTransform: 'uppercase', fontWeight: '700' }}>
-                // MISSION ARCHIVE
-              </span>
-              <h2 style={{ fontSize: '1.8rem', textTransform: 'uppercase', margin: '0.5rem 0 0 0', fontWeight: '900', letterSpacing: '2px', color: '#ffffff' }}>
-                PAST GLOBAL LAUNCHES
-              </h2>
-            </div>
-          </div>
-
-          <div className="st-desk-only" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-            {latestPastLaunches.map((launch) => (
-              <motion.div 
-                key={launch.id} 
-                whileHover={{ y: -6, borderColor: '#ffffff' }}
-                onClick={() => setExpandedLaunch(launch)}
-                className="glass-card launch-tile" 
-                style={{ padding: '2rem', borderRadius: '2px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '220px', transition: 'border-color 0.3s ease', cursor: 'pointer' }}
-              >
-                <LaunchTileBody launch={launch} isPast={true} />
-              </motion.div>
-            ))}
-            {latestPastLaunches.length === 0 && (
-              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem', color: '#71717a', border: '1px dashed rgba(255,255,255,0.15)' }}>
-                No completed launches synced yet. Check back after the next manifest sync.
-              </div>
-            )}
-          </div>
+          <HomeLaunchCarousel
+            launches={latestPastLaunches}
+            isPast
+            eyebrow="// MISSION ARCHIVE"
+            heading="PAST GLOBAL LAUNCHES"
+            navLabel="Past launches"
+            onSelect={(launch) => setExpandedLaunch(launch)}
+            formatSchedule={(l) => formatLaunchSchedule(l.net, l.net_precision, true)}
+            formatElapsed={(l) => formatTimeAgo(l.net)}
+            emptyText="No completed launches synced yet. Check back after the next manifest sync."
+          />
 
           {remainingPastLaunches.length > 0 && (
             <div style={{ marginTop: '3rem', textAlign: 'center' }}>
@@ -3801,4 +3449,4 @@ function LaunchCountdownModal({ launch, weather, onClose, spaceBackgrounds }) {
       </motion.div>
     </motion.div>
   );
-          }
+    }
